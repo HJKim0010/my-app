@@ -65,6 +65,6 @@ export function buildUserInput(
     "",
     `User query: ${query}`,
     "",
-    "Respond within policy limits. Use only assigned session materials. Prefer bullet points, outline guidance, vocabulary help, local clarification, or abstract frames with blanks.",
+    "Respond within policy limits. Use only assigned session materials. Keep the response short. Use plain text only. Do not use markdown or bold markers. Prefer at most 3 short bullet points or 2 short sentences.",
   ].join("\n");
 }
