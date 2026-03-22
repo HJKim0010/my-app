@@ -4,6 +4,7 @@ import type { TaskPackage } from "@/backend/rag/loader";
 import type { RetrievedChunk } from "@/backend/rag/retriever";
 
 const PROMPTS_ROOT = path.join(process.cwd(), "prompts");
+
 const CONFUSION_PATTERNS = [
   "i don't understand",
   "i do not understand",
@@ -19,13 +20,12 @@ const CONFUSION_PATTERNS = [
   "이해가 안",
   "헷갈",
   "어려워",
-  "기억이 안 나",
-  "기억이 안나",
+  "기억이 안",
   "잘 모르겠",
+  "아무것도 모르겠",
 ];
 
 function readPromptFile(fullPath: string, fallback: string): string {
-
   if (!fs.existsSync(fullPath)) {
     return fallback;
   }
@@ -56,7 +56,7 @@ export function buildUserInput(
   retrievedChunks: RetrievedChunk[]
 ): string {
   const confusionSupportInstruction = isConfusionQuery(query)
-    ? "The learner sounds confused. Give scaffolding only. Explain one small part at a time in simple Korean, add only 1 to 3 easy English words or short phrases, and stop there. Do not move on to writing plans, paragraph ideas, outlines, or continuation support unless the learner asks again."
+    ? "The learner sounds confused. Give scaffolding only. Explain one small part at a time in simple Korean, add only 1 to 3 easy English words or short phrases, and stop there. Do not move on to writing plans, paragraph ideas, outlines, continuation support, useful expressions, sentence frames, or next-step writing help unless the learner asks again."
     : "If the learner asks for source understanding, explain locally and briefly before offering any other kind of support.";
 
   const contextBlock =

@@ -8,12 +8,95 @@ import { loadTask1Package, type TaskCondition } from "@/backend/rag/loader";
 import { buildSystemInstruction, buildUserInput } from "@/backend/rag/promptBuilder";
 import { retrieveTask1Chunks } from "@/backend/rag/retriever";
 
+const CONFUSION_PATTERNS = [
+  "i don't understand",
+  "i do not understand",
+  "i am confused",
+  "i'm confused",
+  "this is hard",
+  "i'm lost",
+  "i am lost",
+  "i don't get it",
+  "i do not get it",
+  "what does this mean",
+  "무슨 뜻",
+  "이해가 안",
+  "헷갈",
+  "어려워",
+  "기억이 안",
+  "잘 모르겠",
+  "아무것도 모르겠",
+];
+
+const CONFUSION_STOP_MARKERS = [
+  "이어서 쓸",
+  "글을 짤",
+  "구성 틀",
+  "문장 틀",
+  "원하면 다음 단계",
+  "brainstorm",
+  "outline",
+  "개요",
+  "유용한 표현",
+  "문단 계획",
+  "다음에 생각할 수 있는 방향",
+  "쓸 때 유지해야 할",
+  "영어 표현만",
+  "줄거리 아이디어",
+  "도입-중간-끝",
+];
+
+function isConfusionQuery(text: string): boolean {
+  const normalized = text.toLowerCase();
+  return CONFUSION_PATTERNS.some((pattern) => normalized.includes(pattern));
+}
+
 function sanitizeAssistantResponse(text: string): string {
   return text
     .replace(/\*\*/g, "")
     .replace(/\*/g, "")
     .replace(/^#{1,6}\s*/gm, "")
+    .replace(/^\s*\d+\.\s+/gm, "")
     .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function toSentenceFragments(text: string): string[] {
+  return text
+    .split(/(?<=[.!?])\s+|\n+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+function trimConfusionResponse(text: string): string {
+  const sanitized = sanitizeAssistantResponse(text);
+  const lines = sanitized
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const keptLines: string[] = [];
+
+  for (const line of lines) {
+    const lower = line.toLowerCase();
+    if (CONFUSION_STOP_MARKERS.some((marker) => lower.includes(marker.toLowerCase()))) {
+      break;
+    }
+
+    keptLines.push(line.replace(/^[-*]\s*/, "- "));
+    if (keptLines.length >= 3) {
+      break;
+    }
+  }
+
+  const compact = keptLines.join("\n").trim();
+  if (compact) {
+    return compact;
+  }
+
+  return toSentenceFragments(sanitized)
+    .slice(0, 2)
+    .join(" ")
     .trim();
 }
 
@@ -156,9 +239,10 @@ export async function POST(request: NextRequest) {
     );
 
     clearTimeout(timeout);
-    const assistantResponse = sanitizeAssistantResponse(
-      response.output_text || "No response text returned."
-    );
+    const rawAssistantResponse = response.output_text || "No response text returned.";
+    const assistantResponse = isConfusionQuery(query)
+      ? trimConfusionResponse(rawAssistantResponse)
+      : sanitizeAssistantResponse(rawAssistantResponse);
 
     await appendChatLog({
       session_id: sessionId,
