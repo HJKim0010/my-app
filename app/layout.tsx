@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Restricted AI Chatbot",
-  description: "A simple chatbot UI backed by a Next.js route handler.",
+  title: "My Writing Assistant",
+  description: "A restricted, source-grounded writing support assistant.",
 };
 
 export default function RootLayout({

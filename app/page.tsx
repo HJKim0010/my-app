@@ -147,7 +147,7 @@ export default function Home() {
         <div className="chat-header">
           <div>
             <span className="task-badge">Task 1</span>
-            <h1>Restricted AI Chatbot</h1>
+            <h1>My Writing Assistant</h1>
           </div>
         </div>
 
@@ -189,7 +189,7 @@ export default function Home() {
                   }
                 >
                   <div className="message-role">
-                    {message.role === "user" ? "You" : "Chatbot"}
+                    {message.role === "user" ? "You" : "Assistant"}
                   </div>
                   <div className="message-text">{message.text}</div>
                 </div>
@@ -198,7 +198,7 @@ export default function Home() {
             {isLoading ? (
               <div className="message-row message-row-assistant">
                 <div className="message-bubble message-bubble-assistant">
-                  <div className="message-role">Chatbot</div>
+                  <div className="message-role">Assistant</div>
                   <div className="message-text">Thinking...</div>
                 </div>
               </div>
@@ -229,11 +229,7 @@ export default function Home() {
           />
 
           <div className="composer-footer">
-            <button
-              onClick={send}
-              disabled={isLoading}
-              className="send-button"
-            >
+            <button onClick={send} disabled={isLoading} className="send-button">
               {isLoading ? "Sending..." : "Send"}
             </button>
           </div>
