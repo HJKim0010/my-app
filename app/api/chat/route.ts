@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     await appendChatLog({
       session_id: sessionId,
       task_id: taskPackage.config.task_id,
-      condition_label: taskPackage.conditionLabel,
+      condition_label: taskPackage.config.ai_condition,
       selected_category: category,
       raw_user_query: query,
       policy_decision: policyDecision,
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     await appendChatLog({
       session_id: sessionId,
       task_id: taskPackage.config.task_id,
-      condition_label: taskPackage.conditionLabel,
+      condition_label: taskPackage.config.ai_condition,
       selected_category: category,
       raw_user_query: query,
       policy_decision: policyDecision,
@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
     await appendChatLog({
       session_id: sessionId,
       task_id: taskPackage.config.task_id,
-      condition_label: taskPackage.conditionLabel,
+      condition_label: taskPackage.config.ai_condition,
       selected_category: category,
       raw_user_query: query,
       policy_decision: policyDecision,
@@ -193,7 +193,7 @@ export async function POST(request: NextRequest) {
     await appendChatLog({
       session_id: sessionId,
       task_id: taskPackage.config.task_id,
-      condition_label: taskPackage.conditionLabel,
+      condition_label: taskPackage.config.ai_condition,
       selected_category: category,
       raw_user_query: query,
       policy_decision: policyDecision,

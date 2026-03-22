@@ -24,6 +24,12 @@ export default function Home() {
     },
   ]);
   const threadEndRef = useRef<HTMLDivElement | null>(null);
+  const messagesRef = useRef(messages);
+  const interactionCountRef = useRef(interactionCount);
+  const sessionIdRef = useRef(sessionId);
+  const sessionStartedAtRef = useRef(sessionStartedAt);
+  const selectedConditionRef = useRef(selectedCondition);
+  const transcriptSavedRef = useRef(false);
 
   useEffect(() => {
     const conditionParam = new URLSearchParams(window.location.search).get("condition");
@@ -31,10 +37,41 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  useEffect(() => {
+    interactionCountRef.current = interactionCount;
+  }, [interactionCount]);
+
+  useEffect(() => {
+    sessionIdRef.current = sessionId;
+  }, [sessionId]);
+
+  useEffect(() => {
+    sessionStartedAtRef.current = sessionStartedAt;
+  }, [sessionStartedAt]);
+
+  useEffect(() => {
+    selectedConditionRef.current = selectedCondition;
+  }, [selectedCondition]);
+
+  useEffect(() => {
+    const hasExistingSession = Boolean(sessionIdRef.current) && interactionCountRef.current > 0;
+
+    if (hasExistingSession && !transcriptSavedRef.current) {
+      void persistTranscript(
+        messagesRef.current.map(({ role, text }) => ({ role, text })),
+        interactionCountRef.current,
+        true
+      );
+    }
+
     const nextSessionId = crypto.randomUUID();
     setSessionId(nextSessionId);
     setSessionStartedAt(Date.now());
     setInteractionCount(0);
+    transcriptSavedRef.current = false;
   }, [selectedCondition]);
 
   useEffect(() => {
@@ -43,26 +80,77 @@ export default function Home() {
 
   const persistTranscript = async (
     transcript: Array<Pick<ChatMessage, "role" | "text">>,
-    count: number
+    count: number,
+    isFinal = false
   ) => {
+    if (!sessionIdRef.current || count <= 0 || transcriptSavedRef.current) {
+      return;
+    }
+
+    const payload = {
+      sessionId: sessionIdRef.current,
+      condition: selectedConditionRef.current,
+      interactionCount: count,
+      sessionStartedAt: sessionStartedAtRef.current,
+      isFinal,
+      messages: transcript,
+    };
+
     try {
+      if (isFinal && typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+        const blob = new Blob([JSON.stringify(payload)], {
+          type: "application/json",
+        });
+        const accepted = navigator.sendBeacon("/api/session", blob);
+
+        if (accepted) {
+          transcriptSavedRef.current = true;
+          return;
+        }
+      }
+
       await fetch("/api/session", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          sessionId,
-          condition: selectedCondition,
-          interactionCount: count,
-          sessionStartedAt,
-          messages: transcript,
-        }),
+        body: JSON.stringify(payload),
+        keepalive: isFinal,
       });
+      transcriptSavedRef.current = true;
     } catch (error) {
       console.error("Failed to persist session transcript", error);
     }
   };
+
+  useEffect(() => {
+    const flushTranscript = () => {
+      if (transcriptSavedRef.current || interactionCountRef.current <= 0) {
+        return;
+      }
+
+      void persistTranscript(
+        messagesRef.current.map(({ role, text }) => ({ role, text })),
+        interactionCountRef.current,
+        true
+      );
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        flushTranscript();
+      }
+    };
+
+    window.addEventListener("pagehide", flushTranscript);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      flushTranscript();
+      window.removeEventListener("pagehide", flushTranscript);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
   const send = async () => {
     if (!input.trim()) {
@@ -106,20 +194,12 @@ export default function Home() {
       };
 
       setMessages((current) => {
-        const nextMessages = [...current, assistantMessage];
-        void persistTranscript(
-          nextMessages.map(({ role, text: messageText }) => ({
-            role,
-            text: messageText,
-          })),
-          nextInteractionCount
-        );
-        return nextMessages;
+        return [...current, assistantMessage];
       });
     } catch (err) {
       console.error(err);
       setMessages((current) => {
-        const nextMessages = [
+        return [
           ...current,
           {
             id: `${Date.now()}-assistant-error`,
@@ -127,14 +207,6 @@ export default function Home() {
             text: "Error occurred.",
           },
         ];
-        void persistTranscript(
-          nextMessages.map(({ role, text: messageText }) => ({
-            role,
-            text: messageText,
-          })),
-          nextInteractionCount
-        );
-        return nextMessages;
       });
     } finally {
       setIsLoading(false);
