@@ -118,10 +118,11 @@ export async function POST(request: NextRequest) {
   const visualInputs = resolveVisualInputs(query, condition);
   const client = new OpenAI({ apiKey });
   const model = process.env.OPENAI_MODEL || "gpt-4.1-mini";
+  const timeoutMs = Number(process.env.OPENAI_TIMEOUT_MS || 30000);
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12000);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     const response = await client.responses.create(
       {
@@ -184,7 +185,9 @@ export async function POST(request: NextRequest) {
     const message =
       error instanceof Error
         ? error.name === "AbortError"
-          ? "The OpenAI request timed out after 12 seconds. Check your internet connection, API key, or network restrictions, then try again."
+          ? `The OpenAI request timed out after ${Math.round(
+              timeoutMs / 1000
+            )} seconds. The deployed server may need a longer timeout or a faster model.`
           : error.message
         : "OpenAI request failed.";
 
