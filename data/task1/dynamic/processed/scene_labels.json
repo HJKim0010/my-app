@@ -1,0 +1,52 @@
+{
+  "scene_labels": [
+    {
+      "id": "scene_01",
+      "label": "Jack prepares seriously for his final team project presentation",
+      "description": "Jack has spent weeks preparing to lead his team's final presentation. He practices every night, checks each slide carefully, and sets two alarms before going to sleep.",
+      "timestamp_start": "00:00",
+      "timestamp_end": "00:15",
+      "keyframes": ["scene01_f01.png"]
+    },
+    {
+      "id": "scene_02",
+      "label": "Jack wakes up late and realizes the alarms failed",
+      "description": "Jack wakes up to bright sunlight, immediately realizes he is late, jumps out of bed, and discovers that both alarms failed.",
+      "timestamp_start": "00:15",
+      "timestamp_end": "00:32",
+      "keyframes": ["scene02_f01.png"]
+    },
+    {
+      "id": "scene_03",
+      "label": "Jack rushes out and realizes he forgot his wallet and student ID",
+      "description": "Jack grabs his clothes, laptop, and bag, runs out without breakfast, and then notices at the subway station that he forgot his wallet and student ID.",
+      "timestamp_start": "00:32",
+      "timestamp_end": "00:50",
+      "keyframes": ["scene03_f01.png"]
+    },
+    {
+      "id": "scene_04",
+      "label": "Jack drops his phone and nearly falls on the crowded train",
+      "description": "On a crowded and slow train, Jack drops his phone under a seat while checking his notes. When the train suddenly moves, he loses his balance and a nearby woman catches his arm.",
+      "timestamp_start": "00:50",
+      "timestamp_end": "01:13",
+      "keyframes": ["scene04_f01.png"]
+    },
+    {
+      "id": "scene_05",
+      "label": "A woman gives Jack a mysterious note",
+      "description": "The woman hands Jack a folded note. When he opens it, he reads a strange message telling him to stay on the train and get off at the last station.",
+      "timestamp_start": "01:13",
+      "timestamp_end": "01:27",
+      "keyframes": ["scene05_f01.png"]
+    },
+    {
+      "id": "scene_06",
+      "label": "Jack faces a decision after reading the strange message",
+      "description": "After the woman disappears, Jack feels tense and uncertain. He wonders whether the note is a joke or a warning, and he must decide between trusting the message or getting off early to reach class on time.",
+      "timestamp_start": "01:27",
+      "timestamp_end": "01:57",
+      "keyframes": ["scene06_f01.png"]
+    }
+  ]
+}

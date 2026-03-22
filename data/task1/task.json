@@ -1,0 +1,31 @@
+{
+  "task_id": "task1",
+  "title": "Task 1 Pilot",
+  "language": "en",
+  "source_type": "multimodal",
+  "ai_condition": "restricted_source_grounded_bounded_support",
+  "default_condition": "static",
+  "conditions": {
+    "static": {
+      "condition_label": "static_multimodal_condition",
+      "retrieval_enabled": true,
+      "allowed_sources": [
+        "source_text",
+        "audio_transcript",
+        "image_description",
+        "prompt",
+        "instruction"
+      ]
+    },
+    "dynamic": {
+      "condition_label": "dynamic_multimodal_condition",
+      "retrieval_enabled": true,
+      "allowed_sources": [
+        "video_transcript",
+        "scene_labels",
+        "prompt",
+        "instruction"
+      ]
+    }
+  }
+}

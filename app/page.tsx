@@ -1,65 +1,244 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+
+type ChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+};
 
 export default function Home() {
+  const [input, setInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedCondition, setSelectedCondition] = useState("static");
+  const [sessionId, setSessionId] = useState("");
+  const [sessionStartedAt, setSessionStartedAt] = useState(0);
+  const [interactionCount, setInteractionCount] = useState(0);
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: "welcome",
+      role: "assistant",
+      text:
+        "Ask about the assigned source, possible ideas, organization, or useful words and expressions. I will stay within the task materials and the writing-support rules.",
+    },
+  ]);
+  const threadEndRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const conditionParam = new URLSearchParams(window.location.search).get("condition");
+    setSelectedCondition(conditionParam === "dynamic" ? "dynamic" : "static");
+  }, []);
+
+  useEffect(() => {
+    const nextSessionId = crypto.randomUUID();
+    setSessionId(nextSessionId);
+    setSessionStartedAt(Date.now());
+    setInteractionCount(0);
+  }, [selectedCondition]);
+
+  useEffect(() => {
+    threadEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isLoading]);
+
+  const persistTranscript = async (
+    transcript: Array<Pick<ChatMessage, "role" | "text">>,
+    count: number
+  ) => {
+    try {
+      await fetch("/api/session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sessionId,
+          condition: selectedCondition,
+          interactionCount: count,
+          sessionStartedAt,
+          messages: transcript,
+        }),
+      });
+    } catch (error) {
+      console.error("Failed to persist session transcript", error);
+    }
+  };
+
+  const send = async () => {
+    if (!input.trim()) {
+      return;
+    }
+
+    const userText = input.trim();
+    const nextInteractionCount = interactionCount + 1;
+    const userMessage: ChatMessage = {
+      id: `${Date.now()}-user`,
+      role: "user",
+      text: userText,
+    };
+
+    setMessages((current) => [...current, userMessage]);
+    setInput("");
+    setIsLoading(true);
+    setInteractionCount(nextInteractionCount);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          query: userText,
+          category: "Others",
+          condition: selectedCondition,
+          sessionId,
+          interactionCount: nextInteractionCount,
+          sessionStartedAt,
+        }),
+      });
+
+      const text = await res.text();
+      const assistantMessage: ChatMessage = {
+        id: `${Date.now()}-assistant`,
+        role: "assistant",
+        text,
+      };
+
+      setMessages((current) => {
+        const nextMessages = [...current, assistantMessage];
+        void persistTranscript(
+          nextMessages.map(({ role, text: messageText }) => ({
+            role,
+            text: messageText,
+          })),
+          nextInteractionCount
+        );
+        return nextMessages;
+      });
+    } catch (err) {
+      console.error(err);
+      setMessages((current) => {
+        const nextMessages = [
+          ...current,
+          {
+            id: `${Date.now()}-assistant-error`,
+            role: "assistant" as const,
+            text: "Error occurred.",
+          },
+        ];
+        void persistTranscript(
+          nextMessages.map(({ role, text: messageText }) => ({
+            role,
+            text: messageText,
+          })),
+          nextInteractionCount
+        );
+        return nextMessages;
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className="chat-shell">
+      <section className="chat-card">
+        <div className="chat-header">
+          <div>
+            <span className="task-badge">Task 1</span>
+            <h1>Restricted AI Chatbot</h1>
+          </div>
+        </div>
+
+        <div className="guidance-box">
+          <p>
+            This chatbot can <strong>help you understand the source</strong>,
+            <strong> generate ideas</strong>,
+            <strong> organize your writing</strong>, and
+            <strong> find useful words or expressions</strong>.
+          </p>
+          <p>
+            It <strong>cannot write sentences or paragraphs for you</strong>,
+            <strong> correct or evaluate your draft</strong>, or
+            <strong> summarize the whole source</strong>.
+          </p>
+          <p>
+            Please use this chatbot to support your thinking and planning, not
+            to replace your writing.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+
+        <section className="thread-section">
+          <p className="section-label">Conversation</p>
+          <div className="message-thread">
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={
+                  message.role === "user"
+                    ? "message-row message-row-user"
+                    : "message-row message-row-assistant"
+                }
+              >
+                <div
+                  className={
+                    message.role === "user"
+                      ? "message-bubble message-bubble-user"
+                      : "message-bubble message-bubble-assistant"
+                  }
+                >
+                  <div className="message-role">
+                    {message.role === "user" ? "You" : "Chatbot"}
+                  </div>
+                  <div className="message-text">{message.text}</div>
+                </div>
+              </div>
+            ))}
+            {isLoading ? (
+              <div className="message-row message-row-assistant">
+                <div className="message-bubble message-bubble-assistant">
+                  <div className="message-role">Chatbot</div>
+                  <div className="message-text">Thinking...</div>
+                </div>
+              </div>
+            ) : null}
+            <div ref={threadEndRef} />
+          </div>
+        </section>
+
+        <section className="composer-section">
+          <label className="section-label" htmlFor="chat-input">
+            Ask about the assigned source
+          </label>
+          <textarea
+            id="chat-input"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                if (!isLoading) {
+                  void send();
+                }
+              }
+            }}
+            rows={5}
+            className="chat-input"
+            placeholder="Ask about a scene, what a line means, possible ideas for the continuation, or useful words and expressions."
+          />
+
+          <div className="composer-footer">
+            <button
+              onClick={send}
+              disabled={isLoading}
+              className="send-button"
+            >
+              {isLoading ? "Sending..." : "Send"}
+            </button>
+          </div>
+        </section>
+      </section>
+    </main>
   );
 }

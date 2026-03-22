@@ -1,0 +1,10 @@
+{
+  "condition": "static",
+  "assets": {
+    "source_text": "static/raw/source_text.txt",
+    "audio_transcript_txt": "static/processed/audio_transcript.txt",
+    "audio_transcript_json": "static/processed/audio_transcript.json",
+    "image_descriptions_json": "static/processed/image_descriptions.json",
+    "images_dir": "static/raw/images"
+  }
+}

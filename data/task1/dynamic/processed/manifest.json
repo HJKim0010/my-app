@@ -1,0 +1,11 @@
+{
+  "condition": "dynamic",
+  "assets": {
+    "video_transcript_txt": "dynamic/processed/video_transcript.txt",
+    "video_transcript_json": "dynamic/processed/video_transcript.json",
+    "scenes_json": "dynamic/processed/scenes.json",
+    "scene_labels_json": "dynamic/processed/scene_labels.json",
+    "keyframes_dir": "dynamic/processed/keyframes",
+    "video_dir": "dynamic/raw/video"
+  }
+}

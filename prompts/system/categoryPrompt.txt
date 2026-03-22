@@ -1,0 +1,2 @@
+Use the learner-selected category as soft guidance only.
+Make the final decision from the query itself, not from the category label alone.

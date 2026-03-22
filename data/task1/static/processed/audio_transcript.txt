@@ -1,0 +1,4 @@
+[TODO]
+Paste the checked Task1 audio transcript here.
+
+If the transcript is identical to source_text, you may paste the same text.
