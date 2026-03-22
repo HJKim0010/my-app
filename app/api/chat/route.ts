@@ -8,6 +8,15 @@ import { loadTask1Package, type TaskCondition } from "@/backend/rag/loader";
 import { buildSystemInstruction, buildUserInput } from "@/backend/rag/promptBuilder";
 import { retrieveTask1Chunks } from "@/backend/rag/retriever";
 
+function sanitizeAssistantResponse(text: string): string {
+  return text
+    .replace(/\*\*/g, "")
+    .replace(/\*/g, "")
+    .replace(/^#{1,6}\s*/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export async function POST(request: NextRequest) {
   let query = "";
   let category = "Others";
@@ -147,7 +156,9 @@ export async function POST(request: NextRequest) {
     );
 
     clearTimeout(timeout);
-    const assistantResponse = response.output_text || "No response text returned.";
+    const assistantResponse = sanitizeAssistantResponse(
+      response.output_text || "No response text returned."
+    );
 
     await appendChatLog({
       session_id: sessionId,

@@ -4,6 +4,25 @@ import type { TaskPackage } from "@/backend/rag/loader";
 import type { RetrievedChunk } from "@/backend/rag/retriever";
 
 const PROMPTS_ROOT = path.join(process.cwd(), "prompts");
+const CONFUSION_PATTERNS = [
+  "i don't understand",
+  "i do not understand",
+  "i am confused",
+  "i'm confused",
+  "this is hard",
+  "i'm lost",
+  "i am lost",
+  "i don't get it",
+  "i do not get it",
+  "what does this mean",
+  "무슨 뜻",
+  "이해가 안",
+  "헷갈",
+  "어려워",
+  "기억이 안 나",
+  "기억이 안나",
+  "잘 모르겠",
+];
 
 function readPromptFile(fullPath: string, fallback: string): string {
 
@@ -25,12 +44,21 @@ export function buildSystemInstruction(): string {
   return [master, policy, category].filter(Boolean).join(" ");
 }
 
+function isConfusionQuery(query: string): boolean {
+  const normalized = query.toLowerCase();
+  return CONFUSION_PATTERNS.some((pattern) => normalized.includes(pattern));
+}
+
 export function buildUserInput(
   query: string,
   category: string,
   taskPackage: TaskPackage,
   retrievedChunks: RetrievedChunk[]
 ): string {
+  const confusionSupportInstruction = isConfusionQuery(query)
+    ? "The learner sounds confused. Give scaffolding only. Explain one small part at a time in simple Korean, add only 1 to 3 easy English words or short phrases, and stop there. Do not move on to writing plans, paragraph ideas, outlines, or continuation support unless the learner asks again."
+    : "If the learner asks for source understanding, explain locally and briefly before offering any other kind of support.";
+
   const contextBlock =
     retrievedChunks.length > 0
       ? retrievedChunks
@@ -65,6 +93,7 @@ export function buildUserInput(
     "",
     `User query: ${query}`,
     "",
-    "Respond within policy limits. Use only assigned session materials. Keep the response short. Use plain text only. Do not use markdown or bold markers. Prefer at most 3 short bullet points or 2 short sentences.",
+    "Respond within policy limits. Use only assigned session materials. Keep the response short. Use plain text only. Do not use markdown or bold markers. Prefer at most 3 short bullet points or 2 short sentences. If the learner asks in Korean, explain mainly in Korean and include 1 to 3 easy English words or short phrases when helpful.",
+    confusionSupportInstruction,
   ].join("\n");
 }
