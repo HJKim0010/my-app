@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import OpenAI from "openai";
-import { classifyQuery } from "@/backend/policy/classifier";
+import { classifyQuery, detectRestrictionReason } from "@/backend/policy/classifier";
 import { redirectResponse } from "@/backend/policy/redirect";
 import { appendChatLog } from "@/backend/logs/logger";
 import { resolveVisualInputs } from "@/backend/rag/assetResolver";
@@ -42,9 +42,10 @@ export async function POST(request: NextRequest) {
   }
 
   const policyDecision = classifyQuery(query);
+  const restrictionReason = detectRestrictionReason(query);
 
   if (policyDecision === "restricted") {
-    const redirected = redirectResponse();
+    const redirected = redirectResponse(restrictionReason ?? "sentence_generation");
 
     await appendChatLog({
       session_id: sessionId,
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest) {
       interaction_count: interactionCount,
       session_duration_ms: sessionDurationMs,
       query_type_label: policyDecision,
-      redirect_reason: "restricted_generation_request",
+      redirect_reason: restrictionReason ?? "sentence_generation",
       source_types_used: [],
       visual_assets_used: [],
     });
