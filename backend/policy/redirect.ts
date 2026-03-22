@@ -5,13 +5,13 @@ export function redirectResponse(reason: RestrictionReason): string {
     return `
 I cannot summarize the whole source for you.
 
-I can still help in a limited way:
+That would reduce your own reading work, so I can only help in a limited way:
 
 1. Clarify one specific scene, line, or timestamp
 2. Explain what happens in one short part of the source
 3. Track one character's feeling, goal, or problem in a selected segment
 
-Try asking about one scene or one detail from the assigned materials.
+Try asking about one scene, one difficult part, or one detail from the assigned materials.
 `;
   }
 
@@ -46,12 +46,14 @@ Try asking about a source-based idea, conflict, emotion, or next-step possibilit
   return `
 I cannot write the answer for you, but I can help you plan it.
 
-Here are 3 possible directions:
+That would replace your own writing, so I can only support your thinking.
+
+Here are 3 safer directions:
 
 1. Focus on the character's reaction
 2. Develop the situation further
 3. Add a new event based on the source
 
-Try choosing one and writing it in your own words.
+Try choosing one and writing it in your own words. I can also help with a short outline, key ideas, or simple vocabulary.
 `;
 }
