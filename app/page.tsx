@@ -644,14 +644,6 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="guidance-box compact-guidance">
-            <p>
-              Ask about the story, possible next ideas, writing plans, or useful words,
-              expressions, and language help. Use the chatbot to support your thinking,
-              not to replace your writing.
-            </p>
-          </div>
-
           <section className="thread-section">
             <p className="section-label">Conversation</p>
             <div className="message-thread">
