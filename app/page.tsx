@@ -318,18 +318,13 @@ export default function Home() {
     const conditionParam = params.get("condition");
     const savedParticipantId =
       window.localStorage.getItem(CURRENT_PARTICIPANT_KEY)?.trim() || "";
-    const accepted = savedParticipantId
-      ? window.localStorage.getItem(getGuideKey(savedParticipantId)) === "true"
-      : false;
-    const storedTaskStates = savedParticipantId
-      ? hydrateTaskStates(window.localStorage.getItem(getStorageKey(savedParticipantId)))
-      : createInitialTaskStates();
 
-    setParticipantId(savedParticipantId);
-    setParticipantInput(savedParticipantId);
-    setTaskStates(storedTaskStates);
-    setGuideAccepted(accepted);
-    setShowGuide(!accepted || !savedParticipantId);
+    setParticipantId("");
+    setParticipantInput("");
+    setTaskStates(createInitialTaskStates());
+    setGuideAccepted(false);
+    setGuideChecked(false);
+    setShowGuide(true);
 
     if (isTaskId(taskParam)) {
       setSelectedTask(taskParam);
@@ -337,6 +332,10 @@ export default function Home() {
 
     if (isTaskCondition(conditionParam)) {
       setSelectedCondition(conditionParam);
+    }
+
+    if (savedParticipantId) {
+      setParticipantInput("");
     }
   }, []);
 
