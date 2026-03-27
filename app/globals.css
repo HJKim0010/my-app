@@ -312,16 +312,16 @@ body {
     linear-gradient(180deg, #fbf5eb 0%, #f6ecde 100%);
 }
 
-.composer-section {
-  margin-bottom: 0;
-}
-
 .admin-reset-panel {
   margin-top: 16px;
   padding: 14px 16px 2px;
   border: 1px dashed rgba(216, 207, 193, 0.9);
   border-radius: 18px;
   background: rgba(255, 251, 244, 0.72);
+}
+
+.admin-reset-panel-inline {
+  margin: 0 0 16px;
 }
 
 .admin-reset-copy {
@@ -371,6 +371,14 @@ body {
   border-color: #86b3a5;
 }
 
+.composer-inline {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid rgba(216, 207, 193, 0.9);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 253, 248, 0.95), rgba(250, 242, 229, 0.94));
+}
+
 .composer-footer {
   display: flex;
   justify-content: flex-end;
@@ -418,7 +426,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  min-height: 360px;
+  min-height: 320px;
   max-height: min(56vh, 620px);
   overflow-y: auto;
   padding: 10px 8px 6px 2px;
@@ -600,6 +608,10 @@ body {
   .admin-reset-controls {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .composer-inline {
+    padding: 12px;
   }
 
   .guide-compare {

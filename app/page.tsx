@@ -311,6 +311,7 @@ export default function Home() {
   const [showGuide, setShowGuide] = useState(true);
   const [typingMessageId, setTypingMessageId] = useState<string | null>(null);
   const [typingText, setTypingText] = useState("");
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [adminResetCode, setAdminResetCode] = useState("");
   const [adminResetMessage, setAdminResetMessage] = useState("");
   const threadEndRef = useRef<HTMLDivElement | null>(null);
@@ -642,6 +643,7 @@ export default function Home() {
     setSelectedTask("task1");
     setAdminResetCode("");
     setAdminResetMessage("Saved local conversation history has been cleared.");
+    setShowAdminPanel(false);
   };
 
   return (
@@ -719,8 +721,47 @@ export default function Home() {
               >
                 Read Guide Again
               </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => {
+                  setShowAdminPanel((current) => !current);
+                  setAdminResetMessage("");
+                }}
+              >
+                Administrator
+              </button>
             </div>
           </div>
+
+          {showAdminPanel ? (
+            <section className="admin-reset-panel admin-reset-panel-inline">
+              <p className="section-label">Administrator</p>
+              <p className="admin-reset-copy">
+                Enter the admin password to clear saved local conversation history on this
+                browser.
+              </p>
+              <div className="admin-reset-controls">
+                <input
+                  type="password"
+                  value={adminResetCode}
+                  onChange={(event) => setAdminResetCode(event.target.value)}
+                  className="participant-input admin-reset-input"
+                  placeholder="Enter admin password"
+                />
+                <button
+                  type="button"
+                  className="secondary-button admin-reset-button"
+                  onClick={clearSavedLocalLogs}
+                >
+                  Clear Saved Chats
+                </button>
+              </div>
+              {adminResetMessage ? (
+                <p className="admin-reset-message">{adminResetMessage}</p>
+              ) : null}
+            </section>
+          ) : null}
 
           <section className="thread-section">
             <p className="section-label">Conversation</p>
@@ -767,58 +808,28 @@ export default function Home() {
               ) : null}
               <div ref={threadEndRef} />
             </div>
-          </section>
-
-          <section className="composer-section">
-            <label className="section-label" htmlFor="chat-input">
-              Ask about the story
-            </label>
-            <textarea
-              id="chat-input"
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  void send();
-                }
-              }}
-              rows={5}
-              className="chat-input"
-              placeholder="Ask what a part means, what could happen next, how to plan your writing, or what words, expressions, and language help might help."
-            />
-
-            <div className="composer-footer">
-              <button onClick={send} disabled={isLoading} className="send-button">
-                {isLoading ? "Sending..." : "Send"}
-              </button>
-            </div>
-          </section>
-
-          <section className="admin-reset-panel">
-            <p className="section-label">Admin Only</p>
-            <p className="admin-reset-copy">
-              Clear saved local conversation history on this browser.
-            </p>
-            <div className="admin-reset-controls">
-              <input
-                type="password"
-                value={adminResetCode}
-                onChange={(event) => setAdminResetCode(event.target.value)}
-                className="participant-input admin-reset-input"
-                placeholder="Enter admin password"
+            <div className="composer-inline">
+              <textarea
+                id="chat-input"
+                value={input}
+                onChange={(event) => setInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    void send();
+                  }
+                }}
+                rows={4}
+                className="chat-input"
+                placeholder="Ask what a part means, what could happen next, how to plan your writing, or what words, expressions, and language help might help."
               />
-              <button
-                type="button"
-                className="secondary-button admin-reset-button"
-                onClick={clearSavedLocalLogs}
-              >
-                Clear Saved Chats
-              </button>
+
+              <div className="composer-footer">
+                <button onClick={send} disabled={isLoading} className="send-button">
+                  {isLoading ? "Sending..." : "Send"}
+                </button>
+              </div>
             </div>
-            {adminResetMessage ? (
-              <p className="admin-reset-message">{adminResetMessage}</p>
-            ) : null}
           </section>
         </section>
       )}
