@@ -102,6 +102,20 @@ function createInitialTaskStates(): Record<TaskId, TaskChatState> {
   };
 }
 
+function collectAssistantIds(states: Record<TaskId, TaskChatState>): Set<string> {
+  const ids = new Set<string>();
+
+  for (const taskId of TASK_IDS) {
+    for (const message of states[taskId].messages) {
+      if (message.role === "assistant") {
+        ids.add(message.id);
+      }
+    }
+  }
+
+  return ids;
+}
+
 function isTaskId(value: string | null): value is TaskId {
   return value === "task1" || value === "task2";
 }
@@ -295,8 +309,11 @@ export default function Home() {
   const [guideAccepted, setGuideAccepted] = useState(false);
   const [guideChecked, setGuideChecked] = useState(false);
   const [showGuide, setShowGuide] = useState(true);
+  const [typingMessageId, setTypingMessageId] = useState<string | null>(null);
+  const [typingText, setTypingText] = useState("");
   const threadEndRef = useRef<HTMLDivElement | null>(null);
   const taskStatesRef = useRef(taskStates);
+  const revealedAssistantIdsRef = useRef<Set<string>>(collectAssistantIds(taskStates));
 
   const activeTaskState = useMemo(() => taskStates[selectedTask], [selectedTask, taskStates]);
   const normalizedParticipantInput = useMemo(
@@ -310,16 +327,60 @@ export default function Home() {
   }, [taskStates]);
 
   useEffect(() => {
+    if (!guideAccepted) {
+      return;
+    }
+
+    const lastMessage = activeTaskState.messages[activeTaskState.messages.length - 1];
+
+    if (!lastMessage || lastMessage.role !== "assistant") {
+      setTypingMessageId(null);
+      setTypingText("");
+      return;
+    }
+
+    if (revealedAssistantIdsRef.current.has(lastMessage.id)) {
+      setTypingMessageId(null);
+      setTypingText("");
+      return;
+    }
+
+    setTypingMessageId(lastMessage.id);
+    setTypingText("");
+
+    const fullText = lastMessage.text;
+    let index = 0;
+    const step = fullText.length > 220 ? 3 : fullText.length > 120 ? 2 : 1;
+    const timer = window.setInterval(() => {
+      index = Math.min(index + step, fullText.length);
+      setTypingText(fullText.slice(0, index));
+
+      if (index >= fullText.length) {
+        window.clearInterval(timer);
+        revealedAssistantIdsRef.current.add(lastMessage.id);
+        setTypingMessageId(null);
+      }
+    }, 16);
+
+    return () => window.clearInterval(timer);
+  }, [activeTaskState.messages, guideAccepted]);
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const taskParam = params.get("task");
     const conditionParam = params.get("condition");
 
+    const initialStates = createInitialTaskStates();
+
     setParticipantId("");
     setParticipantInput("");
-    setTaskStates(createInitialTaskStates());
+    setTaskStates(initialStates);
+    revealedAssistantIdsRef.current = collectAssistantIds(initialStates);
     setGuideAccepted(false);
     setGuideChecked(false);
     setShowGuide(true);
+    setTypingMessageId(null);
+    setTypingText("");
 
     if (isTaskId(taskParam)) {
       setSelectedTask(taskParam);
@@ -529,9 +590,12 @@ export default function Home() {
     setParticipantId(trimmedParticipantId);
     setParticipantInput(trimmedParticipantId);
     setTaskStates(nextTaskStates);
+    revealedAssistantIdsRef.current = collectAssistantIds(nextTaskStates);
     setGuideAccepted(true);
     setShowGuide(false);
     setGuideChecked(false);
+    setTypingMessageId(null);
+    setTypingText("");
   };
 
   const reopenGuideForParticipantChange = () => {
@@ -539,7 +603,11 @@ export default function Home() {
     setGuideAccepted(false);
     setGuideChecked(false);
     setShowGuide(true);
+    setTypingMessageId(null);
+    setTypingText("");
   };
+
+  const taskLabel = selectedTask === "task2" ? "Task 2" : "Task 1";
 
   return (
     <main className="chat-shell">
@@ -548,6 +616,24 @@ export default function Home() {
           <div className="guide-gate-header">
             <h1>My Writing Assistant</h1>
             <p>Please read the guide before you begin.</p>
+          </div>
+
+          <div className="guide-task-panel">
+            <p className="section-label">Choose your task</p>
+            <div className="guide-task-switcher" role="tablist" aria-label="Task selection">
+              {TASK_IDS.map((taskId) => (
+                <button
+                  key={taskId}
+                  type="button"
+                  className={
+                    taskId === selectedTask ? "guide-task-tab guide-task-tab-active" : "guide-task-tab"
+                  }
+                  onClick={() => setSelectedTask(taskId)}
+                >
+                  {taskId === "task2" ? "Task 2" : "Task 1"}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="participant-panel">
@@ -603,43 +689,18 @@ export default function Home() {
         <section className="chat-card">
           <div className="chat-header">
             <div>
-              <span className="task-badge">
-                {selectedTask === "task2" ? "Task 2" : "Task 1"}
-              </span>
+              <div className="task-display-pill">{taskLabel}</div>
               <h1>My Writing Assistant</h1>
               <p className="participant-caption">Participant ID: {participantId}</p>
             </div>
 
             <div className="chat-header-actions">
-              <div className="task-switcher" role="tablist" aria-label="Task selection">
-                {TASK_IDS.map((taskId) => (
-                  <button
-                    key={taskId}
-                    type="button"
-                    className={taskId === selectedTask ? "task-tab task-tab-active" : "task-tab"}
-                    onClick={() => {
-                      setSelectedTask(taskId);
-                      setInput("");
-                    }}
-                  >
-                    {taskId === "task2" ? "Task 2" : "Task 1"}
-                  </button>
-                ))}
-              </div>
-
               <button
                 type="button"
                 className="secondary-button"
                 onClick={() => setShowGuide(true)}
               >
                 Read Guide Again
-              </button>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={reopenGuideForParticipantChange}
-              >
-                Change Participant / {KO.changeParticipant}
               </button>
             </div>
           </div>
@@ -652,8 +713,8 @@ export default function Home() {
                   key={message.id}
                   className={
                     message.role === "user"
-                      ? "message-row message-row-user"
-                      : "message-row message-row-assistant"
+                      ? "message-row message-row-user message-row-enter"
+                      : "message-row message-row-assistant message-row-enter"
                   }
                 >
                   <div
@@ -666,15 +727,24 @@ export default function Home() {
                     <div className="message-role">
                       {message.role === "user" ? "You" : "Assistant"}
                     </div>
-                    <div className="message-text">{message.text}</div>
+                    <div className="message-text">
+                      {message.role === "assistant" && typingMessageId === message.id ? (
+                        <>
+                          {typingText}
+                          <span className="typing-caret" aria-hidden="true" />
+                        </>
+                      ) : (
+                        message.text
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
               {isLoading ? (
-                <div className="message-row message-row-assistant">
+                <div className="message-row message-row-assistant message-row-enter">
                   <div className="message-bubble message-bubble-assistant">
                     <div className="message-role">Assistant</div>
-                    <div className="message-text">Thinking...</div>
+                    <div className="message-text message-text-thinking">Thinking...</div>
                   </div>
                 </div>
               ) : null}
@@ -724,6 +794,27 @@ export default function Home() {
               >
                 Close
               </button>
+            </div>
+
+            <div className="guide-task-panel modal-task-panel">
+              <p className="section-label">Choose your task</p>
+              <div className="guide-task-switcher" role="tablist" aria-label="Task selection">
+                {TASK_IDS.map((taskId) => (
+                  <button
+                    key={taskId}
+                    type="button"
+                    className={
+                      taskId === selectedTask ? "guide-task-tab guide-task-tab-active" : "guide-task-tab"
+                    }
+                    onClick={() => {
+                      setSelectedTask(taskId);
+                      setInput("");
+                    }}
+                  >
+                    {taskId === "task2" ? "Task 2" : "Task 1"}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="guide-panel modal-guide-panel">
