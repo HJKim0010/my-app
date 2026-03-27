@@ -311,6 +311,8 @@ export default function Home() {
   const [showGuide, setShowGuide] = useState(true);
   const [typingMessageId, setTypingMessageId] = useState<string | null>(null);
   const [typingText, setTypingText] = useState("");
+  const [adminResetCode, setAdminResetCode] = useState("");
+  const [adminResetMessage, setAdminResetMessage] = useState("");
   const threadEndRef = useRef<HTMLDivElement | null>(null);
   const taskStatesRef = useRef(taskStates);
   const revealedAssistantIdsRef = useRef<Set<string>>(collectAssistantIds(taskStates));
@@ -598,16 +600,49 @@ export default function Home() {
     setTypingText("");
   };
 
-  const reopenGuideForParticipantChange = () => {
-    setParticipantInput(participantId);
+  const taskLabel = selectedTask === "task2" ? "Task 2" : "Task 1";
+
+  const clearSavedLocalLogs = () => {
+    if (adminResetCode !== "0784") {
+      setAdminResetMessage("Password does not match.");
+      return;
+    }
+
+    const keysToRemove: string[] = [];
+
+    for (let index = 0; index < window.localStorage.length; index += 1) {
+      const key = window.localStorage.key(index);
+
+      if (
+        key &&
+        (key.startsWith(`${STORAGE_KEY_PREFIX}:`) || key.startsWith(`${GUIDE_KEY_PREFIX}:`))
+      ) {
+        keysToRemove.push(key);
+      }
+    }
+
+    for (const key of keysToRemove) {
+      window.localStorage.removeItem(key);
+    }
+
+    window.localStorage.removeItem(CURRENT_PARTICIPANT_KEY);
+
+    const initialStates = createInitialTaskStates();
+    setTaskStates(initialStates);
+    taskStatesRef.current = initialStates;
+    revealedAssistantIdsRef.current = collectAssistantIds(initialStates);
+    setParticipantId("");
+    setParticipantInput("");
     setGuideAccepted(false);
     setGuideChecked(false);
     setShowGuide(true);
     setTypingMessageId(null);
     setTypingText("");
+    setInput("");
+    setSelectedTask("task1");
+    setAdminResetCode("");
+    setAdminResetMessage("Saved local conversation history has been cleared.");
   };
-
-  const taskLabel = selectedTask === "task2" ? "Task 2" : "Task 1";
 
   return (
     <main className="chat-shell">
@@ -616,24 +651,6 @@ export default function Home() {
           <div className="guide-gate-header">
             <h1>My Writing Assistant</h1>
             <p>Please read the guide before you begin.</p>
-          </div>
-
-          <div className="guide-task-panel">
-            <p className="section-label">Choose your task</p>
-            <div className="guide-task-switcher" role="tablist" aria-label="Task selection">
-              {TASK_IDS.map((taskId) => (
-                <button
-                  key={taskId}
-                  type="button"
-                  className={
-                    taskId === selectedTask ? "guide-task-tab guide-task-tab-active" : "guide-task-tab"
-                  }
-                  onClick={() => setSelectedTask(taskId)}
-                >
-                  {taskId === "task2" ? "Task 2" : "Task 1"}
-                </button>
-              ))}
-            </div>
           </div>
 
           <div className="participant-panel">
@@ -777,6 +794,32 @@ export default function Home() {
               </button>
             </div>
           </section>
+
+          <section className="admin-reset-panel">
+            <p className="section-label">Admin Only</p>
+            <p className="admin-reset-copy">
+              Clear saved local conversation history on this browser.
+            </p>
+            <div className="admin-reset-controls">
+              <input
+                type="password"
+                value={adminResetCode}
+                onChange={(event) => setAdminResetCode(event.target.value)}
+                className="participant-input admin-reset-input"
+                placeholder="Enter admin password"
+              />
+              <button
+                type="button"
+                className="secondary-button admin-reset-button"
+                onClick={clearSavedLocalLogs}
+              >
+                Clear Saved Chats
+              </button>
+            </div>
+            {adminResetMessage ? (
+              <p className="admin-reset-message">{adminResetMessage}</p>
+            ) : null}
+          </section>
         </section>
       )}
 
@@ -794,27 +837,6 @@ export default function Home() {
               >
                 Close
               </button>
-            </div>
-
-            <div className="guide-task-panel modal-task-panel">
-              <p className="section-label">Choose your task</p>
-              <div className="guide-task-switcher" role="tablist" aria-label="Task selection">
-                {TASK_IDS.map((taskId) => (
-                  <button
-                    key={taskId}
-                    type="button"
-                    className={
-                      taskId === selectedTask ? "guide-task-tab guide-task-tab-active" : "guide-task-tab"
-                    }
-                    onClick={() => {
-                      setSelectedTask(taskId);
-                      setInput("");
-                    }}
-                  >
-                    {taskId === "task2" ? "Task 2" : "Task 1"}
-                  </button>
-                ))}
-              </div>
             </div>
 
             <div className="guide-panel modal-guide-panel">

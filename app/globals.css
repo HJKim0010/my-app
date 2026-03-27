@@ -129,43 +129,6 @@ body {
   overflow-x: auto;
 }
 
-.guide-task-panel {
-  margin: 18px 0;
-}
-
-.modal-task-panel {
-  margin: 0 0 14px;
-}
-
-.guide-task-switcher {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.guide-task-tab {
-  min-width: 128px;
-  padding: 12px 18px;
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.88);
-  color: var(--foreground);
-  font-size: 1rem;
-  font-weight: 700;
-  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
-}
-
-.guide-task-tab:hover {
-  transform: translateY(-1px);
-  border-color: #9eb6aa;
-}
-
-.guide-task-tab-active {
-  background: linear-gradient(180deg, #dff0e8, #d3ebe1);
-  border-color: #7da997;
-  color: #184433;
-}
-
 .participant-panel {
   margin: 18px 0;
 }
@@ -351,6 +314,43 @@ body {
 
 .composer-section {
   margin-bottom: 0;
+}
+
+.admin-reset-panel {
+  margin-top: 16px;
+  padding: 14px 16px 2px;
+  border: 1px dashed rgba(216, 207, 193, 0.9);
+  border-radius: 18px;
+  background: rgba(255, 251, 244, 0.72);
+}
+
+.admin-reset-copy {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.admin-reset-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.admin-reset-input {
+  flex: 1 1 220px;
+}
+
+.admin-reset-button {
+  white-space: nowrap;
+}
+
+.admin-reset-message {
+  margin: 10px 0 12px;
+  color: #6b4021;
+  font-size: 0.9rem;
+  line-height: 1.45;
 }
 
 .chat-input {
@@ -592,14 +592,14 @@ body {
     align-items: stretch;
   }
 
-  .guide-task-switcher {
-    width: 100%;
-  }
-
-  .guide-task-tab,
   .secondary-button {
     width: 100%;
     text-align: center;
+  }
+
+  .admin-reset-controls {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .guide-compare {
