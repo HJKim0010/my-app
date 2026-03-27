@@ -130,6 +130,13 @@ body {
   margin: 0 0 14px;
 }
 
+.participant-help {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
 .participant-input {
   width: 100%;
   padding: 12px 14px;
@@ -185,6 +192,53 @@ body {
 
 .guide-list li + li {
   margin-top: 8px;
+}
+
+.guide-list-numbered {
+  list-style: decimal;
+  padding-left: 24px;
+}
+
+.guide-compare {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.guide-compare-head,
+.guide-compare-cell {
+  padding: 12px 14px;
+  line-height: 1.55;
+}
+
+.guide-compare-head {
+  font-weight: 700;
+  border-bottom: 1px solid var(--border);
+}
+
+.guide-compare-wrong {
+  background: #fbede7;
+  color: #7c3b22;
+}
+
+.guide-compare-right {
+  background: #e8f3ec;
+  color: #21553a;
+}
+
+.guide-compare-cell {
+  border-bottom: 1px solid rgba(216, 207, 193, 0.75);
+}
+
+.guide-compare-cell:nth-child(odd) {
+  border-right: 1px solid rgba(216, 207, 193, 0.75);
+}
+
+.guide-compare > :nth-last-child(-n + 2) {
+  border-bottom: 0;
 }
 
 .guide-check {
