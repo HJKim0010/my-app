@@ -1,6 +1,7 @@
 create table if not exists public.chat_events (
   id bigint generated always as identity primary key,
   created_at timestamptz not null default now(),
+  participant_id text not null,
   session_id text not null,
   task_id text not null,
   condition_label text not null,
@@ -24,6 +25,7 @@ create table if not exists public.chat_events (
 create table if not exists public.session_transcripts (
   id bigint generated always as identity primary key,
   created_at timestamptz not null default now(),
+  participant_id text not null,
   session_id text not null,
   task_id text not null,
   condition_label text not null,
@@ -36,5 +38,11 @@ create table if not exists public.session_transcripts (
 create index if not exists chat_events_session_id_idx
   on public.chat_events (session_id);
 
+create index if not exists chat_events_participant_id_idx
+  on public.chat_events (participant_id);
+
 create index if not exists session_transcripts_session_id_idx
   on public.session_transcripts (session_id);
+
+create index if not exists session_transcripts_participant_id_idx
+  on public.session_transcripts (participant_id);

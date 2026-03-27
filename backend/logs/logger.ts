@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 export type ChatLogEntry = {
+  participant_id: string;
   session_id: string;
   task_id: string;
   condition_label: string;
@@ -29,6 +30,7 @@ export type ChatLogEntry = {
 };
 
 export type SessionTranscriptEntry = {
+  participant_id: string;
   session_id: string;
   task_id: string;
   condition_label: string;

@@ -22,8 +22,9 @@ type TaskChatState = {
 };
 
 const TASK_IDS: TaskId[] = ["task1", "task2"];
-const STORAGE_KEY = "writing-assistant-task-state-v2";
-const GUIDE_KEY = "writing-assistant-guide-accepted-v1";
+const STORAGE_KEY_PREFIX = "writing-assistant-task-state-v3";
+const GUIDE_KEY_PREFIX = "writing-assistant-guide-accepted-v2";
+const CURRENT_PARTICIPANT_KEY = "writing-assistant-current-participant-v1";
 
 const KO = {
   intro:
@@ -52,7 +53,20 @@ const KO = {
     "\uCC57\uBD07\uC774 \uAC70\uC808\uD55C \uC694\uCCAD\uC740 \uD45C\uD604\uB9CC \uBC14\uAFD4\uC11C \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC9C0 \uB9C8\uC138\uC694.",
   read: "\uC548\uB0B4\uB97C \uC77D\uC5C8\uC2B5\uB2C8\uB2E4.",
   start: "\uC2DC\uC791\uD558\uAE30",
+  participant: "\uCC38\uC5EC\uC790 ID",
+  participantHint: "\uC608: 1, 2, 3, P01",
+  participantNeed:
+    "\uCC38\uC5EC\uC790 ID\uB97C \uC785\uB825\uD55C \uB4A4 \uC548\uB0B4\uB97C \uD655\uC778\uD574 \uC8FC\uC138\uC694.",
+  changeParticipant: "\uCC38\uC5EC\uC790 \uBCC0\uACBD",
 } as const;
+
+function getStorageKey(participantId: string): string {
+  return `${STORAGE_KEY_PREFIX}:${participantId}`;
+}
+
+function getGuideKey(participantId: string): string {
+  return `${GUIDE_KEY_PREFIX}:${participantId}`;
+}
 
 function buildWelcomeMessage(): ChatMessage {
   return {
@@ -284,6 +298,8 @@ export default function Home() {
   const [selectedTask, setSelectedTask] = useState<TaskId>("task1");
   const [selectedCondition, setSelectedCondition] = useState<TaskCondition>("static");
   const [taskStates, setTaskStates] = useState<Record<TaskId, TaskChatState>>(createInitialTaskStates);
+  const [participantId, setParticipantId] = useState("");
+  const [participantInput, setParticipantInput] = useState("");
   const [guideAccepted, setGuideAccepted] = useState(false);
   const [guideChecked, setGuideChecked] = useState(false);
   const [showGuide, setShowGuide] = useState(true);
@@ -300,12 +316,20 @@ export default function Home() {
     const params = new URLSearchParams(window.location.search);
     const taskParam = params.get("task");
     const conditionParam = params.get("condition");
-    const accepted = window.localStorage.getItem(GUIDE_KEY) === "true";
-    const storedTaskStates = hydrateTaskStates(window.localStorage.getItem(STORAGE_KEY));
+    const savedParticipantId =
+      window.localStorage.getItem(CURRENT_PARTICIPANT_KEY)?.trim() || "";
+    const accepted = savedParticipantId
+      ? window.localStorage.getItem(getGuideKey(savedParticipantId)) === "true"
+      : false;
+    const storedTaskStates = savedParticipantId
+      ? hydrateTaskStates(window.localStorage.getItem(getStorageKey(savedParticipantId)))
+      : createInitialTaskStates();
 
+    setParticipantId(savedParticipantId);
+    setParticipantInput(savedParticipantId);
     setTaskStates(storedTaskStates);
     setGuideAccepted(accepted);
-    setShowGuide(!accepted);
+    setShowGuide(!accepted || !savedParticipantId);
 
     if (isTaskId(taskParam)) {
       setSelectedTask(taskParam);
@@ -317,8 +341,13 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(taskStates));
-  }, [taskStates]);
+    if (!participantId) {
+      return;
+    }
+
+    window.localStorage.setItem(getStorageKey(participantId), JSON.stringify(taskStates));
+    window.localStorage.setItem(CURRENT_PARTICIPANT_KEY, participantId);
+  }, [participantId, taskStates]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -338,6 +367,7 @@ export default function Home() {
 
     const payload = {
       taskId,
+      participantId,
       sessionId: state.sessionId,
       condition: selectedCondition,
       interactionCount: state.interactionCount,
@@ -411,7 +441,7 @@ export default function Home() {
       window.removeEventListener("pagehide", flushAllTranscripts);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [selectedCondition]);
+  }, [participantId, selectedCondition]);
 
   const send = async () => {
     if (!input.trim() || isLoading) {
@@ -448,6 +478,7 @@ export default function Home() {
         },
         body: JSON.stringify({
           taskId: selectedTask,
+          participantId,
           query: userText,
           category: "Others",
           condition: selectedCondition,
@@ -493,13 +524,30 @@ export default function Home() {
   };
 
   const handleGuideConfirm = () => {
-    if (!guideChecked) {
+    const trimmedParticipantId = participantInput.trim();
+
+    if (!guideChecked || !trimmedParticipantId) {
       return;
     }
 
-    window.localStorage.setItem(GUIDE_KEY, "true");
+    const nextTaskStates = hydrateTaskStates(
+      window.localStorage.getItem(getStorageKey(trimmedParticipantId))
+    );
+
+    window.localStorage.setItem(CURRENT_PARTICIPANT_KEY, trimmedParticipantId);
+    window.localStorage.setItem(getGuideKey(trimmedParticipantId), "true");
+    setParticipantId(trimmedParticipantId);
+    setTaskStates(nextTaskStates);
     setGuideAccepted(true);
     setShowGuide(false);
+    setGuideChecked(false);
+  };
+
+  const reopenGuideForParticipantChange = () => {
+    setParticipantInput(participantId);
+    setGuideAccepted(false);
+    setGuideChecked(false);
+    setShowGuide(true);
   };
 
   return (
@@ -510,6 +558,20 @@ export default function Home() {
             <span className="task-badge">{selectedTask === "task2" ? "Task 2" : "Task 1"}</span>
             <h1>My Writing Assistant</h1>
             <p>Please read the guide before you begin.</p>
+          </div>
+
+          <div className="participant-panel">
+            <label className="section-label" htmlFor="participant-id">
+              Participant ID / {KO.participant}
+            </label>
+            <input
+              id="participant-id"
+              type="text"
+              value={participantInput}
+              onChange={(event) => setParticipantInput(event.target.value)}
+              className="participant-input"
+              placeholder={`e.g., 1, 2, 3, P01 / ${KO.participantHint}`}
+            />
           </div>
 
           <div className="guide-panel">
@@ -529,12 +591,16 @@ export default function Home() {
             <button
               type="button"
               className="send-button"
-              disabled={!guideChecked}
+              disabled={!guideChecked || !participantInput.trim()}
               onClick={handleGuideConfirm}
             >
               Start / {KO.start}
             </button>
           </div>
+
+          {!participantInput.trim() ? (
+            <p className="guide-warning">{KO.participantNeed}</p>
+          ) : null}
         </section>
       ) : (
         <section className="chat-card">
@@ -544,6 +610,7 @@ export default function Home() {
                 {selectedTask === "task2" ? "Task 2" : "Task 1"}
               </span>
               <h1>My Writing Assistant</h1>
+              <p className="participant-caption">Participant ID: {participantId}</p>
             </div>
 
             <div className="chat-header-actions">
@@ -569,6 +636,13 @@ export default function Home() {
                 onClick={() => setShowGuide(true)}
               >
                 Read Guide Again
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={reopenGuideForParticipantChange}
+              >
+                Change Participant / {KO.changeParticipant}
               </button>
             </div>
           </div>
@@ -663,6 +737,19 @@ export default function Home() {
               >
                 Close
               </button>
+            </div>
+
+            <div className="participant-panel modal-participant-panel">
+              <label className="section-label" htmlFor="participant-id-readonly">
+                Participant ID / {KO.participant}
+              </label>
+              <input
+                id="participant-id-readonly"
+                type="text"
+                value={participantId}
+                className="participant-input"
+                readOnly
+              />
             </div>
 
             <div className="guide-panel modal-guide-panel">

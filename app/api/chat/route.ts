@@ -105,6 +105,7 @@ export async function POST(request: NextRequest) {
   let category = "Others";
   let taskId: TaskId = "task1";
   let condition: TaskCondition = "static";
+  let participantId = "anonymous";
   let sessionId = "unknown-session";
   let interactionCount = 1;
   let sessionStartedAt = Date.now();
@@ -115,6 +116,10 @@ export async function POST(request: NextRequest) {
     category = typeof body?.category === "string" ? body.category : category;
     taskId = body?.taskId === "task2" ? "task2" : "task1";
     condition = body?.condition === "dynamic" ? "dynamic" : "static";
+    participantId =
+      typeof body?.participantId === "string" && body.participantId.trim()
+        ? body.participantId.trim()
+        : participantId;
     sessionId = typeof body?.sessionId === "string" ? body.sessionId : sessionId;
     interactionCount =
       typeof body?.interactionCount === "number" ? body.interactionCount : interactionCount;
@@ -142,6 +147,7 @@ export async function POST(request: NextRequest) {
     const redirected = redirectResponse(restrictionReason ?? "sentence_generation");
 
     await appendChatLog({
+      participant_id: participantId,
       session_id: sessionId,
       task_id: taskPackage.config.task_id,
       condition_label: taskPackage.config.ai_condition,
@@ -175,6 +181,7 @@ export async function POST(request: NextRequest) {
       "I could not find a closely relevant part of the current Task1 session materials for that question. Please ask about a specific scene, line, segment, idea, organization choice, or word from the assigned source.";
 
     await appendChatLog({
+      participant_id: participantId,
       session_id: sessionId,
       task_id: taskPackage.config.task_id,
       condition_label: taskPackage.config.ai_condition,
@@ -247,6 +254,7 @@ export async function POST(request: NextRequest) {
       : sanitizeAssistantResponse(rawAssistantResponse);
 
     await appendChatLog({
+      participant_id: participantId,
       session_id: sessionId,
       task_id: taskPackage.config.task_id,
       condition_label: taskPackage.config.ai_condition,
@@ -291,6 +299,7 @@ export async function POST(request: NextRequest) {
     const failureResponse = `OpenAI request failed: ${message}`;
 
     await appendChatLog({
+      participant_id: participantId,
       session_id: sessionId,
       task_id: taskPackage.config.task_id,
       condition_label: taskPackage.config.ai_condition,

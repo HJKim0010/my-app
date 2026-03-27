@@ -38,6 +38,10 @@ export async function POST(request: NextRequest) {
   }
 
   await appendSessionTranscript({
+    participant_id:
+      typeof body?.participantId === "string" && body.participantId.trim()
+        ? body.participantId.trim()
+        : "anonymous",
     session_id: typeof body?.sessionId === "string" ? body.sessionId : "unknown-session",
     task_id: taskPackage.config.task_id,
     condition_label: taskPackage.config.ai_condition,
