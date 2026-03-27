@@ -30,14 +30,15 @@ const KO = {
     "\uC774 \uCC57\uBD07\uC740 \uAE00\uC744 \uB300\uC2E0 \uC368\uC8FC\uB294 \uB3C4\uAD6C\uAC00 \uC544\uB2D9\uB2C8\uB2E4. \uC81C\uC2DC \uC790\uB8CC\uB97C \uC774\uD574\uD558\uACE0, \uC544\uC774\uB514\uC5B4\uB97C \uC0DD\uAC01\uD558\uACE0, \uAE00\uC744 \uACC4\uD68D\uD558\uB294 \uAC83\uC744 \uB3D5\uB294 \uB3C4\uAD6C\uC785\uB2C8\uB2E4.",
   support:
     "AI\uB294 \uC0DD\uAC01\uC744 \uB3D5\uACE0, \uAE00\uC740 \uC5EC\uB7EC\uBD84\uC774 \uC9C1\uC811 \uC791\uC131\uD574\uC57C \uD569\uB2C8\uB2E4.",
+  languageTitle: "\uC0AC\uC6A9 \uAC00\uB2A5 \uC5B8\uC5B4",
   allowedTitle: "\uC774\uB807\uAC8C \uC0AC\uC6A9\uD558\uC138\uC694",
   restrictedTitle: "\uC774\uB807\uAC8C \uC0AC\uC6A9\uD558\uBA74 \uC548 \uB429\uB2C8\uB2E4",
   goodTitle: "\uC88B\uC740 \uC0AC\uC6A9 vs \uC798\uBABB\uB41C \uC0AC\uC6A9",
   rulesTitle: "\uC911\uC694\uD55C \uADDC\uCE59",
-  q1: "\uC774 \uC778\uBB3C\uC740 \uC65C \uB2A6\uC7A0\uC744 \uC790\uAC8C \uB418\uC5C8\uB098\uC694?",
-  q2: "\uB2E4\uC74C\uC5D0 \uC5B4\uB5A4 \uC77C\uC774 \uC77C\uC5B4\uB0A0 \uC218 \uC788\uB098\uC694?",
-  q3: "\uAE00\uC758 \uD750\uB984\uC744 \uC5B4\uB5BB\uAC8C \uC9DC\uBA74 \uC88B\uC744\uAE4C\uC694?",
-  q4: "'very nervous' \uB300\uC2E0 \uC5B4\uB5A4 \uD45C\uD604\uC744 \uC4F8 \uC218 \uC788\uB098\uC694?",
+  q1: "\uC774 \uBD80\uBD84\uC740 \uBB34\uC2A8 \uB73B\uC778\uAC00\uC694?",
+  q2: "\uB2E4\uC74C\uC5D0 \uC77C\uC5B4\uB0A0 \uC218 \uC788\uB294 \uC77C\uC744 \uC0DD\uAC01\uD574 \uBCFC \uC218 \uC788\uB098\uC694?",
+  q3: "\uAE00\uC758 \uC2DC\uC791-\uC911\uAC04-\uB05D\uC744 \uC5B4\uB5BB\uAC8C \uC9DC\uBA74 \uC88B\uC744\uAE4C\uC694?",
+  q4: "'very tired' \uB300\uC2E0 \uC4F8 \uC218 \uC788\uB294 \uB2E4\uB978 \uB2E8\uC5B4\uB294 \uBB34\uC5C7\uC778\uAC00\uC694?",
   r1: "\uB2E4\uC74C \uBB38\uB2E8\uC744 \uC368 \uC918.",
   r2: "\uB2F5\uC548\uC744 \uB2E4 \uC368 \uC918.",
   r3: "\uC774 \uBB38\uC7A5\uC744 \uACE0\uCCD0 \uC918.",
@@ -158,33 +159,44 @@ function GuideContent() {
       </p>
 
       <div className="guide-subsection">
-        <p className="guide-subtitle">Allowed Use / {KO.allowedTitle}</p>
+        <p className="guide-subtitle">🌐 Languages / {KO.languageTitle}</p>
         <ul className="guide-list">
           <li>
-            Understand the source:
+            You may ask in Korean, English, or both.
             <br />
-            "Why did the character oversleep?" / "{KO.q1}"
-          </li>
-          <li>
-            Get ideas:
-            <br />
-            "What could happen next?" / "{KO.q2}"
-          </li>
-          <li>
-            Organize your writing:
-            <br />
-            "How can I organize my story?" / "{KO.q3}"
-          </li>
-          <li>
-            Get word or expression help:
-            <br />
-            "What is a better word for 'very nervous'?" / "{KO.q4}"
+            {KO.lang}
           </li>
         </ul>
       </div>
 
       <div className="guide-subsection">
-        <p className="guide-subtitle">Restricted Use / {KO.restrictedTitle}</p>
+        <p className="guide-subtitle">✅ Allowed Use / {KO.allowedTitle}</p>
+        <ul className="guide-list">
+          <li>
+            Understand the source:
+            <br />
+            "What does this part mean?" / "{KO.q1}"
+          </li>
+          <li>
+            Get ideas:
+            <br />
+            "Can you help me think of possible next events?" / "{KO.q2}"
+          </li>
+          <li>
+            Organize your writing:
+            <br />
+            "How can I organize my writing?" / "{KO.q3}"
+          </li>
+          <li>
+            Get word or expression help:
+            <br />
+            "What word can I use instead of 'very tired'?" / "{KO.q4}"
+          </li>
+        </ul>
+      </div>
+
+      <div className="guide-subsection">
+        <p className="guide-subtitle">⛔ Restricted Use / {KO.restrictedTitle}</p>
         <ul className="guide-list">
           <li>
             Do not ask the chatbot to write for you:
@@ -215,7 +227,7 @@ function GuideContent() {
       </div>
 
       <div className="guide-subsection">
-        <p className="guide-subtitle">Good Use vs Wrong Use / {KO.goodTitle}</p>
+        <p className="guide-subtitle">🔁 Good Use vs Wrong Use / {KO.goodTitle}</p>
         <ul className="guide-list">
           <li>
             Wrong: "Write the ending."
@@ -236,13 +248,8 @@ function GuideContent() {
       </div>
 
       <div className="guide-subsection">
-        <p className="guide-subtitle">Important Rules / {KO.rulesTitle}</p>
+        <p className="guide-subtitle">📌 Important Rules / {KO.rulesTitle}</p>
         <ul className="guide-list">
-          <li>
-            You may ask in Korean, English, or both.
-            <br />
-            {KO.lang}
-          </li>
           <li>
             Ask one clear question at a time.
             <br />

@@ -203,7 +203,7 @@ export async function POST(request: NextRequest) {
   const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
-    return new Response("OPENAI_API_KEY is not set.", {
+    return new Response("The chatbot is temporarily unavailable. Please try again later.", {
       status: 500,
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
