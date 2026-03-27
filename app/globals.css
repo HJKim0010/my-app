@@ -129,6 +129,39 @@ body {
   overflow-x: auto;
 }
 
+.guide-task-panel {
+  margin: 18px 0;
+}
+
+.guide-task-switcher {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.guide-task-tab {
+  min-width: 128px;
+  padding: 12px 18px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--foreground);
+  font-size: 1rem;
+  font-weight: 700;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.guide-task-tab:hover {
+  transform: translateY(-1px);
+  border-color: #9eb6aa;
+}
+
+.guide-task-tab-active {
+  background: linear-gradient(180deg, #dff0e8, #d3ebe1);
+  border-color: #7da997;
+  color: #184433;
+}
+
 .participant-panel {
   margin: 18px 0;
 }
@@ -601,6 +634,15 @@ body {
   }
 
   .secondary-button {
+    width: 100%;
+    text-align: center;
+  }
+
+  .guide-task-switcher {
+    width: 100%;
+  }
+
+  .guide-task-tab {
     width: 100%;
     text-align: center;
   }

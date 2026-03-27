@@ -655,6 +655,24 @@ export default function Home() {
             <p>Please read the guide before you begin.</p>
           </div>
 
+          <div className="guide-task-panel">
+            <p className="section-label">Choose your task</p>
+            <div className="guide-task-switcher" role="tablist" aria-label="Task selection">
+              {TASK_IDS.map((taskId) => (
+                <button
+                  key={taskId}
+                  type="button"
+                  className={
+                    taskId === selectedTask ? "guide-task-tab guide-task-tab-active" : "guide-task-tab"
+                  }
+                  onClick={() => setSelectedTask(taskId)}
+                >
+                  {taskId === "task2" ? "Task 2" : "Task 1"}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="participant-panel">
             <label className="section-label" htmlFor="participant-id">
               Participant ID / {KO.participant}
