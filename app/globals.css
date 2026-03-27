@@ -449,7 +449,7 @@ body {
 .modal-card {
   width: min(920px, 100%);
   max-height: min(86vh, 900px);
-  overflow: hidden;
+  overflow-y: auto;
   padding: 20px;
   box-shadow: 0 22px 44px rgba(27, 22, 14, 0.24);
 }
@@ -469,7 +469,7 @@ body {
 }
 
 .modal-guide-panel {
-  max-height: calc(86vh - 120px);
+  max-height: calc(86vh - 96px);
   overflow-y: auto;
 }
 

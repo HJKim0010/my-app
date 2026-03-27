@@ -28,7 +28,7 @@ const CURRENT_PARTICIPANT_KEY = "writing-assistant-current-participant-v1";
 
 const KO = {
   intro:
-    "\uC774 \uCC57\uBD07\uC740 \uAE00\uC744 \uB300\uC2E0 \uC368\uC8FC\uB294 \uB3C4\uAD6C\uAC00 \uC544\uB2D9\uB2C8\uB2E4. \uC81C\uC2DC \uC790\uB8CC\uB97C \uC774\uD574\uD558\uACE0, \uC544\uC774\uB514\uC5B4\uB97C \uC0DD\uAC01\uD558\uACE0, \uAE00\uC744 \uACC4\uD68D\uD558\uB294 \uAC83\uC744 \uB3D5\uB294 \uB3C4\uAD6C\uC785\uB2C8\uB2E4.",
+    "\uC774 \uCC57\uBD07\uC740 \uAE00\uC744 \uB300\uC2E0 \uC368\uC8FC\uB294 \uB3C4\uAD6C\uAC00 \uC544\uB2D9\uB2C8\uB2E4. \uC774\uC57C\uAE30\uB97C \uC774\uD574\uD558\uACE0, \uC544\uC774\uB514\uC5B4\uB97C \uC0DD\uAC01\uD558\uACE0, \uAE00\uC744 \uACC4\uD68D\uD558\uACE0, \uC5B8\uC5B4 \uD45C\uD604\uC744 \uB3D5\uB294 \uB3C4\uAD6C\uC785\uB2C8\uB2E4.",
   support:
     "AI\uB294 \uC0DD\uAC01\uC744 \uB3D5\uACE0, \uAE00\uC740 \uC5EC\uB7EC\uBD84\uC774 \uC9C1\uC811 \uC791\uC131\uD574\uC57C \uD569\uB2C8\uB2E4.",
   languageTitle: "\uC0AC\uC6A9 \uAC00\uB2A5 \uC5B8\uC5B4",
@@ -81,7 +81,7 @@ function buildWelcomeMessage(): ChatMessage {
     id: "welcome",
     role: "assistant",
     text:
-      "Hello. I can help you understand the source, think of next ideas, plan your story, and find useful words or expressions. Ask one thing at a time, and we can work through it together.",
+      "Hello. I can help you understand the story, think of next ideas, plan your writing, and find useful words, expressions, or language help. Ask one thing at a time, and we can work through it together.",
   };
 }
 
@@ -170,7 +170,7 @@ function GuideContent() {
     <div className="guide-copy">
       <p>
         This chatbot is not a tool that writes for you. It helps you understand the
-        source, think of ideas, and plan your writing.
+        story, think of ideas, plan your writing, and get language help.
         <br />
         {KO.intro}
       </p>
@@ -195,7 +195,7 @@ function GuideContent() {
         <p className="guide-subtitle">2. Allowed Use / {KO.allowedTitle}</p>
         <ul className="guide-list guide-list-numbered">
           <li>
-            Understand the source
+            Understand the story
             <br />
             "What does this part mean?" / "{KO.q1}"
           </li>
@@ -210,7 +210,7 @@ function GuideContent() {
             "How can I plan my story?" / "{KO.q3}"
           </li>
           <li>
-            Get word or expression help
+            Get word, expression, or language help
             <br />
             "What word can I use instead of 'very tired'?" / "{KO.q4}"
           </li>
@@ -546,7 +546,6 @@ export default function Home() {
       {!guideAccepted ? (
         <section className="guide-gate-card">
           <div className="guide-gate-header">
-            <span className="task-badge">{selectedTask === "task2" ? "Task 2" : "Task 1"}</span>
             <h1>My Writing Assistant</h1>
             <p>Please read the guide before you begin.</p>
           </div>
@@ -647,9 +646,9 @@ export default function Home() {
 
           <div className="guidance-box compact-guidance">
             <p>
-              Ask about the source, possible next ideas, story planning, or useful words
-              and expressions. Use the chatbot to support your thinking, not to replace
-              your writing.
+              Ask about the story, possible next ideas, writing plans, or useful words,
+              expressions, and language help. Use the chatbot to support your thinking,
+              not to replace your writing.
             </p>
           </div>
 
@@ -693,7 +692,7 @@ export default function Home() {
 
           <section className="composer-section">
             <label className="section-label" htmlFor="chat-input">
-              Ask about the source
+              Ask about the story
             </label>
             <textarea
               id="chat-input"
@@ -707,7 +706,7 @@ export default function Home() {
               }}
               rows={5}
               className="chat-input"
-              placeholder="Ask what a part means, what could happen next, how to plan your story, or what words and expressions might help."
+              placeholder="Ask what a part means, what could happen next, how to plan your writing, or what words, expressions, and language help might help."
             />
 
             <div className="composer-footer">
@@ -724,9 +723,6 @@ export default function Home() {
           <section className="modal-card" role="dialog" aria-modal="true" aria-label="Guide">
             <div className="modal-header">
               <div>
-                <span className="task-badge">
-                  {selectedTask === "task2" ? "Task 2" : "Task 1"}
-                </span>
                 <h2>Quick Guide</h2>
               </div>
               <button
@@ -736,19 +732,6 @@ export default function Home() {
               >
                 Close
               </button>
-            </div>
-
-            <div className="participant-panel modal-participant-panel">
-              <label className="section-label" htmlFor="participant-id-readonly">
-                Participant ID / {KO.participant}
-              </label>
-              <input
-                id="participant-id-readonly"
-                type="text"
-                value={participantId}
-                className="participant-input"
-                readOnly
-              />
             </div>
 
             <div className="guide-panel modal-guide-panel">
