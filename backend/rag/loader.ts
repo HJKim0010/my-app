@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
+export type TaskId = "task1" | "task2";
 export type TaskCondition = "static" | "dynamic";
 
 export type TaskConditionConfig = {
@@ -36,6 +37,7 @@ export type VisualAsset = {
 
 export type TaskPackage = {
   config: TaskConfig;
+  taskId: TaskId;
   condition: TaskCondition;
   conditionLabel: string;
   documents: TaskDocument[];
@@ -44,7 +46,13 @@ export type TaskPackage = {
   visualAssets: VisualAsset[];
 };
 
-const TASK_ROOT = path.join(process.cwd(), "data", "task1");
+function getTaskRoot(taskId: TaskId): string {
+  return path.join(process.cwd(), "data", taskId);
+}
+
+function taskTitle(taskId: TaskId): string {
+  return taskId === "task2" ? "Task 2" : "Task 1";
+}
 
 function isPlaceholderText(text: string): boolean {
   const normalized = text.trim();
@@ -83,12 +91,13 @@ function normalizeForDedup(text: string): string {
   return text.replace(/\s+/g, " ").trim().toLowerCase();
 }
 
-export function getTask1Config(): TaskConfig {
-  const configPath = path.join(TASK_ROOT, "task.json");
+export function getTaskConfig(taskId: TaskId): TaskConfig {
+  const taskRoot = getTaskRoot(taskId);
+  const configPath = path.join(taskRoot, "task.json");
 
   return readJsonFile<TaskConfig>(configPath, {
-    task_id: "task1",
-    title: "Task 1",
+    task_id: taskId,
+    title: taskTitle(taskId),
     language: "en",
     source_type: "multimodal",
     ai_condition: "restricted_source_grounded_bounded_support",
@@ -108,9 +117,10 @@ export function getTask1Config(): TaskConfig {
   });
 }
 
-function buildCandidateDocuments(condition: TaskCondition): TaskDocument[] {
-  const staticRoot = path.join(TASK_ROOT, "static");
-  const dynamicRoot = path.join(TASK_ROOT, "dynamic");
+function buildCandidateDocuments(taskId: TaskId, condition: TaskCondition): TaskDocument[] {
+  const taskRoot = getTaskRoot(taskId);
+  const staticRoot = path.join(taskRoot, "static");
+  const dynamicRoot = path.join(taskRoot, "dynamic");
   const staticSourceText = readTextFile(path.join(staticRoot, "raw", "source_text.txt"));
   const staticAudioTranscript = readTextFile(path.join(staticRoot, "processed", "audio_transcript.txt"));
   const dynamicVideoTranscript = readTextFile(path.join(dynamicRoot, "processed", "video_transcript.txt"));
@@ -124,8 +134,8 @@ function buildCandidateDocuments(condition: TaskCondition): TaskDocument[] {
     {}
   );
 
-  const sharedPrompt = readTextFile(path.join(TASK_ROOT, "prompt.txt"));
-  const sharedInstruction = readTextFile(path.join(TASK_ROOT, "instruction.txt"));
+  const sharedPrompt = readTextFile(path.join(taskRoot, "prompt.txt"));
+  const sharedInstruction = readTextFile(path.join(taskRoot, "instruction.txt"));
 
   const candidates: Record<TaskCondition, TaskDocument[]> = {
     static: [
@@ -157,14 +167,14 @@ function buildCandidateDocuments(condition: TaskCondition): TaskDocument[] {
         sourceType: "prompt",
         label: "Task Prompt",
         content: sharedPrompt,
-        filePath: path.join(TASK_ROOT, "prompt.txt"),
+        filePath: path.join(taskRoot, "prompt.txt"),
       },
       {
         id: "instruction",
         sourceType: "instruction",
         label: "Task Instruction",
         content: sharedInstruction,
-        filePath: path.join(TASK_ROOT, "instruction.txt"),
+        filePath: path.join(taskRoot, "instruction.txt"),
       },
     ],
     dynamic: [
@@ -189,14 +199,14 @@ function buildCandidateDocuments(condition: TaskCondition): TaskDocument[] {
         sourceType: "prompt",
         label: "Task Prompt",
         content: sharedPrompt,
-        filePath: path.join(TASK_ROOT, "prompt.txt"),
+        filePath: path.join(taskRoot, "prompt.txt"),
       },
       {
         id: "instruction",
         sourceType: "instruction",
         label: "Task Instruction",
         content: sharedInstruction,
-        filePath: path.join(TASK_ROOT, "instruction.txt"),
+        filePath: path.join(taskRoot, "instruction.txt"),
       },
     ],
   };
@@ -226,8 +236,9 @@ function dedupeDocuments(documents: TaskDocument[]): TaskDocument[] {
   return deduped;
 }
 
-function buildVisualAssets(condition: TaskCondition): VisualAsset[] {
-  const staticImages = listFiles(path.join(TASK_ROOT, "static", "raw", "images"), [
+function buildVisualAssets(taskId: TaskId, condition: TaskCondition): VisualAsset[] {
+  const taskRoot = getTaskRoot(taskId);
+  const staticImages = listFiles(path.join(taskRoot, "static", "raw", "images"), [
     ".png",
     ".jpg",
     ".jpeg",
@@ -239,7 +250,7 @@ function buildVisualAssets(condition: TaskCondition): VisualAsset[] {
     filePath,
   }));
 
-  const dynamicKeyframes = listFiles(path.join(TASK_ROOT, "dynamic", "processed", "keyframes"), [
+  const dynamicKeyframes = listFiles(path.join(taskRoot, "dynamic", "processed", "keyframes"), [
     ".png",
     ".jpg",
     ".jpeg",
@@ -254,43 +265,47 @@ function buildVisualAssets(condition: TaskCondition): VisualAsset[] {
   return condition === "static" ? staticImages : dynamicKeyframes;
 }
 
-export function loadTask1Package(condition?: TaskCondition): TaskPackage {
-  const config = getTask1Config();
+export function loadTaskPackage(taskId: TaskId, condition?: TaskCondition): TaskPackage {
+  const taskRoot = getTaskRoot(taskId);
+  const config = getTaskConfig(taskId);
   const resolvedCondition = condition || config.default_condition;
   const conditionConfig = config.conditions[resolvedCondition];
   const documents = dedupeDocuments(
-    buildCandidateDocuments(resolvedCondition).filter((candidate) =>
+    buildCandidateDocuments(taskId, resolvedCondition).filter((candidate) =>
       conditionConfig.allowed_sources.includes(candidate.id)
     )
   );
 
   return {
     config,
+    taskId,
     condition: resolvedCondition,
     conditionLabel: conditionConfig.condition_label,
     documents,
-    prompt: readTextFile(path.join(TASK_ROOT, "prompt.txt")),
-    instruction: readTextFile(path.join(TASK_ROOT, "instruction.txt")),
-    visualAssets: buildVisualAssets(resolvedCondition),
+    prompt: readTextFile(path.join(taskRoot, "prompt.txt")),
+    instruction: readTextFile(path.join(taskRoot, "instruction.txt")),
+    visualAssets: buildVisualAssets(taskId, resolvedCondition),
   };
 }
 
-export function getTask1SessionStatus() {
+export function getTaskSessionStatus(taskId: TaskId) {
+  const taskRoot = getTaskRoot(taskId);
+
   return {
-    task_root: TASK_ROOT,
+    task_root: taskRoot,
     static: {
-      source_text: fs.existsSync(path.join(TASK_ROOT, "static", "raw", "source_text.txt")),
-      audio_transcript: fs.existsSync(path.join(TASK_ROOT, "static", "processed", "audio_transcript.txt")),
-      images: listFiles(path.join(TASK_ROOT, "static", "raw", "images"), [".png", ".jpg", ".jpeg", ".webp"]).length,
+      source_text: fs.existsSync(path.join(taskRoot, "static", "raw", "source_text.txt")),
+      audio_transcript: fs.existsSync(path.join(taskRoot, "static", "processed", "audio_transcript.txt")),
+      images: listFiles(path.join(taskRoot, "static", "raw", "images"), [".png", ".jpg", ".jpeg", ".webp"]).length,
     },
     dynamic: {
-      video_transcript: fs.existsSync(path.join(TASK_ROOT, "dynamic", "processed", "video_transcript.txt")),
-      scene_labels: fs.existsSync(path.join(TASK_ROOT, "dynamic", "processed", "scene_labels.json")),
-      keyframes: listFiles(path.join(TASK_ROOT, "dynamic", "processed", "keyframes"), [".png", ".jpg", ".jpeg", ".webp"]).length,
+      video_transcript: fs.existsSync(path.join(taskRoot, "dynamic", "processed", "video_transcript.txt")),
+      scene_labels: fs.existsSync(path.join(taskRoot, "dynamic", "processed", "scene_labels.json")),
+      keyframes: listFiles(path.join(taskRoot, "dynamic", "processed", "keyframes"), [".png", ".jpg", ".jpeg", ".webp"]).length,
     },
     shared: {
-      prompt: fs.existsSync(path.join(TASK_ROOT, "prompt.txt")),
-      instruction: fs.existsSync(path.join(TASK_ROOT, "instruction.txt")),
+      prompt: fs.existsSync(path.join(taskRoot, "prompt.txt")),
+      instruction: fs.existsSync(path.join(taskRoot, "instruction.txt")),
     },
   };
 }

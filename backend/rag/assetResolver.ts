@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { loadTask1Package, type TaskCondition } from "@/backend/rag/loader";
+import { loadTaskPackage, type TaskCondition, type TaskId } from "@/backend/rag/loader";
 
 type ImageInput = {
   type: "input_image";
@@ -29,12 +29,16 @@ function toDataUrl(filePath: string): string {
   return `data:${mime};base64,${base64}`;
 }
 
-export function resolveVisualInputs(query: string, condition: TaskCondition): ImageInput[] {
+export function resolveVisualInputs(
+  taskId: TaskId,
+  query: string,
+  condition: TaskCondition
+): ImageInput[] {
   if (!shouldAttachVisuals(query, condition)) {
     return [];
   }
 
-  const taskPackage = loadTask1Package(condition);
+  const taskPackage = loadTaskPackage(taskId, condition);
 
   return taskPackage.visualAssets.slice(0, 2).map((asset) => ({
     type: "input_image",

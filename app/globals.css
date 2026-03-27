@@ -42,7 +42,8 @@ body {
   padding: 32px 18px;
 }
 
-.chat-card {
+.chat-card,
+.guide-gate-card {
   max-width: 980px;
   margin: 0 auto;
   padding: 28px;
@@ -60,10 +61,17 @@ body {
   margin-bottom: 18px;
 }
 
+.guide-gate-header h1,
 .chat-header h1 {
   margin: 10px 0 0;
   font-size: 2rem;
   line-height: 1.1;
+}
+
+.guide-gate-header p {
+  margin: 10px 0 0;
+  color: var(--muted);
+  line-height: 1.5;
 }
 
 .task-badge {
@@ -82,7 +90,9 @@ body {
 .guidance-box,
 .thread-section,
 .composer-section,
-.response-section {
+.response-section,
+.guide-panel,
+.modal-card {
   border: 1px solid var(--border);
   border-radius: 18px;
   background: var(--surface-strong);
@@ -103,8 +113,62 @@ body {
   margin-bottom: 0;
 }
 
-.category-section {
-  margin-bottom: 18px;
+.compact-guidance {
+  margin-bottom: 16px;
+}
+
+.guide-panel {
+  padding: 20px;
+  background: linear-gradient(180deg, #fffdf9, #fdf7ee);
+}
+
+.guide-copy p {
+  margin: 0 0 14px;
+  line-height: 1.7;
+}
+
+.guide-copy p:last-child {
+  margin-bottom: 0;
+}
+
+.guide-subsection {
+  margin-top: 18px;
+}
+
+.guide-subtitle {
+  margin: 0 0 10px;
+  font-size: 0.96rem;
+  font-weight: 700;
+}
+
+.guide-list {
+  margin: 0;
+  padding-left: 18px;
+  line-height: 1.65;
+}
+
+.guide-list li + li {
+  margin-top: 8px;
+}
+
+.guide-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  color: var(--foreground);
+  line-height: 1.5;
+}
+
+.guide-check input {
+  width: 18px;
+  height: 18px;
+}
+
+.guide-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
 }
 
 .section-label {
@@ -114,31 +178,41 @@ body {
   font-weight: 700;
 }
 
-.category-grid {
+.chat-header-actions {
   display: flex;
+  align-items: center;
+  gap: 12px;
   flex-wrap: wrap;
-  gap: 10px;
 }
 
-.category-chip {
-  padding: 11px 14px;
+.task-switcher {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.task-tab,
+.secondary-button {
+  padding: 10px 14px;
   border: 1px solid var(--border);
-  border-radius: 14px;
-  background: #fff;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.88);
   color: var(--foreground);
-  font-size: 0.96rem;
-  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
 }
 
-.category-chip:hover {
+.task-tab:hover,
+.secondary-button:hover {
   transform: translateY(-1px);
-  border-color: #b9c9c2;
+  border-color: #a9b8b0;
 }
 
-.category-chip-active {
-  border-color: #8eb9aa;
+.task-tab-active {
+  border-color: #7da997;
   background: var(--accent-soft);
-  color: #153d31;
+  color: #123c2e;
 }
 
 .composer-section,
@@ -270,20 +344,62 @@ body {
   line-height: 1.65;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(35, 29, 20, 0.42);
+  backdrop-filter: blur(6px);
+  z-index: 20;
+}
+
+.modal-card {
+  width: min(920px, 100%);
+  max-height: min(86vh, 900px);
+  overflow: hidden;
+  padding: 20px;
+  box-shadow: 0 22px 44px rgba(27, 22, 14, 0.24);
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.modal-header h2 {
+  margin: 10px 0 0;
+  font-size: 1.6rem;
+  line-height: 1.15;
+}
+
+.modal-guide-panel {
+  max-height: calc(86vh - 120px);
+  overflow-y: auto;
+}
+
 @media (max-width: 768px) {
   .chat-shell {
     padding: 18px 12px;
   }
 
-  .chat-card {
+  .chat-card,
+  .guide-gate-card {
     padding: 18px;
     border-radius: 18px;
   }
 
-  .chat-header {
+  .chat-header,
+  .modal-header {
     flex-direction: column;
   }
 
+  .guide-gate-header h1,
   .chat-header h1 {
     font-size: 1.7rem;
   }
@@ -298,5 +414,28 @@ body {
 
   .message-bubble {
     max-width: 100%;
+  }
+
+  .chat-header-actions {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .task-switcher {
+    width: 100%;
+  }
+
+  .task-tab,
+  .secondary-button {
+    width: 100%;
+    text-align: center;
+  }
+
+  .modal-backdrop {
+    padding: 12px;
+  }
+
+  .modal-card {
+    padding: 16px;
   }
 }

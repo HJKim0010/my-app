@@ -1,12 +1,19 @@
 import { NextRequest } from "next/server";
 import { appendSessionTranscript } from "@/backend/logs/logger";
-import { getTask1SessionStatus, loadTask1Package, type TaskCondition } from "@/backend/rag/loader";
+import {
+  getTaskSessionStatus,
+  loadTaskPackage,
+  type TaskCondition,
+  type TaskId,
+} from "@/backend/rag/loader";
 
 export async function GET(request: NextRequest) {
+  const taskParam = request.nextUrl.searchParams.get("task");
   const conditionParam = request.nextUrl.searchParams.get("condition");
+  const taskId: TaskId = taskParam === "task2" ? "task2" : "task1";
   const condition = conditionParam === "dynamic" ? "dynamic" : "static";
-  const taskPackage = loadTask1Package(condition as TaskCondition);
-  const status = getTask1SessionStatus();
+  const taskPackage = loadTaskPackage(taskId, condition as TaskCondition);
+  const status = getTaskSessionStatus(taskId);
 
   return Response.json({
     task_id: taskPackage.config.task_id,
@@ -20,8 +27,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const isFinal = body?.isFinal === true;
+  const taskId: TaskId = body?.taskId === "task2" ? "task2" : "task1";
   const condition = body?.condition === "dynamic" ? "dynamic" : "static";
-  const taskPackage = loadTask1Package(condition as TaskCondition);
+  const taskPackage = loadTaskPackage(taskId, condition as TaskCondition);
   const sessionStartedAt =
     typeof body?.sessionStartedAt === "number" ? body.sessionStartedAt : Date.now();
 

@@ -1,5 +1,5 @@
 import { chunkDocuments, type TaskChunk } from "@/backend/rag/chunker";
-import { loadTask1Package, type TaskCondition } from "@/backend/rag/loader";
+import { loadTaskPackage, type TaskCondition, type TaskId } from "@/backend/rag/loader";
 
 export type RetrievedChunk = TaskChunk & {
   score: number;
@@ -49,8 +49,13 @@ function scoreChunk(query: string, content: string): number {
   return score;
 }
 
-export function retrieveTask1Chunks(query: string, condition: TaskCondition, limit = 4): RetrievedChunk[] {
-  const taskPackage = loadTask1Package(condition);
+export function retrieveTaskChunks(
+  taskId: TaskId,
+  query: string,
+  condition: TaskCondition,
+  limit = 4
+): RetrievedChunk[] {
+  const taskPackage = loadTaskPackage(taskId, condition);
   const conditionConfig = taskPackage.config.conditions[condition];
 
   if (!conditionConfig.retrieval_enabled) {

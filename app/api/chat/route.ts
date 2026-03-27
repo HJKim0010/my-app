@@ -4,9 +4,9 @@ import { classifyQuery, detectRestrictionReason } from "@/backend/policy/classif
 import { redirectResponse } from "@/backend/policy/redirect";
 import { appendChatLog } from "@/backend/logs/logger";
 import { resolveVisualInputs } from "@/backend/rag/assetResolver";
-import { loadTask1Package, type TaskCondition } from "@/backend/rag/loader";
+import { loadTaskPackage, type TaskCondition, type TaskId } from "@/backend/rag/loader";
 import { buildSystemInstruction, buildUserInput } from "@/backend/rag/promptBuilder";
-import { retrieveTask1Chunks } from "@/backend/rag/retriever";
+import { retrieveTaskChunks } from "@/backend/rag/retriever";
 
 const CONFUSION_PATTERNS = [
   "i don't understand",
@@ -103,6 +103,7 @@ function trimConfusionResponse(text: string): string {
 export async function POST(request: NextRequest) {
   let query = "";
   let category = "Others";
+  let taskId: TaskId = "task1";
   let condition: TaskCondition = "static";
   let sessionId = "unknown-session";
   let interactionCount = 1;
@@ -112,6 +113,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     query = typeof body?.query === "string" ? body.query : "";
     category = typeof body?.category === "string" ? body.category : category;
+    taskId = body?.taskId === "task2" ? "task2" : "task1";
     condition = body?.condition === "dynamic" ? "dynamic" : "static";
     sessionId = typeof body?.sessionId === "string" ? body.sessionId : sessionId;
     interactionCount =
@@ -122,7 +124,7 @@ export async function POST(request: NextRequest) {
     query = "";
   }
 
-  const taskPackage = loadTask1Package(condition);
+  const taskPackage = loadTaskPackage(taskId, condition);
   const timestamp = new Date().toISOString();
   const sessionDurationMs = Math.max(0, Date.now() - sessionStartedAt);
 
@@ -166,7 +168,7 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const retrievedChunks = retrieveTask1Chunks(query, condition);
+  const retrievedChunks = retrieveTaskChunks(taskId, query, condition);
 
   if (retrievedChunks.length === 0) {
     const boundedResponse =
@@ -207,7 +209,7 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const visualInputs = resolveVisualInputs(query, condition);
+  const visualInputs = resolveVisualInputs(taskId, query, condition);
   const client = new OpenAI({ apiKey });
   const model = process.env.OPENAI_MODEL || "gpt-4.1-mini";
   const timeoutMs = Number(process.env.OPENAI_TIMEOUT_MS || 30000);
