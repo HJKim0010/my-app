@@ -112,6 +112,11 @@ function tokenizeForLocal(text: string): string[] {
     .filter((token) => token.length > 1);
 }
 
+function isPlaceholderText(text: string): boolean {
+  const normalized = text.trim();
+  return !normalized || normalized.startsWith("[TODO]");
+}
+
 function isUnderstandingQuery(query: string): boolean {
   const normalized = query.toLowerCase();
   return [
@@ -141,6 +146,44 @@ function isUnderstandingQuery(query: string): boolean {
     "모르겠",
     "헷갈",
     "기억이 안",
+    "뭐야",
+    "뭔",
+    "맞냐",
+    "어떤거",
+    "어떤 거",
+    "왜",
+    "어떻게",
+    "무슨 일이",
+  ].some((term) => normalized.includes(term));
+}
+
+function isPlanningOrLanguageQuery(query: string): boolean {
+  const normalized = query.toLowerCase();
+  return [
+    "idea",
+    "ideas",
+    "plan",
+    "outline",
+    "next event",
+    "next idea",
+    "organization",
+    "organize",
+    "vocabulary",
+    "expression",
+    "word",
+    "words",
+    "ending",
+    "possible",
+    "brainstorm",
+    "아이디어",
+    "개요",
+    "구성",
+    "계획",
+    "표현",
+    "어휘",
+    "단어",
+    "다음 전개",
+    "다음 사건",
   ].some((term) => normalized.includes(term));
 }
 
@@ -190,7 +233,8 @@ function extractNarrativeText(taskPackage: TaskPackage): string {
     )
   );
 
-  return preferred?.content ?? "";
+  const text = preferred?.content ?? "";
+  return isPlaceholderText(text) ? "" : text;
 }
 
 function splitNarrativeIntoSegments(text: string): string[] {
@@ -329,6 +373,25 @@ function buildRetrievedClarification(query: string, retrievedChunks: RetrievedCh
   return formatLocalClarification(bestSentences, "이 부분을 먼저 이해하고, 헷갈리는 한 장면만 다시 물어보면 더 자세히 설명할게.");
 }
 
+function buildNarrativeFallbackClarification(query: string, taskPackage: TaskPackage): string | null {
+  const narrative = extractNarrativeText(taskPackage);
+
+  if (!narrative) {
+    return null;
+  }
+
+  const bestSentences = takeBestSentences(narrative, query, 2);
+
+  if (bestSentences.length === 0) {
+    return null;
+  }
+
+  return formatLocalClarification(
+    bestSentences,
+    "자료 안에서 보이는 내용만 먼저 짧게 설명했어. 헷갈리는 한 장면을 다시 말해주면 그 부분만 더 자세히 볼게."
+  );
+}
+
 export async function POST(request: NextRequest) {
   let query = "";
   let category = "Others";
@@ -407,7 +470,10 @@ export async function POST(request: NextRequest) {
 
   const directClarification =
     buildSegmentClarification(query, taskPackage) ||
-    (isUnderstandingQuery(query) ? buildRetrievedClarification(query, retrievedChunks) : null);
+    (isUnderstandingQuery(query) && !isPlanningOrLanguageQuery(query)
+      ? buildRetrievedClarification(query, retrievedChunks) ||
+        buildNarrativeFallbackClarification(query, taskPackage)
+      : null);
 
   if (directClarification) {
     await appendChatLog({
