@@ -11,11 +11,34 @@ const QUERY_EXPANSIONS: Record<string, string[]> = {
   worried: ["tense", "nervous", "warning", "decision"],
   problem: ["conflict", "warning", "decision", "late"],
   ending: ["last", "final", "decision", "warning", "station"],
+  last: ["ending", "final", "warning", "station", "decision"],
+  final: ["ending", "last", "decision", "station", "graduation"],
+  anna: ["package", "box", "book", "note", "table", "cafe"],
+  jack: ["train", "warning", "station", "note", "decision", "team"],
+  story: ["scene", "part", "moment", "event"],
+  video: ["scene", "moment", "frame", "last", "final"],
+  scene: ["video", "moment", "frame"],
+  마지막: ["끝", "last", "final", "ending", "decision", "warning", "station"],
+  끝: ["마지막", "last", "final", "ending"],
+  마지막부분: ["마지막", "끝", "last", "final", "ending"],
+  마지막장면: ["마지막", "scene", "last", "final"],
+  후반: ["마지막", "끝", "late", "later", "final"],
+  초반: ["처음", "beginning", "start", "early"],
+  처음: ["초반", "beginning", "start", "early"],
+  영상: ["video", "scene", "frame", "moment"],
+  스토리: ["story", "scene", "event", "part"],
+  이야기: ["story", "scene", "event", "part"],
+  문제: ["problem", "conflict", "warning", "decision"],
+  내용: ["story", "part", "scene", "event"],
 };
 
 function tokenize(text: string): string[] {
   return text
     .toLowerCase()
+    .replace(/([a-z])([\uac00-\ud7a3])/g, "$1 $2")
+    .replace(/([\uac00-\ud7a3])([a-z])/g, "$1 $2")
+    .replace(/([0-9])([\uac00-\ud7a3a-z])/g, "$1 $2")
+    .replace(/([\uac00-\ud7a3a-z])([0-9])/g, "$1 $2")
     .replace(/[^a-z0-9\uac00-\ud7a3\s]/g, " ")
     .split(/\s+/)
     .filter((token) => token.length > 1);
@@ -49,6 +72,28 @@ function scoreChunk(query: string, content: string): number {
   return score;
 }
 
+function hasLastPartIntent(query: string): boolean {
+  const normalized = query.toLowerCase();
+  return [
+    "last",
+    "final",
+    "ending",
+    "end",
+    "마지막",
+    "마지막부분",
+    "마지막 장면",
+    "끝",
+    "후반",
+  ].some((term) => normalized.includes(term));
+}
+
+function hasBeginningIntent(query: string): boolean {
+  const normalized = query.toLowerCase();
+  return ["beginning", "start", "first", "initial", "처음", "초반", "앞부분"].some((term) =>
+    normalized.includes(term)
+  );
+}
+
 export function retrieveTaskChunks(
   taskId: TaskId,
   query: string,
@@ -63,11 +108,21 @@ export function retrieveTaskChunks(
   }
 
   const chunks = chunkDocuments(taskPackage.config.task_id, taskPackage.documents);
+  const maxChunkIndex = chunks.reduce((max, chunk) => Math.max(max, chunk.chunkIndex), 0);
+  const prefersLastPart = hasLastPartIntent(query);
+  const prefersBeginning = hasBeginningIntent(query);
 
   const ranked = chunks
     .map((chunk) => ({
       ...chunk,
-      score: scoreChunk(query, chunk.content),
+      score:
+        scoreChunk(query, chunk.content) +
+        (prefersLastPart && maxChunkIndex > 0
+          ? (chunk.chunkIndex / maxChunkIndex) * 1.75
+          : 0) +
+        (prefersBeginning && maxChunkIndex > 0
+          ? ((maxChunkIndex - chunk.chunkIndex) / maxChunkIndex) * 1.75
+          : 0),
     }))
     .sort((a, b) => b.score - a.score);
 
@@ -75,6 +130,26 @@ export function retrieveTaskChunks(
 
   if (positive.length > 0) {
     return positive;
+  }
+
+  if (prefersLastPart) {
+    return [...chunks]
+      .sort((a, b) => b.chunkIndex - a.chunkIndex)
+      .slice(0, Math.min(limit, chunks.length))
+      .map((chunk) => ({
+        ...chunk,
+        score: 0,
+      }));
+  }
+
+  if (prefersBeginning) {
+    return [...chunks]
+      .sort((a, b) => a.chunkIndex - b.chunkIndex)
+      .slice(0, Math.min(limit, chunks.length))
+      .map((chunk) => ({
+        ...chunk,
+        score: 0,
+      }));
   }
 
   return ranked.slice(0, Math.min(2, ranked.length));
