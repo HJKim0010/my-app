@@ -7,6 +7,8 @@ import { resolveVisualInputs } from "@/backend/rag/assetResolver";
 import { loadTaskPackage, type TaskCondition, type TaskId } from "@/backend/rag/loader";
 import { buildSystemInstruction, buildUserInput } from "@/backend/rag/promptBuilder";
 import { retrieveTaskChunks } from "@/backend/rag/retriever";
+import type { TaskPackage } from "@/backend/rag/loader";
+import type { RetrievedChunk } from "@/backend/rag/retriever";
 
 const CONFUSION_PATTERNS = [
   "i don't understand",
@@ -100,6 +102,233 @@ function trimConfusionResponse(text: string): string {
     .trim();
 }
 
+function tokenizeForLocal(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/([a-z])([\uac00-\ud7a3])/g, "$1 $2")
+    .replace(/([\uac00-\ud7a3])([a-z])/g, "$1 $2")
+    .replace(/[^a-z0-9\uac00-\ud7a3\s]/g, " ")
+    .split(/\s+/)
+    .filter((token) => token.length > 1);
+}
+
+function isUnderstandingQuery(query: string): boolean {
+  const normalized = query.toLowerCase();
+  return [
+    "what does",
+    "what happened",
+    "what problem",
+    "which part",
+    "beginning",
+    "middle",
+    "end",
+    "last part",
+    "scene",
+    "part",
+    "의미",
+    "무슨 뜻",
+    "설명",
+    "무슨 내용",
+    "어떤 내용",
+    "문제",
+    "초반",
+    "중반",
+    "후반",
+    "마지막",
+    "장면",
+    "부분",
+    "이해",
+    "모르겠",
+    "헷갈",
+    "기억이 안",
+  ].some((term) => normalized.includes(term));
+}
+
+function detectSegmentIntent(query: string): "all" | "beginning" | "middle" | "end" | null {
+  const normalized = query.toLowerCase();
+  const asksAll =
+    (normalized.includes("초반") && normalized.includes("중반")) ||
+    (normalized.includes("middle") && normalized.includes("beginning")) ||
+    (normalized.includes("초반") && normalized.includes("후반")) ||
+    (normalized.includes("beginning") && normalized.includes("end")) ||
+    normalized.includes("초반 중반 후반") ||
+    normalized.includes("beginning middle end");
+
+  if (asksAll) {
+    return "all";
+  }
+
+  if (
+    ["마지막", "후반", "끝", "last", "final", "ending", "end"].some((term) =>
+      normalized.includes(term)
+    )
+  ) {
+    return "end";
+  }
+
+  if (
+    ["중반", "middle", "middle part"].some((term) => normalized.includes(term))
+  ) {
+    return "middle";
+  }
+
+  if (
+    ["초반", "처음", "beginning", "start", "first part"].some((term) =>
+      normalized.includes(term)
+    )
+  ) {
+    return "beginning";
+  }
+
+  return null;
+}
+
+function extractNarrativeText(taskPackage: TaskPackage): string {
+  const preferred = taskPackage.documents.find((document) =>
+    ["video_transcript", "source_text", "audio_transcript", "scene_labels"].includes(
+      document.sourceType
+    )
+  );
+
+  return preferred?.content ?? "";
+}
+
+function splitNarrativeIntoSegments(text: string): string[] {
+  const normalized = text.replace(/\r/g, "").trim();
+
+  if (!normalized) {
+    return [];
+  }
+
+  const paragraphSegments = normalized
+    .split(/\n\s*\n/)
+    .map((block) => block.trim())
+    .filter(Boolean);
+
+  if (paragraphSegments.length >= 3) {
+    return paragraphSegments;
+  }
+
+  const sentenceSegments = normalized
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+
+  if (sentenceSegments.length <= 3) {
+    return sentenceSegments;
+  }
+
+  const chunkSize = Math.ceil(sentenceSegments.length / 3);
+  const grouped: string[] = [];
+
+  for (let index = 0; index < sentenceSegments.length; index += chunkSize) {
+    grouped.push(sentenceSegments.slice(index, index + chunkSize).join(" ").trim());
+  }
+
+  return grouped.filter(Boolean);
+}
+
+function compactSentence(text: string): string {
+  return text
+    .replace(/\s+/g, " ")
+    .replace(/\s+([,.!?])/g, "$1")
+    .trim();
+}
+
+function takeBestSentences(text: string, query: string, limit = 2): string[] {
+  const sentences = text
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => compactSentence(sentence))
+    .filter(Boolean);
+  const queryTokens = new Set(tokenizeForLocal(query));
+
+  return sentences
+    .map((sentence) => ({
+      sentence,
+      score: tokenizeForLocal(sentence).reduce(
+        (sum, token) => sum + (queryTokens.has(token) ? 1 : 0),
+        0
+      ),
+    }))
+    .sort((a, b) => b.score - a.score || a.sentence.length - b.sentence.length)
+    .slice(0, limit)
+    .map((item) => item.sentence);
+}
+
+function formatLocalClarification(sentences: string[], tail?: string): string {
+  const bulletLines = sentences.slice(0, 2).map((sentence) => `- ${sentence}`);
+  if (tail) {
+    bulletLines.push(`- ${tail}`);
+  }
+  return bulletLines.join("\n");
+}
+
+function buildSegmentClarification(query: string, taskPackage: TaskPackage): string | null {
+  const intent = detectSegmentIntent(query);
+
+  if (!intent) {
+    return null;
+  }
+
+  const narrative = extractNarrativeText(taskPackage);
+  const segments = splitNarrativeIntoSegments(narrative);
+
+  if (segments.length === 0) {
+    return null;
+  }
+
+  if (intent === "all") {
+    const beginning = segments[0];
+    const middle = segments[Math.floor((segments.length - 1) / 2)];
+    const end = segments[segments.length - 1];
+
+    return [
+      `- 초반: ${takeBestSentences(beginning, "beginning start 초반 처음", 1).join(" ")}`,
+      `- 중반: ${takeBestSentences(middle, "middle 중반", 1).join(" ")}`,
+      `- 후반: ${takeBestSentences(end, "end last final 후반 마지막", 1).join(" ")}`,
+      "- 어느 부분을 먼저 더 자세히 볼까?",
+    ].join("\n");
+  }
+
+  const segment =
+    intent === "beginning"
+      ? segments[0]
+      : intent === "middle"
+        ? segments[Math.floor((segments.length - 1) / 2)]
+        : segments[segments.length - 1];
+
+  const label =
+    intent === "beginning" ? "초반" : intent === "middle" ? "중반" : "후반";
+
+  const simpleWords =
+    intent === "beginning"
+      ? "key words: start, prepare, late"
+      : intent === "middle"
+        ? "key words: rush, train, forgot"
+        : "key words: note, warning, decision";
+
+  return formatLocalClarification(takeBestSentences(segment, query, 2), `${label}은 이렇게 보면 돼. ${simpleWords}`);
+}
+
+function buildRetrievedClarification(query: string, retrievedChunks: RetrievedChunk[]): string | null {
+  if (!retrievedChunks.length) {
+    return null;
+  }
+
+  const combined = retrievedChunks
+    .slice(0, 2)
+    .map((chunk) => chunk.content)
+    .join(" ");
+
+  const bestSentences = takeBestSentences(combined, query, 2);
+
+  if (bestSentences.length === 0) {
+    return null;
+  }
+
+  return formatLocalClarification(bestSentences, "이 부분을 먼저 이해하고, 헷갈리는 한 장면만 다시 물어보면 더 자세히 설명할게.");
+}
+
 export async function POST(request: NextRequest) {
   let query = "";
   let category = "Others";
@@ -176,9 +405,47 @@ export async function POST(request: NextRequest) {
 
   const retrievedChunks = retrieveTaskChunks(taskId, query, condition);
 
+  const directClarification =
+    buildSegmentClarification(query, taskPackage) ||
+    (isUnderstandingQuery(query) ? buildRetrievedClarification(query, retrievedChunks) : null);
+
+  if (directClarification) {
+    await appendChatLog({
+      participant_id: participantId,
+      session_id: sessionId,
+      task_id: taskPackage.config.task_id,
+      condition_label: taskPackage.config.ai_condition,
+      selected_category: category,
+      raw_user_query: query,
+      policy_decision: policyDecision,
+      status: "allowed",
+      retrieved_chunk_ids: retrievedChunks.map((chunk) => chunk.chunkId),
+      retrieved_chunk_metadata: retrievedChunks.map((chunk) => ({
+        chunkId: chunk.chunkId,
+        sourceId: chunk.sourceId,
+        sourceType: chunk.sourceType,
+        chunkIndex: chunk.chunkIndex,
+        score: chunk.score,
+      })),
+      assistant_response: directClarification,
+      timestamp,
+      response_length: directClarification.length,
+      interaction_count: interactionCount,
+      session_duration_ms: sessionDurationMs,
+      query_type_label: policyDecision,
+      source_types_used: [...new Set(retrievedChunks.map((chunk) => chunk.sourceType))],
+      visual_assets_used: [],
+    });
+
+    return new Response(directClarification, {
+      status: 200,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
+  }
+
   if (retrievedChunks.length === 0) {
     const boundedResponse =
-      "I could not find a closely relevant part of the current Task1 session materials for that question. Please ask about a specific scene, line, segment, idea, organization choice, or word from the assigned source.";
+      "I could not find a closely relevant part of the current task materials for that question. Please ask about one specific scene, part, event, or word from the assigned story.";
 
     await appendChatLog({
       participant_id: participantId,
