@@ -1,0 +1,109 @@
+{
+  "entries": [
+    {
+      "id": "jack",
+      "category": "character",
+      "terms": ["Jack", "잭", "그", "주인공"],
+      "related": ["student", "presenter", "leader", "team member", "he", "main character"],
+      "segments": ["beginning", "middle", "end"]
+    },
+    {
+      "id": "woman",
+      "category": "character",
+      "terms": ["woman", "lady", "passenger", "stranger", "여자", "여성"],
+      "related": ["she", "helper", "도와준 사람", "승객", "그녀", "낯선 여자"],
+      "segments": ["middle", "end"]
+    },
+    {
+      "id": "team",
+      "category": "character",
+      "terms": ["team", "teammates", "group", "팀", "팀원"],
+      "related": ["presentation team", "members", "classmates", "project group", "조원", "발표 팀"],
+      "segments": ["beginning", "end"]
+    },
+    {
+      "id": "wallet_student_id",
+      "category": "object",
+      "terms": ["wallet", "student id", "id card", "지갑", "학생증"],
+      "related": ["card", "pockets", "forgot", "left behind", "소지품", "신분증"],
+      "segments": ["middle"]
+    },
+    {
+      "id": "phone",
+      "category": "object",
+      "terms": ["phone", "cellphone", "mobile", "휴대폰", "핸드폰"],
+      "related": ["notes on phone", "dropped phone", "device", "smartphone", "떨어뜨린 폰", "메모 확인"],
+      "segments": ["middle"]
+    },
+    {
+      "id": "note_message",
+      "category": "object",
+      "terms": ["note", "message", "paper", "folded paper", "쪽지", "메시지"],
+      "related": ["warning", "letter", "memo", "written note", "메모", "경고 문구"],
+      "segments": ["end"]
+    },
+    {
+      "id": "subway_train",
+      "category": "place",
+      "terms": ["subway", "train", "subway station", "station", "지하철", "역"],
+      "related": ["carriage", "platform", "ride", "on the train", "전철", "객차"],
+      "segments": ["middle", "end"]
+    },
+    {
+      "id": "presentation_classroom",
+      "category": "place",
+      "terms": ["presentation", "classroom", "team project", "발표", "교실"],
+      "related": ["final project", "school", "presentation room", "team talk", "수업", "프로젝트 발표"],
+      "segments": ["beginning", "end"]
+    },
+    {
+      "id": "oversleep_alarm",
+      "category": "action",
+      "terms": ["oversleep", "alarm", "alarms failed", "late", "늦잠", "알람"],
+      "related": ["woke up late", "clock", "sunlight", "very late", "늦게 일어남", "지각"],
+      "segments": ["beginning"]
+    },
+    {
+      "id": "rush_for_train",
+      "category": "action",
+      "terms": ["rush", "grab", "run", "hurry", "서두르다", "급히 나가다"],
+      "related": ["raced out", "without breakfast", "quickly", "hurried", "뛰어나가다", "허둥지둥"],
+      "segments": ["middle"]
+    },
+    {
+      "id": "meet_woman",
+      "category": "action",
+      "terms": ["meet the woman", "caught his arm", "helped him stand", "여자를 만나다", "도움을 받다"],
+      "related": ["lost his balance", "slipped", "fell", "도와준 여자", "균형을 잃다", "붙잡아 주다"],
+      "segments": ["middle"]
+    },
+    {
+      "id": "warning_decision",
+      "category": "problem",
+      "terms": ["warning", "last station", "decision", "problem", "경고", "마지막 역"],
+      "related": ["trust the message", "get off early", "strange message", "real warning", "결정", "쪽지를 믿을지"],
+      "segments": ["end"]
+    },
+    {
+      "id": "forgot_items",
+      "category": "problem",
+      "terms": ["forgot", "left behind", "missing", "두고 오다", "깜빡하다"],
+      "related": ["wallet", "student id", "important things", "물건을 빠뜨림", "잊고 옴", "소지품 없음"],
+      "segments": ["middle"]
+    },
+    {
+      "id": "jack_feelings",
+      "category": "feeling",
+      "terms": ["shocked", "tense", "nervous", "rushed", "긴장", "당황"],
+      "related": ["stomach sank", "worried", "afraid", "guilty", "초조함", "조급함"],
+      "segments": ["beginning", "middle", "end"]
+    },
+    {
+      "id": "stay_or_leave",
+      "category": "decision",
+      "terms": ["stay on the train", "get off early", "trust the message", "남아 있을지", "내릴지"],
+      "related": ["last station", "decision", "choice", "what to do next", "결정", "선택"],
+      "segments": ["end"]
+    }
+  ]
+}

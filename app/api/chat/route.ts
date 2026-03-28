@@ -4,11 +4,10 @@ import { classifyQuery, detectRestrictionReason } from "@/backend/policy/classif
 import { redirectResponse } from "@/backend/policy/redirect";
 import { appendChatLog } from "@/backend/logs/logger";
 import { resolveVisualInputs } from "@/backend/rag/assetResolver";
-import { loadTaskPackage, type TaskCondition, type TaskId } from "@/backend/rag/loader";
+import { loadTaskPackage, type TaskCondition, type TaskId, type TaskPackage } from "@/backend/rag/loader";
+import { expandQueryTerms } from "@/backend/rag/lexicon";
 import { buildSystemInstruction, buildUserInput } from "@/backend/rag/promptBuilder";
-import { retrieveTaskChunks } from "@/backend/rag/retriever";
-import type { TaskPackage } from "@/backend/rag/loader";
-import type { RetrievedChunk } from "@/backend/rag/retriever";
+import { retrieveTaskChunks, type RetrievedChunk } from "@/backend/rag/retriever";
 
 const CONFUSION_PATTERNS = [
   "i don't understand",
@@ -31,22 +30,40 @@ const CONFUSION_PATTERNS = [
 ];
 
 const CONFUSION_STOP_MARKERS = [
-  "이어서 쓸",
-  "글을 짤",
-  "구성 틀",
-  "문장 틀",
-  "원하면 다음 단계",
+  "아이디어",
+  "글짜기",
+  "구성",
+  "문단 계획",
+  "다음 단계",
   "brainstorm",
   "outline",
-  "개요",
-  "유용한 표현",
-  "문단 계획",
-  "다음에 생각할 수 있는 방향",
-  "쓸 때 유지해야 할",
-  "영어 표현만",
-  "줄거리 아이디어",
-  "도입-중간-끝",
+  "next step",
+  "possible ending",
+  "useful expression",
+  "sentence frame",
 ];
+
+type ReferenceMode = "video" | "story" | null;
+type SegmentIntent = "all" | "beginning" | "middle" | "end" | null;
+
+function normalize(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/([a-z])([\uac00-\ud7a3])/g, "$1 $2")
+    .replace(/([\uac00-\ud7a3])([a-z])/g, "$1 $2")
+    .replace(/([0-9])([\uac00-\ud7a3a-z])/g, "$1 $2")
+    .replace(/([\uac00-\ud7a3a-z])([0-9])/g, "$1 $2")
+    .replace(/[^a-z0-9\uac00-\ud7a3\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function tokenize(text: string): string[] {
+  return normalize(text)
+    .split(" ")
+    .map((token) => token.trim())
+    .filter((token) => token.length > 1);
+}
 
 function isConfusionQuery(text: string): boolean {
   const normalized = text.toLowerCase();
@@ -102,16 +119,6 @@ function trimConfusionResponse(text: string): string {
     .trim();
 }
 
-function tokenizeForLocal(text: string): string[] {
-  return text
-    .toLowerCase()
-    .replace(/([a-z])([\uac00-\ud7a3])/g, "$1 $2")
-    .replace(/([\uac00-\ud7a3])([a-z])/g, "$1 $2")
-    .replace(/[^a-z0-9\uac00-\ud7a3\s]/g, " ")
-    .split(/\s+/)
-    .filter((token) => token.length > 1);
-}
-
 function isPlaceholderText(text: string): boolean {
   const normalized = text.trim();
   return !normalized || normalized.startsWith("[TODO]");
@@ -130,7 +137,6 @@ function isUnderstandingQuery(query: string): boolean {
     "last part",
     "scene",
     "part",
-    "의미",
     "무슨 뜻",
     "설명",
     "무슨 내용",
@@ -147,11 +153,9 @@ function isUnderstandingQuery(query: string): boolean {
     "헷갈",
     "기억이 안",
     "뭐야",
-    "뭔",
-    "맞냐",
-    "어떤거",
+    "맞아",
+    "맞지",
     "어떤 거",
-    "왜",
     "어떻게",
     "무슨 일이",
   ].some((term) => normalized.includes(term));
@@ -172,9 +176,8 @@ function isPlanningOrLanguageQuery(query: string): boolean {
     "expression",
     "word",
     "words",
-    "ending",
-    "possible",
     "brainstorm",
+    "possible ending",
     "아이디어",
     "개요",
     "구성",
@@ -182,18 +185,19 @@ function isPlanningOrLanguageQuery(query: string): boolean {
     "표현",
     "어휘",
     "단어",
-    "다음 전개",
     "다음 사건",
+    "다음 전개",
   ].some((term) => normalized.includes(term));
 }
 
-function detectSegmentIntent(query: string): "all" | "beginning" | "middle" | "end" | null {
-  const normalized = query.toLowerCase();
+function detectSegmentIntent(query: string): SegmentIntent {
+  const normalized = normalize(query);
+
   const asksAll =
     (normalized.includes("초반") && normalized.includes("중반")) ||
-    (normalized.includes("middle") && normalized.includes("beginning")) ||
-    (normalized.includes("초반") && normalized.includes("후반")) ||
-    (normalized.includes("beginning") && normalized.includes("end")) ||
+    (normalized.includes("중반") && normalized.includes("후반")) ||
+    (normalized.includes("beginning") && normalized.includes("middle")) ||
+    (normalized.includes("middle") && normalized.includes("end")) ||
     normalized.includes("초반 중반 후반") ||
     normalized.includes("beginning middle end");
 
@@ -201,40 +205,63 @@ function detectSegmentIntent(query: string): "all" | "beginning" | "middle" | "e
     return "all";
   }
 
-  if (
-    ["마지막", "후반", "끝", "last", "final", "ending", "end"].some((term) =>
-      normalized.includes(term)
-    )
-  ) {
+  if (["마지막", "끝", "후반", "last", "final", "ending", "end"].some((term) => normalized.includes(term))) {
     return "end";
   }
 
-  if (
-    ["중반", "middle", "middle part"].some((term) => normalized.includes(term))
-  ) {
+  if (["중반", "middle", "middle part"].some((term) => normalized.includes(term))) {
     return "middle";
   }
 
-  if (
-    ["초반", "처음", "beginning", "start", "first part"].some((term) =>
-      normalized.includes(term)
-    )
-  ) {
+  if (["초반", "처음", "beginning", "start", "first part"].some((term) => normalized.includes(term))) {
     return "beginning";
   }
 
   return null;
 }
 
-function extractNarrativeText(taskPackage: TaskPackage): string {
-  const preferred = taskPackage.documents.find((document) =>
-    ["video_transcript", "source_text", "audio_transcript", "scene_labels"].includes(
-      document.sourceType
-    )
-  );
+function detectReferenceMode(text: string): ReferenceMode {
+  const normalized = normalize(text);
 
-  const text = preferred?.content ?? "";
-  return isPlaceholderText(text) ? "" : text;
+  if (["영상", "비디오", "장면", "캡션", "동영상", "video", "scene", "frame"].some((term) => normalized.includes(term))) {
+    return "video";
+  }
+
+  if (["스토리", "이야기", "글", "텍스트", "본문", "story", "text", "reading"].some((term) => normalized.includes(term))) {
+    return "story";
+  }
+
+  return null;
+}
+
+function buildExpandedTokenSet(taskId: TaskId, text: string): Set<string> {
+  return new Set(expandQueryTerms(taskId, text));
+}
+
+function scoreSentence(taskId: TaskId, sentence: string, query: string): number {
+  const queryTokens = buildExpandedTokenSet(taskId, query);
+  const sentenceTokens = tokenize(sentence);
+  let score = 0;
+
+  for (const token of sentenceTokens) {
+    if (queryTokens.has(token)) {
+      score += 1;
+    }
+  }
+
+  return score;
+}
+
+function extractNarrativeText(taskPackage: TaskPackage): string {
+  const relevant = taskPackage.documents
+    .filter((document) =>
+      ["video_transcript", "source_text", "audio_transcript", "scene_labels"].includes(document.sourceType)
+    )
+    .map((document) => document.content.trim())
+    .filter((content) => !isPlaceholderText(content));
+
+  const deduped = [...new Set(relevant)];
+  return deduped.join("\n\n").trim();
 }
 
 function splitNarrativeIntoSegments(text: string): string[] {
@@ -244,70 +271,81 @@ function splitNarrativeIntoSegments(text: string): string[] {
     return [];
   }
 
-  const paragraphSegments = normalized
+  const blocks = normalized
     .split(/\n\s*\n/)
     .map((block) => block.trim())
     .filter(Boolean);
 
-  if (paragraphSegments.length >= 3) {
-    return paragraphSegments;
+  if (blocks.length >= 3) {
+    return blocks;
   }
 
-  const sentenceSegments = normalized
+  const sentences = normalized
     .split(/(?<=[.!?])\s+/)
     .map((sentence) => sentence.trim())
     .filter(Boolean);
 
-  if (sentenceSegments.length <= 3) {
-    return sentenceSegments;
+  if (sentences.length <= 3) {
+    return sentences;
   }
 
-  const chunkSize = Math.ceil(sentenceSegments.length / 3);
+  const chunkSize = Math.ceil(sentences.length / 3);
   const grouped: string[] = [];
 
-  for (let index = 0; index < sentenceSegments.length; index += chunkSize) {
-    grouped.push(sentenceSegments.slice(index, index + chunkSize).join(" ").trim());
+  for (let index = 0; index < sentences.length; index += chunkSize) {
+    grouped.push(sentences.slice(index, index + chunkSize).join(" ").trim());
   }
 
   return grouped.filter(Boolean);
 }
 
 function compactSentence(text: string): string {
-  return text
-    .replace(/\s+/g, " ")
-    .replace(/\s+([,.!?])/g, "$1")
-    .trim();
+  return text.replace(/\s+/g, " ").replace(/\s+([,.!?])/g, "$1").trim();
 }
 
-function takeBestSentences(text: string, query: string, limit = 2): string[] {
+function takeBestSentences(taskId: TaskId, text: string, query: string, limit = 2): string[] {
   const sentences = text
     .split(/(?<=[.!?])\s+/)
     .map((sentence) => compactSentence(sentence))
     .filter(Boolean);
-  const queryTokens = new Set(tokenizeForLocal(query));
 
   return sentences
     .map((sentence) => ({
       sentence,
-      score: tokenizeForLocal(sentence).reduce(
-        (sum, token) => sum + (queryTokens.has(token) ? 1 : 0),
-        0
-      ),
+      score: scoreSentence(taskId, sentence, query),
     }))
     .sort((a, b) => b.score - a.score || a.sentence.length - b.sentence.length)
+    .filter((item) => item.score > 0)
     .slice(0, limit)
     .map((item) => item.sentence);
 }
 
-function formatLocalClarification(sentences: string[], tail?: string): string {
+function formatClarification(sentences: string[], tail?: string): string {
   const bulletLines = sentences.slice(0, 2).map((sentence) => `- ${sentence}`);
+
   if (tail) {
     bulletLines.push(`- ${tail}`);
   }
+
   return bulletLines.join("\n");
 }
 
-function buildSegmentClarification(query: string, taskPackage: TaskPackage): string | null {
+function buildReferenceModeQuestion(query: string): string {
+  const segmentIntent = detectSegmentIntent(query);
+
+  if (segmentIntent === "all") {
+    return "초반·중반·후반을 설명해줄게. 영상 기준으로 볼까, 이야기 흐름 기준으로 볼까?";
+  }
+
+  return "이 부분은 영상 기준으로 설명해줄까, 이야기 흐름 기준으로 설명해줄까?";
+}
+
+function buildSegmentClarification(
+  taskId: TaskId,
+  query: string,
+  taskPackage: TaskPackage,
+  referenceMode: ReferenceMode
+): string | null {
   const intent = detectSegmentIntent(query);
 
   if (!intent) {
@@ -321,15 +359,24 @@ function buildSegmentClarification(query: string, taskPackage: TaskPackage): str
     return null;
   }
 
+  const modeLabel = referenceMode === "video" ? "영상" : "이야기";
+
   if (intent === "all") {
     const beginning = segments[0];
     const middle = segments[Math.floor((segments.length - 1) / 2)];
     const end = segments[segments.length - 1];
 
+    const beginningText =
+      takeBestSentences(taskId, beginning, "beginning start early 초반 처음", 1)[0] || compactSentence(beginning);
+    const middleText =
+      takeBestSentences(taskId, middle, "middle middle part 중반", 1)[0] || compactSentence(middle);
+    const endText =
+      takeBestSentences(taskId, end, "end last final ending 후반 마지막", 1)[0] || compactSentence(end);
+
     return [
-      `- 초반: ${takeBestSentences(beginning, "beginning start 초반 처음", 1).join(" ")}`,
-      `- 중반: ${takeBestSentences(middle, "middle 중반", 1).join(" ")}`,
-      `- 후반: ${takeBestSentences(end, "end last final 후반 마지막", 1).join(" ")}`,
+      `- ${modeLabel} 초반: ${beginningText}`,
+      `- ${modeLabel} 중반: ${middleText}`,
+      `- ${modeLabel} 후반: ${endText}`,
       "- 어느 부분을 먼저 더 자세히 볼까?",
     ].join("\n");
   }
@@ -342,54 +389,60 @@ function buildSegmentClarification(query: string, taskPackage: TaskPackage): str
         : segments[segments.length - 1];
 
   const label =
-    intent === "beginning" ? "초반" : intent === "middle" ? "중반" : "후반";
-
-  const simpleWords =
-    intent === "beginning"
-      ? "key words: start, prepare, late"
-      : intent === "middle"
-        ? "key words: rush, train, forgot"
-        : "key words: note, warning, decision";
-
-  return formatLocalClarification(takeBestSentences(segment, query, 2), `${label}은 이렇게 보면 돼. ${simpleWords}`);
-}
-
-function buildRetrievedClarification(query: string, retrievedChunks: RetrievedChunk[]): string | null {
-  if (!retrievedChunks.length) {
-    return null;
-  }
-
-  const combined = retrievedChunks
-    .slice(0, 2)
-    .map((chunk) => chunk.content)
-    .join(" ");
-
-  const bestSentences = takeBestSentences(combined, query, 2);
+    intent === "beginning" ? `${modeLabel} 초반` : intent === "middle" ? `${modeLabel} 중반` : `${modeLabel} 후반`;
+  const bestSentences = takeBestSentences(taskId, segment, query, 2);
 
   if (bestSentences.length === 0) {
     return null;
   }
 
-  return formatLocalClarification(bestSentences, "이 부분을 먼저 이해하고, 헷갈리는 한 장면만 다시 물어보면 더 자세히 설명할게.");
+  return formatClarification(bestSentences, `${label}은 이렇게 보면 돼.`);
 }
 
-function buildNarrativeFallbackClarification(query: string, taskPackage: TaskPackage): string | null {
+function buildStoryClarification(
+  taskId: TaskId,
+  query: string,
+  contextualQuery: string,
+  taskPackage: TaskPackage
+): string | null {
   const narrative = extractNarrativeText(taskPackage);
 
   if (!narrative) {
     return null;
   }
 
-  const bestSentences = takeBestSentences(narrative, query, 2);
+  const bestSentences =
+    takeBestSentences(taskId, narrative, contextualQuery, 2).length > 0
+      ? takeBestSentences(taskId, narrative, contextualQuery, 2)
+      : takeBestSentences(taskId, narrative, query, 2);
 
   if (bestSentences.length === 0) {
     return null;
   }
 
-  return formatLocalClarification(
+  return formatClarification(
     bestSentences,
-    "자료 안에서 보이는 내용만 먼저 짧게 설명했어. 헷갈리는 한 장면을 다시 말해주면 그 부분만 더 자세히 볼게."
+    "이 부분 기준으로 먼저 이해하면 돼. 더 보고 싶은 장면이나 부분을 한 번 더 말해줘."
   );
+}
+
+function shouldAskReferenceMode(
+  query: string,
+  recentMessages: Array<{ role: "user" | "assistant"; text: string }>
+): boolean {
+  const segmentIntent = detectSegmentIntent(query);
+
+  if (!segmentIntent) {
+    return false;
+  }
+
+  const currentMode = detectReferenceMode(query);
+  if (currentMode) {
+    return false;
+  }
+
+  const recentMode = detectReferenceMode(recentMessages.slice(-4).map((message) => message.text).join(" "));
+  return recentMode === null;
 }
 
 export async function POST(request: NextRequest) {
@@ -401,6 +454,7 @@ export async function POST(request: NextRequest) {
   let sessionId = "unknown-session";
   let interactionCount = 1;
   let sessionStartedAt = Date.now();
+  let recentMessages: Array<{ role: "user" | "assistant"; text: string }> = [];
 
   try {
     const body = await request.json();
@@ -412,6 +466,22 @@ export async function POST(request: NextRequest) {
       typeof body?.participantId === "string" && body.participantId.trim()
         ? body.participantId.trim()
         : participantId;
+    recentMessages = Array.isArray(body?.recentMessages)
+      ? (body.recentMessages as unknown[])
+          .filter(
+            (
+              message: unknown
+            ): message is { role: "user" | "assistant"; text: string } =>
+              typeof message === "object" &&
+              message !== null &&
+              "role" in message &&
+              "text" in message &&
+              ((message as { role?: unknown }).role === "user" ||
+                (message as { role?: unknown }).role === "assistant") &&
+              typeof (message as { text?: unknown }).text === "string"
+          )
+          .slice(-4)
+      : [];
     sessionId = typeof body?.sessionId === "string" ? body.sessionId : sessionId;
     interactionCount =
       typeof body?.interactionCount === "number" ? body.interactionCount : interactionCount;
@@ -424,6 +494,9 @@ export async function POST(request: NextRequest) {
   const taskPackage = loadTaskPackage(taskId, condition);
   const timestamp = new Date().toISOString();
   const sessionDurationMs = Math.max(0, Date.now() - sessionStartedAt);
+  const contextualQuery = [...recentMessages.map((message) => message.text.trim()).filter(Boolean), query.trim()]
+    .join(" ")
+    .trim();
 
   if (!query.trim()) {
     return new Response("Please enter a prompt.", {
@@ -466,16 +539,24 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const retrievedChunks = retrieveTaskChunks(taskId, query, condition);
+  const retrievedChunks = retrieveTaskChunks(taskId, contextualQuery || query, condition);
+  const referenceMode =
+    detectReferenceMode(query) ||
+    detectReferenceMode(recentMessages.slice(-4).map((message) => message.text).join(" "));
 
-  const directClarification =
-    buildSegmentClarification(query, taskPackage) ||
-    (isUnderstandingQuery(query) && !isPlanningOrLanguageQuery(query)
-      ? buildRetrievedClarification(query, retrievedChunks) ||
-        buildNarrativeFallbackClarification(query, taskPackage)
-      : null);
+  let localUnderstandingResponse: string | null = null;
 
-  if (directClarification) {
+  if (isUnderstandingQuery(query) && !isPlanningOrLanguageQuery(query)) {
+    if (shouldAskReferenceMode(query, recentMessages)) {
+      localUnderstandingResponse = buildReferenceModeQuestion(query);
+    } else {
+      localUnderstandingResponse =
+        buildSegmentClarification(taskId, contextualQuery || query, taskPackage, referenceMode) ||
+        buildStoryClarification(taskId, query, contextualQuery || query, taskPackage);
+    }
+  }
+
+  if (localUnderstandingResponse) {
     await appendChatLog({
       participant_id: participantId,
       session_id: sessionId,
@@ -493,9 +574,9 @@ export async function POST(request: NextRequest) {
         chunkIndex: chunk.chunkIndex,
         score: chunk.score,
       })),
-      assistant_response: directClarification,
+      assistant_response: localUnderstandingResponse,
       timestamp,
-      response_length: directClarification.length,
+      response_length: localUnderstandingResponse.length,
       interaction_count: interactionCount,
       session_duration_ms: sessionDurationMs,
       query_type_label: policyDecision,
@@ -503,7 +584,7 @@ export async function POST(request: NextRequest) {
       visual_assets_used: [],
     });
 
-    return new Response(directClarification, {
+    return new Response(localUnderstandingResponse, {
       status: 200,
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
@@ -610,9 +691,7 @@ export async function POST(request: NextRequest) {
       session_duration_ms: sessionDurationMs,
       query_type_label: policyDecision,
       source_types_used: [...new Set(retrievedChunks.map((chunk) => chunk.sourceType))],
-      visual_assets_used: taskPackage.visualAssets
-        .slice(0, visualInputs.length)
-        .map((asset) => asset.id),
+      visual_assets_used: taskPackage.visualAssets.slice(0, visualInputs.length).map((asset) => asset.id),
     });
 
     return new Response(assistantResponse, {
@@ -655,9 +734,7 @@ export async function POST(request: NextRequest) {
       session_duration_ms: sessionDurationMs,
       query_type_label: policyDecision,
       source_types_used: [...new Set(retrievedChunks.map((chunk) => chunk.sourceType))],
-      visual_assets_used: taskPackage.visualAssets
-        .slice(0, visualInputs.length)
-        .map((asset) => asset.id),
+      visual_assets_used: taskPackage.visualAssets.slice(0, visualInputs.length).map((asset) => asset.id),
     });
 
     return new Response(failureResponse, {

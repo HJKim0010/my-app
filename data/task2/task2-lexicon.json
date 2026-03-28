@@ -1,0 +1,109 @@
+{
+  "entries": [
+    {
+      "id": "anna",
+      "category": "character",
+      "terms": ["Anna", "안나", "그녀", "주인공"],
+      "related": ["main character", "she", "student", "young woman", "여자", "main person"],
+      "segments": ["beginning", "middle", "end"]
+    },
+    {
+      "id": "man_table7",
+      "category": "character",
+      "terms": ["man", "table 7 man", "남자", "테이블 7 남자"],
+      "related": ["he", "reader", "stranger", "coffee drinker", "수상한 남자", "reading man"],
+      "segments": ["middle"]
+    },
+    {
+      "id": "package_box",
+      "category": "object",
+      "terms": ["package", "box", "small box", "상자", "소포"],
+      "related": ["brown paper", "wrapped box", "mysterious box", "갈색 종이", "꾸러미", "parcel"],
+      "segments": ["middle"]
+    },
+    {
+      "id": "book_note",
+      "category": "object",
+      "terms": ["book", "black book", "note", "쪽지", "책"],
+      "related": ["folded note", "message", "paper", "small note", "메시지", "메모"],
+      "segments": ["middle"]
+    },
+    {
+      "id": "hidden_object",
+      "category": "object",
+      "terms": ["something under the table", "hidden thing", "taped object", "테이블 밑 물건", "숨겨진 물건"],
+      "related": ["under table 7", "bottom of the table", "hidden item", "붙어 있는 것", "숨겨진 것", "taped underneath"],
+      "segments": ["end"]
+    },
+    {
+      "id": "cafe",
+      "category": "place",
+      "terms": ["cafe", "coffee shop", "카페", "커피숍"],
+      "related": ["window seat", "outdoor table", "table 7", "coffee", "창가 자리", "카페 안"],
+      "segments": ["beginning", "middle", "end"]
+    },
+    {
+      "id": "apartment_street",
+      "category": "place",
+      "terms": ["apartment", "street", "home", "아파트", "길"],
+      "related": ["outside", "morning street", "walk", "바깥", "거리", "출발한 곳"],
+      "segments": ["beginning"]
+    },
+    {
+      "id": "go_to_cafe",
+      "category": "action",
+      "terms": ["walk to the cafe", "go to the cafe", "카페로 가다", "걷다"],
+      "related": ["take a break", "leave home", "carry laptop", "산책처럼 가다", "나오다", "카페에 도착하다"],
+      "segments": ["beginning"]
+    },
+    {
+      "id": "open_box",
+      "category": "action",
+      "terms": ["open the box", "pick up the box", "상자를 열다", "상자를 들다"],
+      "related": ["carry it inside", "look at the box", "notice the package", "호기심", "상자를 발견하다", "집어들다"],
+      "segments": ["middle"]
+    },
+    {
+      "id": "watch_man",
+      "category": "action",
+      "terms": ["watch the man", "wait until he leaves", "남자를 지켜보다", "기다리다"],
+      "related": ["pretend to look at her phone", "reading", "drinking coffee", "휴대폰 보는 척", "지켜보다", "떠날 때까지 기다리다"],
+      "segments": ["middle"]
+    },
+    {
+      "id": "look_under_table",
+      "category": "action",
+      "terms": ["look under table 7", "bend down", "check under the table", "테이블 밑을 보다", "몸을 숙이다"],
+      "related": ["under table 7", "taped to the bottom", "walk toward table 7", "테이블 7", "확인하다", "찾아보다"],
+      "segments": ["end"]
+    },
+    {
+      "id": "mystery_problem",
+      "category": "problem",
+      "terms": ["mystery", "strange", "problem", "confusing", "이상한", "수상한 문제"],
+      "related": ["no name", "no address", "no label", "joke", "label 없음", "수수께끼"],
+      "segments": ["middle", "end"]
+    },
+    {
+      "id": "take_it_or_not",
+      "category": "problem",
+      "terms": ["should she take it", "not sure what to do", "take it or not", "가져가야 할지", "어떻게 할지 모름"],
+      "related": ["hesitate", "reach out", "stop halfway", "uncertain", "망설이다", "주저하다"],
+      "segments": ["end"]
+    },
+    {
+      "id": "anna_feelings",
+      "category": "feeling",
+      "terms": ["curious", "relaxed", "nervous", "uncertain", "궁금한", "불안한"],
+      "related": ["peaceful", "heart beat faster", "not sure", "tense", "편안한", "망설임"],
+      "segments": ["beginning", "middle", "end"]
+    },
+    {
+      "id": "decision_end",
+      "category": "decision",
+      "terms": ["decision", "choice", "what to do next", "결정", "선택"],
+      "related": ["take it", "leave it", "hesitate", "joke or real", "가져갈지", "두고 갈지"],
+      "segments": ["end"]
+    }
+  ]
+}

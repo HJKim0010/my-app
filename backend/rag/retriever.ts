@@ -1,57 +1,39 @@
 import { chunkDocuments, type TaskChunk } from "@/backend/rag/chunker";
 import { loadTaskPackage, type TaskCondition, type TaskId } from "@/backend/rag/loader";
+import { detectLexiconSegments, expandQueryTerms } from "@/backend/rag/lexicon";
 
 export type RetrievedChunk = TaskChunk & {
   score: number;
 };
 
-const QUERY_EXPANSIONS: Record<string, string[]> = {
-  busy: ["prepare", "preparing", "presentation", "project", "team", "lead"],
-  late: ["alarm", "alarms", "clock", "morning", "woke", "sunlight"],
-  worried: ["tense", "nervous", "warning", "decision"],
-  problem: ["conflict", "warning", "decision", "late"],
-  ending: ["last", "final", "decision", "warning", "station"],
-  last: ["ending", "final", "warning", "station", "decision"],
-  final: ["ending", "last", "decision", "station", "graduation"],
-  anna: ["package", "box", "book", "note", "table", "cafe"],
-  jack: ["train", "warning", "station", "note", "decision", "team"],
-  story: ["scene", "part", "moment", "event"],
-  video: ["scene", "moment", "frame", "last", "final"],
-  scene: ["video", "moment", "frame"],
-  마지막: ["끝", "last", "final", "ending", "decision", "warning", "station"],
-  끝: ["마지막", "last", "final", "ending"],
-  마지막부분: ["마지막", "끝", "last", "final", "ending"],
-  마지막장면: ["마지막", "scene", "last", "final"],
-  후반: ["마지막", "끝", "late", "later", "final"],
+const GENERIC_QUERY_EXPANSIONS: Record<string, string[]> = {
+  busy: ["prepare", "presentation", "project", "team", "lead", "practice"],
+  late: ["alarm", "clock", "sunlight", "late", "rush", "지각", "늦다"],
+  worried: ["tense", "nervous", "warning", "decision", "불안", "긴장"],
+  problem: ["conflict", "warning", "decision", "issue", "문제", "갈등"],
+  ending: ["last", "final", "decision", "warning", "station", "결말", "마지막"],
+  last: ["ending", "final", "decision", "warning", "station", "마지막", "후반"],
+  final: ["ending", "last", "decision", "station", "graduation", "최종", "마지막"],
+  story: ["scene", "part", "moment", "event", "이야기", "스토리", "내용"],
+  video: ["scene", "moment", "frame", "part", "영상", "장면"],
+  scene: ["video", "moment", "frame", "scene", "장면"],
+  마지막: ["끝", "후반", "last", "final", "ending"],
+  끝: ["마지막", "후반", "last", "final", "ending"],
+  후반: ["마지막", "끝", "later", "final", "ending"],
   초반: ["처음", "beginning", "start", "early"],
+  중반: ["middle", "middle part", "midpoint"],
   처음: ["초반", "beginning", "start", "early"],
   영상: ["video", "scene", "frame", "moment"],
   스토리: ["story", "scene", "event", "part"],
   이야기: ["story", "scene", "event", "part"],
-  문제: ["problem", "conflict", "warning", "decision"],
   내용: ["story", "part", "scene", "event"],
-  지하철: ["train", "subway", "wallet", "student", "id", "forgot"],
-  subway: ["train", "wallet", "student", "id", "forgot"],
-  train: ["subway", "wallet", "student", "id", "note", "woman"],
-  forgot: ["wallet", "student", "id", "left", "behind"],
-  잊어버린: ["forgot", "wallet", "student", "id"],
-  두고: ["forgot", "wallet", "student", "id", "left"],
-  지갑: ["wallet", "student", "id", "forgot"],
-  학생증: ["student", "id", "wallet", "forgot"],
-  중요한거: ["wallet", "student", "id", "bag", "laptop"],
-  중요한: ["wallet", "student", "id", "bag", "laptop"],
-  package: ["box", "note", "book", "table", "anna"],
-  box: ["package", "note", "book", "table", "anna"],
-  상자: ["box", "package", "note", "book", "anna"],
-  카페: ["cafe", "box", "package", "table", "anna"],
-  cafe: ["box", "package", "table", "anna"],
-  note: ["book", "table", "anna", "message"],
-  table: ["note", "book", "package", "anna"],
-  망설여: ["hesitate", "nervous", "uncertain", "anna"],
-  망설임: ["hesitate", "nervous", "uncertain", "anna"],
+  무슨: ["what", "which", "무엇", "어떤"],
+  뭐야: ["what", "which", "무슨", "어떤"],
+  맞아: ["right", "really", "actual", "진짜"],
+  맞지: ["right", "really", "actual", "진짜"],
 };
 
-function tokenize(text: string): string[] {
+function normalize(text: string): string {
   return text
     .toLowerCase()
     .replace(/([a-z])([\uac00-\ud7a3])/g, "$1 $2")
@@ -59,26 +41,35 @@ function tokenize(text: string): string[] {
     .replace(/([0-9])([\uac00-\ud7a3a-z])/g, "$1 $2")
     .replace(/([\uac00-\ud7a3a-z])([0-9])/g, "$1 $2")
     .replace(/[^a-z0-9\uac00-\ud7a3\s]/g, " ")
-    .split(/\s+/)
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function tokenize(text: string): string[] {
+  return normalize(text)
+    .split(" ")
+    .map((token) => token.trim())
     .filter((token) => token.length > 1);
 }
 
-function expandTokens(tokens: string[]): string[] {
-  const expanded = new Set(tokens);
+function expandTokens(taskId: TaskId, text: string): string[] {
+  const expanded = new Set(expandQueryTerms(taskId, text));
 
-  for (const token of tokens) {
-    const related = QUERY_EXPANSIONS[token] || [];
+  for (const token of [...expanded]) {
+    const related = GENERIC_QUERY_EXPANSIONS[token] || [];
 
     for (const item of related) {
-      expanded.add(item);
+      for (const nextToken of tokenize(item)) {
+        expanded.add(nextToken);
+      }
     }
   }
 
   return [...expanded];
 }
 
-function scoreChunk(query: string, content: string): number {
-  const queryTokens = new Set(expandTokens(tokenize(query)));
+function scoreChunk(taskId: TaskId, query: string, content: string): number {
+  const queryTokens = new Set(expandTokens(taskId, query));
   const contentTokens = tokenize(content);
   let score = 0;
 
@@ -91,26 +82,45 @@ function scoreChunk(query: string, content: string): number {
   return score;
 }
 
-function hasLastPartIntent(query: string): boolean {
-  const normalized = query.toLowerCase();
-  return [
-    "last",
-    "final",
-    "ending",
-    "end",
-    "마지막",
-    "마지막부분",
-    "마지막 장면",
-    "끝",
-    "후반",
-  ].some((term) => normalized.includes(term));
+function detectSegmentIntent(query: string): "beginning" | "middle" | "end" | null {
+  const normalized = normalize(query);
+
+  if (["마지막", "끝", "후반", "last", "final", "ending", "end"].some((term) => normalized.includes(term))) {
+    return "end";
+  }
+
+  if (["중반", "middle", "middle part"].some((term) => normalized.includes(term))) {
+    return "middle";
+  }
+
+  if (["초반", "처음", "beginning", "start", "first part"].some((term) => normalized.includes(term))) {
+    return "beginning";
+  }
+
+  return null;
 }
 
-function hasBeginningIntent(query: string): boolean {
-  const normalized = query.toLowerCase();
-  return ["beginning", "start", "first", "initial", "처음", "초반", "앞부분"].some((term) =>
-    normalized.includes(term)
-  );
+function segmentPositionBoost(chunk: TaskChunk, maxChunkIndex: number, preferredSegments: string[]): number {
+  if (maxChunkIndex <= 0 || preferredSegments.length === 0) {
+    return 0;
+  }
+
+  const ratio = chunk.chunkIndex / maxChunkIndex;
+  let boost = 0;
+
+  if (preferredSegments.includes("beginning")) {
+    boost = Math.max(boost, (1 - ratio) * 1.5);
+  }
+
+  if (preferredSegments.includes("middle")) {
+    boost = Math.max(boost, (1 - Math.abs(ratio - 0.5) * 2) * 1.5);
+  }
+
+  if (preferredSegments.includes("end")) {
+    boost = Math.max(boost, ratio * 1.5);
+  }
+
+  return Math.max(0, boost);
 }
 
 export function retrieveTaskChunks(
@@ -128,20 +138,16 @@ export function retrieveTaskChunks(
 
   const chunks = chunkDocuments(taskPackage.config.task_id, taskPackage.documents);
   const maxChunkIndex = chunks.reduce((max, chunk) => Math.max(max, chunk.chunkIndex), 0);
-  const prefersLastPart = hasLastPartIntent(query);
-  const prefersBeginning = hasBeginningIntent(query);
+  const explicitSegment = detectSegmentIntent(query);
+  const lexiconSegments = detectLexiconSegments(taskId, query);
+  const preferredSegments = explicitSegment ? [explicitSegment] : lexiconSegments;
 
   const ranked = chunks
     .map((chunk) => ({
       ...chunk,
       score:
-        scoreChunk(query, chunk.content) +
-        (prefersLastPart && maxChunkIndex > 0
-          ? (chunk.chunkIndex / maxChunkIndex) * 1.75
-          : 0) +
-        (prefersBeginning && maxChunkIndex > 0
-          ? ((maxChunkIndex - chunk.chunkIndex) / maxChunkIndex) * 1.75
-          : 0),
+        scoreChunk(taskId, query, chunk.content) +
+        segmentPositionBoost(chunk, maxChunkIndex, preferredSegments),
     }))
     .sort((a, b) => b.score - a.score);
 
@@ -151,24 +157,28 @@ export function retrieveTaskChunks(
     return positive;
   }
 
-  if (prefersLastPart) {
+  if (preferredSegments.includes("end")) {
     return [...chunks]
       .sort((a, b) => b.chunkIndex - a.chunkIndex)
       .slice(0, Math.min(limit, chunks.length))
-      .map((chunk) => ({
-        ...chunk,
-        score: 0,
-      }));
+      .map((chunk) => ({ ...chunk, score: 0 }));
   }
 
-  if (prefersBeginning) {
+  if (preferredSegments.includes("beginning")) {
     return [...chunks]
       .sort((a, b) => a.chunkIndex - b.chunkIndex)
       .slice(0, Math.min(limit, chunks.length))
-      .map((chunk) => ({
-        ...chunk,
-        score: 0,
-      }));
+      .map((chunk) => ({ ...chunk, score: 0 }));
+  }
+
+  if (preferredSegments.includes("middle")) {
+    return [...chunks]
+      .sort(
+        (a, b) =>
+          Math.abs(a.chunkIndex - maxChunkIndex / 2) - Math.abs(b.chunkIndex - maxChunkIndex / 2)
+      )
+      .slice(0, Math.min(limit, chunks.length))
+      .map((chunk) => ({ ...chunk, score: 0 }));
   }
 
   return ranked.slice(0, Math.min(2, ranked.length));
