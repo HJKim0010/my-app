@@ -534,6 +534,11 @@ export default function Home() {
           taskId: selectedTask,
           participantId,
           query: userText,
+          recentMessages: currentState.messages
+            .filter((message) => message.role === "user")
+            .filter((message) => message.id !== "welcome")
+            .slice(-4)
+            .map(({ role, text }) => ({ role, text })),
           category: "Others",
           condition: selectedCondition,
           sessionId: currentState.sessionId,

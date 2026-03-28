@@ -494,9 +494,13 @@ export async function POST(request: NextRequest) {
   const taskPackage = loadTaskPackage(taskId, condition);
   const timestamp = new Date().toISOString();
   const sessionDurationMs = Math.max(0, Date.now() - sessionStartedAt);
-  const contextualQuery = [...recentMessages.map((message) => message.text.trim()).filter(Boolean), query.trim()]
-    .join(" ")
-    .trim();
+  const recentUserMessages = recentMessages
+    .filter((message) => message.role === "user")
+    .map((message) => message.text.trim())
+    .filter(Boolean)
+    .slice(-4);
+
+  const contextualQuery = [...recentUserMessages, query.trim()].join(" ").trim();
 
   if (!query.trim()) {
     return new Response("Please enter a prompt.", {
@@ -541,13 +545,15 @@ export async function POST(request: NextRequest) {
 
   const retrievedChunks = retrieveTaskChunks(taskId, contextualQuery || query, condition);
   const referenceMode =
-    detectReferenceMode(query) ||
-    detectReferenceMode(recentMessages.slice(-4).map((message) => message.text).join(" "));
+    detectReferenceMode(query) || detectReferenceMode(recentUserMessages.join(" "));
 
   let localUnderstandingResponse: string | null = null;
 
   if (isUnderstandingQuery(query) && !isPlanningOrLanguageQuery(query)) {
-    if (shouldAskReferenceMode(query, recentMessages)) {
+    if (shouldAskReferenceMode(
+      query,
+      recentMessages.filter((message) => message.role === "user")
+    )) {
       localUnderstandingResponse = buildReferenceModeQuestion(query);
     } else {
       localUnderstandingResponse =
