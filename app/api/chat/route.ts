@@ -543,7 +543,7 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const retrievedChunks = retrieveTaskChunks(taskId, contextualQuery || query, condition);
+  const retrievedChunks = retrieveTaskChunks(taskId, contextualQuery || query, taskPackage);
   const referenceMode =
     detectReferenceMode(query) || detectReferenceMode(recentUserMessages.join(" "));
 
