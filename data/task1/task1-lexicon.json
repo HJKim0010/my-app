@@ -3,7 +3,7 @@
     {
       "id": "jack",
       "category": "character",
-      "terms": ["Jack", "jack", "잭", "남자 주인공", "주인공", "그"],
+      "terms": ["Jack", "jack", "잭", "주인공", "남자 주인공", "그"],
       "related": ["he", "him", "student", "main character", "young man", "team member"],
       "segments": ["beginning", "middle", "end"]
     },
@@ -31,7 +31,7 @@
     {
       "id": "phone",
       "category": "object",
-      "terms": ["phone", "cell phone", "휴대폰", "핸드폰", "notes on phone", "메모"],
+      "terms": ["phone", "cell phone", "전화", "핸드폰", "notes on phone", "메모"],
       "related": ["check his notes", "slipped from his hand", "fell under a seat", "sweaty hand", "mobile", "device"],
       "segments": ["middle"]
     },
@@ -73,7 +73,7 @@
     {
       "id": "train_incident",
       "category": "action",
-      "terms": ["lose balance", "drop phone", "meet the woman", "균형을 잃다", "휴대폰을 떨어뜨리다", "여자를 만나다"],
+      "terms": ["lose balance", "drop phone", "meet the woman", "균형을 잃다", "핸드폰을 떨어뜨리다", "여자를 만나다"],
       "related": ["fell under a seat", "train moved quickly", "caught his arm", "helped him stand", "crowded train", "standing woman"],
       "segments": ["middle"]
     },

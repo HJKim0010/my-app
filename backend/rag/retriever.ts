@@ -36,11 +36,11 @@ function detectExplicitSegment(query: string): StorySegment | null {
     return "beginning";
   }
 
-  if (/(중반|middle)/.test(normalized)) {
+  if (/(중반|중간|middle)/.test(normalized)) {
     return "middle";
   }
 
-  if (/(후반|마지막|끝|end|last|final)/.test(normalized)) {
+  if (/(후반|끝|마지막|end|last|final)/.test(normalized)) {
     return "end";
   }
 

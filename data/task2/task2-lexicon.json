@@ -3,7 +3,7 @@
     {
       "id": "anna",
       "category": "character",
-      "terms": ["Anna", "anna", "안나", "애나", "그녀", "여자 주인공"],
+      "terms": ["Anna", "anna", "안나", "여자 주인공", "주인공", "그녀"],
       "related": ["she", "her", "main character", "young woman", "student", "woman"],
       "segments": ["beginning", "middle", "end"]
     },
@@ -38,7 +38,7 @@
     {
       "id": "cafe",
       "category": "place",
-      "terms": ["cafe", "coffee shop", "카페", "테이블 7", "커피숍", "커피"],
+      "terms": ["cafe", "coffee shop", "카페", "table 7", "커피숍", "커피"],
       "related": ["outdoor table", "window seat", "inside the cafe", "shop", "seat", "coffeehouse"],
       "segments": ["beginning", "middle", "end"]
     },
@@ -66,7 +66,7 @@
     {
       "id": "watch_man",
       "category": "action",
-      "terms": ["watch the man", "wait until he leaves", "남자를 지켜보다", "기다리다", "폰 보는 척하다", "휴대폰 보는 척하다"],
+      "terms": ["watch the man", "wait until he leaves", "남자를 지켜보다", "기다리다", "못 본 척하다", "휴대폰 보는 척하다"],
       "related": ["reading", "drinking coffee", "man at table 7", "look at phone", "keep watching", "wait"],
       "segments": ["middle"]
     },

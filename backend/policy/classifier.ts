@@ -40,7 +40,18 @@ const sentenceGenerationPatterns = [
   "write based on this",
   "write from this",
   "write using this",
-];
+  "다음 문단",
+  "다음 문장",
+  "이어 써",
+  "이어써",
+  "계속 써",
+  "결말 써",
+  "끝을 써",
+  "답안을 써",
+  "답안 써",
+  "정답 써",
+  "대신 써",
+] as const;
 
 const draftFeedbackPatterns = [
   "correct my draft",
@@ -62,7 +73,17 @@ const draftFeedbackPatterns = [
   "rewrite this paragraph",
   "correct this sentence",
   "correct this paragraph",
-];
+  "고쳐 줘",
+  "고쳐줘",
+  "수정해 줘",
+  "수정해줘",
+  "첨삭",
+  "교정",
+  "문법 체크",
+  "내 글",
+  "내 문장",
+  "내 문단",
+] as const;
 
 const wholeSourceSummaryPatterns = [
   "summarize",
@@ -87,10 +108,12 @@ const wholeSourceSummaryPatterns = [
   "summarize the text",
   "summarize the video",
   "summarize the audio",
-  "정리해줘",
   "요약",
+  "정리",
   "줄거리",
-];
+  "전체 내용",
+  "전체 이야기",
+] as const;
 
 const outsideContentPatterns = [
   "add new background",
@@ -101,9 +124,13 @@ const outsideContentPatterns = [
   "what would people normally do",
   "cultural background",
   "extra background knowledge",
-];
+  "바깥 정보",
+  "외부 정보",
+  "배경지식",
+  "실제로는",
+] as const;
 
-function includesAny(query: string, patterns: string[]): boolean {
+function includesAny(query: string, patterns: readonly string[]): boolean {
   return patterns.some((pattern) => query.includes(pattern));
 }
 
@@ -112,24 +139,26 @@ export function detectRestrictionReason(query: string): RestrictionReason | null
 
   if (
     includesAny(q, wholeSourceSummaryPatterns) ||
-    (/story|source|text|video|audio/.test(q) &&
-      /summar|summary|overall|main idea|gist|정리|요약|줄거리/.test(q))
+    (/(story|source|text|video|audio|이야기|본문|글|영상)/.test(q) &&
+      /(summar|summary|overall|main idea|gist|요약|정리|줄거리)/.test(q))
   ) {
     return "whole_source_summary";
   }
 
   if (
     includesAny(q, draftFeedbackPatterns) ||
-    (/my draft|my writing|this sentence|this paragraph/.test(q) &&
-      /fix|correct|improve|rewrite|edit|check|evaluate|grade|score/.test(q))
+    (/(my draft|my writing|this sentence|this paragraph|내 글|내 문장|내 문단)/.test(q) &&
+      /(fix|correct|improve|rewrite|edit|check|evaluate|grade|score|고쳐|수정|교정|첨삭)/.test(
+        q
+      ))
   ) {
     return "draft_feedback";
   }
 
   if (
     includesAny(q, sentenceGenerationPatterns) ||
-    (/write|continue|generate|make|give/.test(q) &&
-      /sentence|paragraph|essay|answer|continuation|next part/.test(q))
+    (/(write|continue|generate|make|give|써|작성)/.test(q) &&
+      /(sentence|paragraph|essay|answer|continuation|next part|문장|문단|답안|결말)/.test(q))
   ) {
     return "sentence_generation";
   }

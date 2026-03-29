@@ -4,10 +4,15 @@ import { classifyQuery, detectRestrictionReason } from "@/backend/policy/classif
 import { redirectResponse } from "@/backend/policy/redirect";
 import { appendChatLog } from "@/backend/logs/logger";
 import { resolveVisualInputs } from "@/backend/rag/assetResolver";
-import { loadTaskPackage, type TaskCondition, type TaskId, type TaskPackage } from "@/backend/rag/loader";
+import {
+  loadTaskPackage,
+  type TaskCondition,
+  type TaskId,
+  type TaskPackage,
+} from "@/backend/rag/loader";
 import { expandQueryTerms } from "@/backend/rag/lexicon";
 import { buildSystemInstruction, buildUserInput } from "@/backend/rag/promptBuilder";
-import { retrieveTaskChunks, type RetrievedChunk } from "@/backend/rag/retriever";
+import { retrieveTaskChunks } from "@/backend/rag/retriever";
 
 const CONFUSION_PATTERNS = [
   "i don't understand",
@@ -20,28 +25,154 @@ const CONFUSION_PATTERNS = [
   "i don't get it",
   "i do not get it",
   "what does this mean",
-  "무슨 뜻",
-  "이해가 안",
-  "헷갈",
+  "can you explain",
+  "explain this",
+  "이해가 안 돼",
+  "이해 안 돼",
+  "잘 모르겠어",
+  "모르겠어",
+  "무슨 뜻이야",
+  "무슨 뜻인지",
+  "헷갈려",
+  "설명해줘",
+  "설명해 줄래",
   "어려워",
-  "기억이 안",
-  "잘 모르겠",
-  "아무것도 모르겠",
-];
+  "이 부분이 뭐야",
+  "무슨 말이야",
+] as const;
 
 const CONFUSION_STOP_MARKERS = [
-  "아이디어",
-  "글짜기",
-  "구성",
-  "문단 계획",
-  "다음 단계",
   "brainstorm",
   "outline",
   "next step",
   "possible ending",
   "useful expression",
   "sentence frame",
-];
+  "idea",
+  "plan",
+  "vocabulary",
+  "expression",
+  "아이디어",
+  "계획",
+  "구성",
+  "개요",
+  "다음 일",
+  "다음 사건",
+  "다음 아이디어",
+  "어휘",
+  "단어",
+  "표현",
+] as const;
+
+const UNDERSTANDING_PATTERNS = [
+  "what does",
+  "what happened",
+  "what problem",
+  "why",
+  "why is",
+  "why was",
+  "why did",
+  "which part",
+  "beginning",
+  "middle",
+  "end",
+  "last part",
+  "scene",
+  "part",
+  "what is happening",
+  "what does this part mean",
+  "what does the scene show",
+  "무슨 뜻",
+  "무슨 내용",
+  "어떤 내용",
+  "무슨 일이",
+  "무슨 문제",
+  "왜",
+  "뭐",
+  "뭘",
+  "어떤",
+  "어떻게",
+  "누가",
+  "어디",
+  "어느 부분",
+  "이 부분",
+  "설명",
+  "이해",
+  "장면",
+  "놀라",
+  "놀랐",
+  "놀랬",
+  "무서",
+  "수상",
+  "이상",
+  "처음",
+  "초반",
+  "중간",
+  "중반",
+  "끝",
+  "후반",
+  "마지막",
+] as const;
+
+const PLANNING_OR_LANGUAGE_PATTERNS = [
+  "idea",
+  "ideas",
+  "plan",
+  "outline",
+  "next event",
+  "next idea",
+  "organization",
+  "organize",
+  "vocabulary",
+  "expression",
+  "word",
+  "words",
+  "brainstorm",
+  "possible ending",
+  "structure",
+  "plot",
+  "too scary",
+  "아이디어",
+  "생각",
+  "계획",
+  "구성",
+  "개요",
+  "다음 일",
+  "다음 사건",
+  "다음 아이디어",
+  "어휘",
+  "단어",
+  "표현",
+  "브레인스토밍",
+  "스토리",
+  "전개",
+  "플롯",
+  "무서울까",
+  "너무 무서",
+] as const;
+
+const VIDEO_REFERENCE_PATTERNS = [
+  "영상",
+  "비디오",
+  "장면",
+  "화면",
+  "캡션",
+  "video",
+  "scene",
+  "frame",
+] as const;
+
+const STORY_REFERENCE_PATTERNS = [
+  "이야기",
+  "글",
+  "본문",
+  "텍스트",
+  "지문",
+  "story",
+  "text",
+  "reading",
+  "passage",
+] as const;
 
 type ReferenceMode = "video" | "story" | null;
 type SegmentIntent = "all" | "beginning" | "middle" | "end" | null;
@@ -65,9 +196,16 @@ function tokenize(text: string): string[] {
     .filter((token) => token.length > 1);
 }
 
+function includesAny(text: string, patterns: readonly string[]): boolean {
+  return patterns.some((pattern) => text.includes(pattern));
+}
+
+function prefersKorean(text: string): boolean {
+  return /[\uac00-\ud7a3]/.test(text);
+}
+
 function isConfusionQuery(text: string): boolean {
-  const normalized = text.toLowerCase();
-  return CONFUSION_PATTERNS.some((pattern) => normalized.includes(pattern));
+  return includesAny(text.toLowerCase(), CONFUSION_PATTERNS);
 }
 
 function sanitizeAssistantResponse(text: string): string {
@@ -125,79 +263,54 @@ function isPlaceholderText(text: string): boolean {
 }
 
 function isUnderstandingQuery(query: string): boolean {
-  const normalized = query.toLowerCase();
+  return includesAny(query.toLowerCase(), UNDERSTANDING_PATTERNS);
+}
+
+function isShortFollowUpUnderstandingQuery(query: string): boolean {
+  const normalized = normalize(query);
+
+  if (normalized.length > 40) {
+    return false;
+  }
+
   return [
-    "what does",
-    "what happened",
-    "what problem",
-    "which part",
-    "beginning",
-    "middle",
-    "end",
-    "last part",
-    "scene",
-    "part",
-    "무슨 뜻",
-    "설명",
-    "무슨 내용",
-    "어떤 내용",
-    "문제",
-    "초반",
-    "중반",
-    "후반",
-    "마지막",
-    "장면",
-    "부분",
-    "이해",
-    "모르겠",
-    "헷갈",
-    "기억이 안",
-    "뭐야",
-    "맞아",
-    "맞지",
-    "어떤 거",
+    "왜",
+    "뭐",
+    "뭘",
+    "어떤",
     "어떻게",
-    "무슨 일이",
+    "누가",
+    "어디",
+    "놀라",
+    "놀랐",
+    "놀랬",
+    "무서",
+    "수상",
+    "이상",
+    "why",
+    "what",
+    "which",
+    "who",
+    "where",
+    "how",
   ].some((term) => normalized.includes(term));
 }
 
 function isPlanningOrLanguageQuery(query: string): boolean {
-  const normalized = query.toLowerCase();
-  return [
-    "idea",
-    "ideas",
-    "plan",
-    "outline",
-    "next event",
-    "next idea",
-    "organization",
-    "organize",
-    "vocabulary",
-    "expression",
-    "word",
-    "words",
-    "brainstorm",
-    "possible ending",
-    "아이디어",
-    "개요",
-    "구성",
-    "계획",
-    "표현",
-    "어휘",
-    "단어",
-    "다음 사건",
-    "다음 전개",
-  ].some((term) => normalized.includes(term));
+  return includesAny(query.toLowerCase(), PLANNING_OR_LANGUAGE_PATTERNS);
 }
 
 function detectSegmentIntent(query: string): SegmentIntent {
   const normalized = normalize(query);
 
   const asksAll =
+    (normalized.includes("처음") && normalized.includes("중간")) ||
+    (normalized.includes("중간") && normalized.includes("끝")) ||
     (normalized.includes("초반") && normalized.includes("중반")) ||
     (normalized.includes("중반") && normalized.includes("후반")) ||
     (normalized.includes("beginning") && normalized.includes("middle")) ||
     (normalized.includes("middle") && normalized.includes("end")) ||
+    normalized.includes("처음 중간 끝") ||
     normalized.includes("초반 중반 후반") ||
     normalized.includes("beginning middle end");
 
@@ -205,15 +318,23 @@ function detectSegmentIntent(query: string): SegmentIntent {
     return "all";
   }
 
-  if (["마지막", "끝", "후반", "last", "final", "ending", "end"].some((term) => normalized.includes(term))) {
+  if (
+    ["끝", "후반", "마지막", "last", "final", "ending", "end"].some((term) =>
+      normalized.includes(term)
+    )
+  ) {
     return "end";
   }
 
-  if (["중반", "middle", "middle part"].some((term) => normalized.includes(term))) {
+  if (["중간", "중반", "middle", "middle part"].some((term) => normalized.includes(term))) {
     return "middle";
   }
 
-  if (["초반", "처음", "beginning", "start", "first part"].some((term) => normalized.includes(term))) {
+  if (
+    ["처음", "초반", "beginning", "start", "first part"].some((term) =>
+      normalized.includes(term)
+    )
+  ) {
     return "beginning";
   }
 
@@ -223,11 +344,11 @@ function detectSegmentIntent(query: string): SegmentIntent {
 function detectReferenceMode(text: string): ReferenceMode {
   const normalized = normalize(text);
 
-  if (["영상", "비디오", "장면", "캡션", "동영상", "video", "scene", "frame"].some((term) => normalized.includes(term))) {
+  if (VIDEO_REFERENCE_PATTERNS.some((term) => normalized.includes(term))) {
     return "video";
   }
 
-  if (["스토리", "이야기", "글", "텍스트", "본문", "story", "text", "reading"].some((term) => normalized.includes(term))) {
+  if (STORY_REFERENCE_PATTERNS.some((term) => normalized.includes(term))) {
     return "story";
   }
 
@@ -255,7 +376,9 @@ function scoreSentence(taskId: TaskId, sentence: string, query: string): number 
 function extractNarrativeText(taskPackage: TaskPackage): string {
   const relevant = taskPackage.documents
     .filter((document) =>
-      ["video_transcript", "source_text", "audio_transcript", "scene_labels"].includes(document.sourceType)
+      ["video_transcript", "source_text", "audio_transcript", "scene_labels"].includes(
+        document.sourceType
+      )
     )
     .map((document) => document.content.trim())
     .filter((content) => !isPlaceholderText(content));
@@ -330,16 +453,6 @@ function formatClarification(sentences: string[], tail?: string): string {
   return bulletLines.join("\n");
 }
 
-function buildReferenceModeQuestion(query: string): string {
-  const segmentIntent = detectSegmentIntent(query);
-
-  if (segmentIntent === "all") {
-    return "초반·중반·후반을 설명해줄게. 영상 기준으로 볼까, 이야기 흐름 기준으로 볼까?";
-  }
-
-  return "이 부분은 영상 기준으로 설명해줄까, 이야기 흐름 기준으로 설명해줄까?";
-}
-
 function buildSegmentClarification(
   taskId: TaskId,
   query: string,
@@ -367,17 +480,20 @@ function buildSegmentClarification(
     const end = segments[segments.length - 1];
 
     const beginningText =
-      takeBestSentences(taskId, beginning, "beginning start early 초반 처음", 1)[0] || compactSentence(beginning);
+      takeBestSentences(taskId, beginning, "beginning start early 처음 초반", 1)[0] ||
+      compactSentence(beginning);
     const middleText =
-      takeBestSentences(taskId, middle, "middle middle part 중반", 1)[0] || compactSentence(middle);
+      takeBestSentences(taskId, middle, "middle middle part 중간 중반", 1)[0] ||
+      compactSentence(middle);
     const endText =
-      takeBestSentences(taskId, end, "end last final ending 후반 마지막", 1)[0] || compactSentence(end);
+      takeBestSentences(taskId, end, "end last final ending 끝 후반 마지막", 1)[0] ||
+      compactSentence(end);
 
     return [
-      `- ${modeLabel} 초반: ${beginningText}`,
-      `- ${modeLabel} 중반: ${middleText}`,
-      `- ${modeLabel} 후반: ${endText}`,
-      "- 어느 부분을 먼저 더 자세히 볼까?",
+      `- ${modeLabel} 처음: ${beginningText}`,
+      `- ${modeLabel} 중간: ${middleText}`,
+      `- ${modeLabel} 끝: ${endText}`,
+      "- 처음, 중간, 끝 중 어느 부분을 더 보고 싶은지 말해줘.",
     ].join("\n");
   }
 
@@ -389,14 +505,18 @@ function buildSegmentClarification(
         : segments[segments.length - 1];
 
   const label =
-    intent === "beginning" ? `${modeLabel} 초반` : intent === "middle" ? `${modeLabel} 중반` : `${modeLabel} 후반`;
+    intent === "beginning"
+      ? `${modeLabel} 처음`
+      : intent === "middle"
+        ? `${modeLabel} 중간`
+        : `${modeLabel} 끝`;
   const bestSentences = takeBestSentences(taskId, segment, query, 2);
 
   if (bestSentences.length === 0) {
     return null;
   }
 
-  return formatClarification(bestSentences, `${label}은 이렇게 보면 돼.`);
+  return formatClarification(bestSentences, `${label}을 기준으로 보면 이렇게 이해할 수 있어.`);
 }
 
 function buildStoryClarification(
@@ -422,27 +542,66 @@ function buildStoryClarification(
 
   return formatClarification(
     bestSentences,
-    "이 부분 기준으로 먼저 이해하면 돼. 더 보고 싶은 장면이나 부분을 한 번 더 말해줘."
+    "원하면 한 부분씩 차근차근 설명해줄게. 어느 장면이나 부분이 헷갈리는지 말해줘."
   );
 }
 
-function shouldAskReferenceMode(
-  query: string,
-  recentMessages: Array<{ role: "user" | "assistant"; text: string }>
-): boolean {
-  const segmentIntent = detectSegmentIntent(query);
+function queryIncludesScaryOption(query: string): boolean {
+  const normalized = normalize(query);
+  return ["살인", "죽", "kill", "murder", "too scary", "무서울까", "무서워"].some((term) =>
+    normalized.includes(term)
+  );
+}
 
-  if (!segmentIntent) {
-    return false;
+function buildPlanningResponse(taskId: TaskId, query: string): string {
+  const korean = prefersKorean(query);
+  const scary = queryIncludesScaryOption(query);
+
+  if (taskId === "task2") {
+    if (korean) {
+      if (scary) {
+        return [
+          "- 지금 톤은 갑자기 살인까지 가기보다, 수상한 물건과 비밀 단서 중심의 미스터리로 가는 편이 더 자연스러워 보여.",
+          "- 구성은 1) 안나가 테이블 아래 물건을 확인함 2) 그 물건이 쪽지나 남자와 연결된 단서임을 알게 됨 3) 안나가 가져갈지, 신고할지, 뒤따라갈지 결정하는 식으로 짜볼 수 있어.",
+          "- 더 긴장감을 주고 싶다면 살인보다는 위험한 경고, 누군가의 추적, 숨겨진 기록 같은 방향이 덜 과하고 더 이어지기 쉬워.",
+        ].join("\n");
+      }
+
+      return [
+        "- 다음 전개는 안나가 테이블 아래 붙어 있던 물건을 확인하는 장면으로 시작하면 자연스러워.",
+        "- 가운데 부분에서는 그 물건이 왜 상자, 쪽지, table 7과 연결되는지 단서를 하나씩 밝히면 돼.",
+        "- 마지막에는 안나가 바로 행동할지, 누군가를 따라갈지, 아니면 잠시 숨고 생각할지 선택하게 만들면 구성이 잡혀.",
+      ].join("\n");
+    }
+
+    if (scary) {
+      return [
+        "- A murder turn may feel too strong for the current tone. The story so far fits a mystery better than sudden extreme violence.",
+        "- A workable structure is: 1) Anna checks the hidden object, 2) the object connects to the note or the man, 3) Anna must decide whether to take it, report it, or follow the clue.",
+        "- To keep tension high without going too dark, use a warning, a secret record, or someone quietly watching Anna.",
+      ].join("\n");
+    }
+
+    return [
+      "- A natural next step is for Anna to examine the object under table 7.",
+      "- In the middle, reveal one clue that links the object to the note, the box, or the man at table 7.",
+      "- At the end of the next part, give Anna a clear choice: take it, hide it, report it, or follow the clue.",
+    ].join("\n");
   }
 
-  const currentMode = detectReferenceMode(query);
-  if (currentMode) {
-    return false;
+  if (korean) {
+    return [
+      "- 다음 전개는 Jack이 쪽지를 믿을지 말지 결정하는 장면으로 시작하면 좋아.",
+      "- 가운데에서는 발표, 시간 압박, 지하철 상황이 한꺼번에 Jack을 더 어렵게 만들도록 갈등을 키울 수 있어.",
+      "- 끝에서는 Jack이 선택한 행동 때문에 새로운 문제나 단서를 만나게 하면 다음 문단 구성이 자연스러워져.",
+    ].join("\n");
   }
 
-  const recentMode = detectReferenceMode(recentMessages.slice(-4).map((message) => message.text).join(" "));
-  return recentMode === null;
+  return [
+    "- A clear next step is to focus on Jack's decision about whether to trust the note.",
+    "- In the middle, increase pressure by connecting the train situation, time pressure, and the presentation.",
+    "- End the next part with a new consequence or clue created by Jack's choice.",
+  ].join("\n");
 }
 
 export async function POST(request: NextRequest) {
@@ -547,22 +706,20 @@ export async function POST(request: NextRequest) {
   const referenceMode =
     detectReferenceMode(query) || detectReferenceMode(recentUserMessages.join(" "));
 
-  let localUnderstandingResponse: string | null = null;
+  let localResponse: string | null = null;
 
-  if (isUnderstandingQuery(query) && !isPlanningOrLanguageQuery(query)) {
-    if (shouldAskReferenceMode(
-      query,
-      recentMessages.filter((message) => message.role === "user")
-    )) {
-      localUnderstandingResponse = buildReferenceModeQuestion(query);
-    } else {
-      localUnderstandingResponse =
-        buildSegmentClarification(taskId, contextualQuery || query, taskPackage, referenceMode) ||
-        buildStoryClarification(taskId, query, contextualQuery || query, taskPackage);
-    }
+  if (
+    (isUnderstandingQuery(query) || isShortFollowUpUnderstandingQuery(query)) &&
+    !isPlanningOrLanguageQuery(query)
+  ) {
+    localResponse =
+      buildSegmentClarification(taskId, contextualQuery || query, taskPackage, referenceMode) ||
+      buildStoryClarification(taskId, query, contextualQuery || query, taskPackage);
+  } else if (isPlanningOrLanguageQuery(query)) {
+    localResponse = buildPlanningResponse(taskId, query);
   }
 
-  if (localUnderstandingResponse) {
+  if (localResponse) {
     await appendChatLog({
       participant_id: participantId,
       session_id: sessionId,
@@ -580,9 +737,9 @@ export async function POST(request: NextRequest) {
         chunkIndex: chunk.chunkIndex,
         score: chunk.score,
       })),
-      assistant_response: localUnderstandingResponse,
+      assistant_response: localResponse,
       timestamp,
-      response_length: localUnderstandingResponse.length,
+      response_length: localResponse.length,
       interaction_count: interactionCount,
       session_duration_ms: sessionDurationMs,
       query_type_label: policyDecision,
@@ -590,7 +747,7 @@ export async function POST(request: NextRequest) {
       visual_assets_used: [],
     });
 
-    return new Response(localUnderstandingResponse, {
+    return new Response(localResponse, {
       status: 200,
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
@@ -697,7 +854,9 @@ export async function POST(request: NextRequest) {
       session_duration_ms: sessionDurationMs,
       query_type_label: policyDecision,
       source_types_used: [...new Set(retrievedChunks.map((chunk) => chunk.sourceType))],
-      visual_assets_used: taskPackage.visualAssets.slice(0, visualInputs.length).map((asset) => asset.id),
+      visual_assets_used: taskPackage.visualAssets
+        .slice(0, visualInputs.length)
+        .map((asset) => asset.id),
     });
 
     return new Response(assistantResponse, {
@@ -740,7 +899,9 @@ export async function POST(request: NextRequest) {
       session_duration_ms: sessionDurationMs,
       query_type_label: policyDecision,
       source_types_used: [...new Set(retrievedChunks.map((chunk) => chunk.sourceType))],
-      visual_assets_used: taskPackage.visualAssets.slice(0, visualInputs.length).map((asset) => asset.id),
+      visual_assets_used: taskPackage.visualAssets
+        .slice(0, visualInputs.length)
+        .map((asset) => asset.id),
     });
 
     return new Response(failureResponse, {

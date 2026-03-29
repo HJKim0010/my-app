@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type TaskId = "task1" | "task2";
 type TaskCondition = "static" | "dynamic";
@@ -36,7 +36,7 @@ const KO = {
   restrictedTitle: "\uC774\uB807\uAC8C \uC0AC\uC6A9\uD558\uBA74 \uC548 \uB429\uB2C8\uB2E4",
   goodTitle: "\uC88B\uC740 \uC0AC\uC6A9 vs \uC798\uBABB\uB41C \uC0AC\uC6A9",
   wrongUse: "\uC798\uBABB\uB41C \uC0AC\uC6A9",
-  betterUse: "\uC88B\uC740 \uC0AC\uC6A9",
+  betterUse: "\uB354 \uC88B\uC740 \uC0AC\uC6A9",
   rulesTitle: "\uC911\uC694\uD55C \uADDC\uCE59",
   q1: "\uC774 \uBD80\uBD84\uC740 \uBB34\uC2A8 \uB73B\uC778\uAC00\uC694?",
   q2: "\uB2E4\uC74C\uC5D0 \uC77C\uC5B4\uB0A0 \uC218 \uC788\uB294 \uC77C\uC744 \uC0DD\uAC01\uD574 \uBCFC \uC218 \uC788\uB098\uC694?",
@@ -280,8 +280,8 @@ function GuideContent() {
       <div className="guide-subsection">
         <p className="guide-subtitle">4. Good Use vs Wrong Use / {KO.goodTitle}</p>
         <div className="guide-compare">
-          <div className="guide-compare-head guide-compare-wrong">Wrong / 잘못된 사용</div>
-          <div className="guide-compare-head guide-compare-right">Better / 더 좋은 사용</div>
+          <div className="guide-compare-head guide-compare-wrong">Wrong / {KO.wrongUse}</div>
+          <div className="guide-compare-head guide-compare-right">Better / {KO.betterUse}</div>
           <div className="guide-compare-cell">&quot;Write the ending.&quot;</div>
           <div className="guide-compare-cell">&quot;What are 2 possible endings?&quot;</div>
           <div className="guide-compare-cell">&quot;Summarize the story.&quot;</div>
@@ -433,61 +433,67 @@ export default function Home() {
     threadEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [activeTaskState.messages, isLoading, selectedTask]);
 
-  const persistTranscript = async (taskId: TaskId, state: TaskChatState, isFinal = false) => {
-    if (!state.sessionId || state.interactionCount <= 0 || state.transcriptSaved) {
-      return;
-    }
-
-    const payload = {
-      taskId,
-      participantId,
-      sessionId: state.sessionId,
-      condition: selectedCondition,
-      interactionCount: state.interactionCount,
-      sessionStartedAt: state.sessionStartedAt,
-      isFinal,
-      messages: state.messages.map<StoredTranscriptMessage>(({ role, text }) => ({ role, text })),
-    };
-
-    try {
-      if (isFinal && typeof navigator.sendBeacon === "function") {
-        const blob = new Blob([JSON.stringify(payload)], {
-          type: "application/json",
-        });
-        const accepted = navigator.sendBeacon("/api/session", blob);
-
-        if (accepted) {
-          setTaskStates((current) => ({
-            ...current,
-            [taskId]: {
-              ...current[taskId],
-              transcriptSaved: true,
-            },
-          }));
-          return;
-        }
+  const persistTranscript = useCallback(
+    async (taskId: TaskId, state: TaskChatState, isFinal = false) => {
+      if (!state.sessionId || state.interactionCount <= 0 || state.transcriptSaved) {
+        return;
       }
 
-      await fetch("/api/session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-        keepalive: isFinal,
-      });
+      const payload = {
+        taskId,
+        participantId,
+        sessionId: state.sessionId,
+        condition: selectedCondition,
+        interactionCount: state.interactionCount,
+        sessionStartedAt: state.sessionStartedAt,
+        isFinal,
+        messages: state.messages.map<StoredTranscriptMessage>(({ role, text }) => ({
+          role,
+          text,
+        })),
+      };
 
-      setTaskStates((current) => ({
-        ...current,
-        [taskId]: {
-          ...current[taskId],
-          transcriptSaved: true,
-        },
-      }));
-    } catch (error) {
-      console.error("Failed to persist session transcript", error);
-    }
-  };
+      try {
+        if (isFinal && typeof navigator.sendBeacon === "function") {
+          const blob = new Blob([JSON.stringify(payload)], {
+            type: "application/json",
+          });
+          const accepted = navigator.sendBeacon("/api/session", blob);
+
+          if (accepted) {
+            setTaskStates((current) => ({
+              ...current,
+              [taskId]: {
+                ...current[taskId],
+                transcriptSaved: true,
+              },
+            }));
+            return;
+          }
+        }
+
+        await fetch("/api/session", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+          keepalive: isFinal,
+        });
+
+        setTaskStates((current) => ({
+          ...current,
+          [taskId]: {
+            ...current[taskId],
+            transcriptSaved: true,
+          },
+        }));
+      } catch (error) {
+        console.error("Failed to persist session transcript", error);
+      }
+    },
+    [participantId, selectedCondition]
+  );
 
   useEffect(() => {
     const flushAllTranscripts = () => {
@@ -514,7 +520,7 @@ export default function Home() {
       window.removeEventListener("pagehide", flushAllTranscripts);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [participantId, selectedCondition]);
+  }, [persistTranscript]);
 
   const send = async () => {
     if (!input.trim() || isLoading) {

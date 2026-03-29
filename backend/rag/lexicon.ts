@@ -40,12 +40,11 @@ const PARTICLE_SUFFIXES = [
   "가",
   "을",
   "를",
+  "와",
+  "과",
   "도",
   "만",
-  "과",
-  "와",
-  "의",
-];
+] as const;
 
 function lexiconPath(taskId: TaskId): string {
   return path.join(process.cwd(), "data", taskId, `${taskId}-lexicon.json`);
