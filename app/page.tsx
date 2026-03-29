@@ -35,6 +35,8 @@ const KO = {
   allowedTitle: "\uC774\uB807\uAC8C \uC0AC\uC6A9\uD558\uC138\uC694",
   restrictedTitle: "\uC774\uB807\uAC8C \uC0AC\uC6A9\uD558\uBA74 \uC548 \uB429\uB2C8\uB2E4",
   goodTitle: "\uC88B\uC740 \uC0AC\uC6A9 vs \uC798\uBABB\uB41C \uC0AC\uC6A9",
+  wrongUse: "\uC798\uBABB\uB41C \uC0AC\uC6A9",
+  betterUse: "\uC88B\uC740 \uC0AC\uC6A9",
   rulesTitle: "\uC911\uC694\uD55C \uADDC\uCE59",
   q1: "\uC774 \uBD80\uBD84\uC740 \uBB34\uC2A8 \uB73B\uC778\uAC00\uC694?",
   q2: "\uB2E4\uC74C\uC5D0 \uC77C\uC5B4\uB0A0 \uC218 \uC788\uB294 \uC77C\uC744 \uC0DD\uAC01\uD574 \uBCFC \uC218 \uC788\uB098\uC694?",
@@ -224,22 +226,22 @@ function GuideContent() {
           <li>
             Understand the story
             <br />
-            "What does this part mean?" / "{KO.q1}"
+            &quot;What does this part mean?&quot; / &quot;{KO.q1}&quot;
           </li>
           <li>
             Get ideas
             <br />
-            "Can you help me think of possible next events?" / "{KO.q2}"
+            &quot;Can you help me think of possible next events?&quot; / &quot;{KO.q2}&quot;
           </li>
           <li>
             Plan your story
             <br />
-            "How can I plan my story?" / "{KO.q3}"
+            &quot;How can I plan my story?&quot; / &quot;{KO.q3}&quot;
           </li>
           <li>
             Get word, expression, or language help
             <br />
-            "What word can I use instead of 'very tired'?" / "{KO.q4}"
+            &quot;What word can I use instead of &apos;very tired&apos;?&quot; / &quot;{KO.q4}&quot;
           </li>
         </ul>
       </div>
@@ -250,27 +252,27 @@ function GuideContent() {
           <li>
             Do not ask the chatbot to write for you
             <br />
-            "Write the next paragraph." / "{KO.r1}"
+            &quot;Write the next paragraph.&quot; / &quot;{KO.r1}&quot;
           </li>
           <li>
             Do not ask for a full answer
             <br />
-            "Give me a full answer." / "{KO.r2}"
+            &quot;Give me a full answer.&quot; / &quot;{KO.r2}&quot;
           </li>
           <li>
             Do not ask for correction or rewriting
             <br />
-            "Fix my sentences." / "{KO.r3}"
+            &quot;Fix my sentences.&quot; / &quot;{KO.r3}&quot;
           </li>
           <li>
             Do not ask for a whole-source summary
             <br />
-            "Summarize the story." / "{KO.r4}"
+            &quot;Summarize the story.&quot; / &quot;{KO.r4}&quot;
           </li>
           <li>
             Do not ask it to add more content for you
             <br />
-            "Make it more interesting." / "{KO.r5}"
+            &quot;Make it more interesting.&quot; / &quot;{KO.r5}&quot;
           </li>
         </ul>
       </div>
@@ -280,12 +282,16 @@ function GuideContent() {
         <div className="guide-compare">
           <div className="guide-compare-head guide-compare-wrong">Wrong / 잘못된 사용</div>
           <div className="guide-compare-head guide-compare-right">Better / 더 좋은 사용</div>
-          <div className="guide-compare-cell">"Write the ending."</div>
-          <div className="guide-compare-cell">"What are 2 possible endings?"</div>
-          <div className="guide-compare-cell">"Summarize the story."</div>
-          <div className="guide-compare-cell">"What problem does the character face?"</div>
-          <div className="guide-compare-cell">"Fix my paragraph."</div>
-          <div className="guide-compare-cell">"What word can I use instead of 'very tired'?"</div>
+          <div className="guide-compare-cell">&quot;Write the ending.&quot;</div>
+          <div className="guide-compare-cell">&quot;What are 2 possible endings?&quot;</div>
+          <div className="guide-compare-cell">&quot;Summarize the story.&quot;</div>
+          <div className="guide-compare-cell">
+            &quot;What problem does the character face?&quot;
+          </div>
+          <div className="guide-compare-cell">&quot;Fix my paragraph.&quot;</div>
+          <div className="guide-compare-cell">
+            &quot;What word can I use instead of &apos;very tired&apos;?&quot;
+          </div>
         </div>
       </div>
 
