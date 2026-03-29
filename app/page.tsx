@@ -22,9 +22,9 @@ type TaskChatState = {
 };
 
 const TASK_IDS: TaskId[] = ["task1", "task2"];
-const STORAGE_KEY_PREFIX = "writing-assistant-task-state-v3";
-const GUIDE_KEY_PREFIX = "writing-assistant-guide-accepted-v2";
-const CURRENT_PARTICIPANT_KEY = "writing-assistant-current-participant-v1";
+const STORAGE_KEY_PREFIX = "writing-assistant-task-state-v6";
+const GUIDE_KEY_PREFIX = "writing-assistant-guide-accepted-v5";
+const CURRENT_PARTICIPANT_KEY = "writing-assistant-current-participant-v4";
 
 const KO = {
   intro:
@@ -140,6 +140,32 @@ function hydrateTaskStates(raw: string | null): Record<TaskId, TaskChatState> {
         continue;
       }
 
+      const hydratedMessages = candidate.messages
+        .filter(
+          (message): message is ChatMessage =>
+            typeof message === "object" &&
+            message !== null &&
+            typeof message.id === "string" &&
+            (message.role === "user" || message.role === "assistant") &&
+            typeof message.text === "string"
+        )
+        .map((message) => ({
+          id: message.id,
+          role: message.role,
+          text: message.text,
+        }));
+
+      const hasStaleAssistantText = hydratedMessages.some(
+        (message) =>
+          message.role === "assistant" &&
+          (message.text.includes("[TODO]") || message.text.includes("Add the Task"))
+      );
+
+      if (hasStaleAssistantText) {
+        next[taskId] = createTaskState();
+        continue;
+      }
+
       next[taskId] = {
         sessionId:
           typeof candidate.sessionId === "string" && candidate.sessionId
@@ -152,20 +178,7 @@ function hydrateTaskStates(raw: string | null): Record<TaskId, TaskChatState> {
         interactionCount:
           typeof candidate.interactionCount === "number" ? candidate.interactionCount : 0,
         transcriptSaved: candidate.transcriptSaved === true,
-        messages: candidate.messages
-          .filter(
-            (message): message is ChatMessage =>
-              typeof message === "object" &&
-              message !== null &&
-              typeof message.id === "string" &&
-              (message.role === "user" || message.role === "assistant") &&
-              typeof message.text === "string"
-          )
-          .map((message) => ({
-            id: message.id,
-            role: message.role,
-            text: message.text,
-          })),
+        messages: hydratedMessages,
       };
 
       if (next[taskId].messages.length === 0) {
@@ -615,13 +628,36 @@ export default function Home() {
     }
 
     const keysToRemove: string[] = [];
+    const statePrefixes = [
+      "writing-assistant-task-state-v1:",
+      "writing-assistant-task-state-v2:",
+      "writing-assistant-task-state-v3:",
+      "writing-assistant-task-state-v4:",
+      "writing-assistant-task-state-v5:",
+      "writing-assistant-task-state-v6:",
+    ];
+    const guidePrefixes = [
+      "writing-assistant-guide-accepted-v1:",
+      "writing-assistant-guide-accepted-v2:",
+      "writing-assistant-guide-accepted-v3:",
+      "writing-assistant-guide-accepted-v4:",
+      "writing-assistant-guide-accepted-v5:",
+    ];
+    const participantKeys = [
+      "writing-assistant-current-participant-v1",
+      "writing-assistant-current-participant-v2",
+      "writing-assistant-current-participant-v3",
+      "writing-assistant-current-participant-v4",
+    ];
 
     for (let index = 0; index < window.localStorage.length; index += 1) {
       const key = window.localStorage.key(index);
 
       if (
         key &&
-        (key.startsWith(`${STORAGE_KEY_PREFIX}:`) || key.startsWith(`${GUIDE_KEY_PREFIX}:`))
+        (statePrefixes.some((prefix) => key.startsWith(prefix)) ||
+          guidePrefixes.some((prefix) => key.startsWith(prefix)) ||
+          participantKeys.includes(key))
       ) {
         keysToRemove.push(key);
       }
@@ -630,9 +666,6 @@ export default function Home() {
     for (const key of keysToRemove) {
       window.localStorage.removeItem(key);
     }
-
-    window.localStorage.removeItem(CURRENT_PARTICIPANT_KEY);
-
     const initialStates = createInitialTaskStates();
     setTaskStates(initialStates);
     taskStatesRef.current = initialStates;

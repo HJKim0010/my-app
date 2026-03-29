@@ -1,3 +1,39 @@
 {
-  "images": []
+  "images": [
+    {
+      "id": "task2_cover",
+      "label": "Task 2 cover image",
+      "description": "An open cardboard box, a black book, and a folded note are shown separately on a plain background, introducing the key objects in the story."
+    },
+    {
+      "id": "task2_scene_01",
+      "label": "Task 2 Scene 1",
+      "description": "A closed cardboard box appears on a gray background with large red question marks around it, creating a feeling of mystery and curiosity."
+    },
+    {
+      "id": "task2_scene_02",
+      "label": "Task 2 Scene 2",
+      "description": "A young woman looks nervous and bites her nails against a dark background, showing worry, hesitation, and unease."
+    },
+    {
+      "id": "task2_scene_03",
+      "label": "Task 2 Scene 3",
+      "description": "A sign with a question mark is placed above a round table, emphasizing the clue connected to table 7 and the hidden object beneath it."
+    },
+    {
+      "id": "task2_scene_04",
+      "label": "Task 2 Scene 4",
+      "description": "Inside a cafe, a man sits at a table drinking coffee while Anna stands farther away near another table with the mysterious package, suggesting observation and suspense."
+    },
+    {
+      "id": "task2_scene_05",
+      "label": "Task 2 Scene 5",
+      "description": "A sunny city street scene shows Anna walking toward a cafe called A Sunlight Cafe, matching the calm beginning of the story."
+    },
+    {
+      "id": "task2_scene_06",
+      "label": "Task 2 Scene 6",
+      "description": "Anna is connected with the mysterious package and the cafe setting, suggesting that she is trying to decide what to do next in a confusing situation."
+    }
+  ]
 }

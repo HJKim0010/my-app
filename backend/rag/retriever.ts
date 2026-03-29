@@ -1,185 +1,167 @@
 import { chunkDocuments, type TaskChunk } from "@/backend/rag/chunker";
-import { loadTaskPackage, type TaskCondition, type TaskId } from "@/backend/rag/loader";
-import { detectLexiconSegments, expandQueryTerms } from "@/backend/rag/lexicon";
+import {
+  detectLexiconSegments,
+  expandQueryTerms,
+  normalizeLexiconText,
+  type StorySegment,
+} from "@/backend/rag/lexicon";
+import type { TaskCondition, TaskDocument, TaskId, TaskPackage } from "@/backend/rag/loader";
 
-export type RetrievedChunk = TaskChunk & {
-  score: number;
-};
+export type RetrievedChunk = TaskChunk & { score: number };
 
-const GENERIC_QUERY_EXPANSIONS: Record<string, string[]> = {
-  busy: ["prepare", "presentation", "project", "team", "lead", "practice"],
-  late: ["alarm", "clock", "sunlight", "late", "rush", "지각", "늦다"],
-  worried: ["tense", "nervous", "warning", "decision", "불안", "긴장"],
-  problem: ["conflict", "warning", "decision", "issue", "문제", "갈등"],
-  ending: ["last", "final", "decision", "warning", "station", "결말", "마지막"],
-  last: ["ending", "final", "decision", "warning", "station", "마지막", "후반"],
-  final: ["ending", "last", "decision", "station", "graduation", "최종", "마지막"],
-  story: ["scene", "part", "moment", "event", "이야기", "스토리", "내용"],
-  video: ["scene", "moment", "frame", "part", "영상", "장면"],
-  scene: ["video", "moment", "frame", "scene", "장면"],
-  마지막: ["끝", "후반", "last", "final", "ending"],
-  끝: ["마지막", "후반", "last", "final", "ending"],
-  후반: ["마지막", "끝", "later", "final", "ending"],
-  초반: ["처음", "beginning", "start", "early"],
-  중반: ["middle", "middle part", "midpoint"],
-  처음: ["초반", "beginning", "start", "early"],
-  영상: ["video", "scene", "frame", "moment"],
-  스토리: ["story", "scene", "event", "part"],
-  이야기: ["story", "scene", "event", "part"],
-  내용: ["story", "part", "scene", "event"],
-  무슨: ["what", "which", "무엇", "어떤"],
-  뭐야: ["what", "which", "무슨", "어떤"],
-  맞아: ["right", "really", "actual", "진짜"],
-  맞지: ["right", "really", "actual", "진짜"],
-};
-
-function normalize(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/([a-z])([\uac00-\ud7a3])/g, "$1 $2")
-    .replace(/([\uac00-\ud7a3])([a-z])/g, "$1 $2")
-    .replace(/([0-9])([\uac00-\ud7a3a-z])/g, "$1 $2")
-    .replace(/([\uac00-\ud7a3a-z])([0-9])/g, "$1 $2")
-    .replace(/[^a-z0-9\uac00-\ud7a3\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+function splitNormalized(text: string): string[] {
+  return normalizeLexiconText(text).split(" ").filter(Boolean);
 }
 
-function tokenize(text: string): string[] {
-  return normalize(text)
-    .split(" ")
-    .map((token) => token.trim())
-    .filter((token) => token.length > 1);
-}
-
-function expandTokens(taskId: TaskId, text: string): string[] {
-  const expanded = new Set(expandQueryTerms(taskId, text));
-
-  for (const token of [...expanded]) {
-    const related = GENERIC_QUERY_EXPANSIONS[token] || [];
-
-    for (const item of related) {
-      for (const nextToken of tokenize(item)) {
-        expanded.add(nextToken);
-      }
-    }
+function getSegmentForChunk(chunk: TaskChunk, totalChunks: number): StorySegment {
+  if (totalChunks <= 1) {
+    return "beginning";
   }
 
-  return [...expanded];
-}
-
-function scoreChunk(taskId: TaskId, query: string, content: string): number {
-  const queryTokens = new Set(expandTokens(taskId, query));
-  const contentTokens = tokenize(content);
-  let score = 0;
-
-  for (const token of contentTokens) {
-    if (queryTokens.has(token)) {
-      score += 1;
-    }
+  if (chunk.chunkIndex <= 0) {
+    return "beginning";
   }
 
-  return score;
-}
-
-function detectSegmentIntent(query: string): "beginning" | "middle" | "end" | null {
-  const normalized = normalize(query);
-
-  if (["마지막", "끝", "후반", "last", "final", "ending", "end"].some((term) => normalized.includes(term))) {
+  if (chunk.chunkIndex >= totalChunks - 1) {
     return "end";
   }
 
-  if (["중반", "middle", "middle part"].some((term) => normalized.includes(term))) {
+  return "middle";
+}
+
+function detectExplicitSegment(query: string): StorySegment | null {
+  const normalized = normalizeLexiconText(query);
+
+  if (/(초반|처음|beginning|start)/.test(normalized)) {
+    return "beginning";
+  }
+
+  if (/(중반|middle)/.test(normalized)) {
     return "middle";
   }
 
-  if (["초반", "처음", "beginning", "start", "first part"].some((term) => normalized.includes(term))) {
-    return "beginning";
+  if (/(후반|마지막|끝|end|last|final)/.test(normalized)) {
+    return "end";
   }
 
   return null;
 }
 
-function segmentPositionBoost(chunk: TaskChunk, maxChunkIndex: number, preferredSegments: string[]): number {
-  if (maxChunkIndex <= 0 || preferredSegments.length === 0) {
-    return 0;
+function sourceBoost(sourceType: string): number {
+  if (sourceType === "source_text" || sourceType === "video_transcript") {
+    return 2;
   }
 
-  const ratio = chunk.chunkIndex / maxChunkIndex;
-  let boost = 0;
-
-  if (preferredSegments.includes("beginning")) {
-    boost = Math.max(boost, (1 - ratio) * 1.5);
+  if (sourceType === "audio_transcript" || sourceType === "scene_labels") {
+    return 1.25;
   }
 
-  if (preferredSegments.includes("middle")) {
-    boost = Math.max(boost, (1 - Math.abs(ratio - 0.5) * 2) * 1.5);
+  if (sourceType === "image_description") {
+    return 0.75;
   }
 
-  if (preferredSegments.includes("end")) {
-    boost = Math.max(boost, ratio * 1.5);
+  return 0;
+}
+
+function scoreChunk(taskId: TaskId, chunk: TaskChunk, query: string, totalChunks: number): number {
+  const expandedTerms = new Set(expandQueryTerms(taskId, query));
+  const chunkTokens = splitNormalized(chunk.content);
+  let score = 0;
+
+  for (const token of chunkTokens) {
+    if (expandedTerms.has(token)) {
+      score += 2;
+    }
   }
 
-  return Math.max(0, boost);
+  const explicitSegment = detectExplicitSegment(query);
+  const lexicalSegments = detectLexiconSegments(taskId, query);
+  const chunkSegment = getSegmentForChunk(chunk, totalChunks);
+
+  if (explicitSegment && explicitSegment === chunkSegment) {
+    score += 4;
+  }
+
+  if (lexicalSegments.includes(chunkSegment)) {
+    score += 2;
+  }
+
+  score += sourceBoost(chunk.sourceType);
+  return score;
+}
+
+function fallbackChunks(chunks: TaskChunk[], query: string): TaskChunk[] {
+  const explicitSegment = detectExplicitSegment(query);
+
+  if (explicitSegment === "beginning") {
+    return chunks.slice(0, Math.min(2, chunks.length));
+  }
+
+  if (explicitSegment === "middle") {
+    const start = Math.max(0, Math.floor(chunks.length / 2) - 1);
+    return chunks.slice(start, Math.min(start + 2, chunks.length));
+  }
+
+  if (explicitSegment === "end") {
+    return chunks.slice(Math.max(0, chunks.length - 2));
+  }
+
+  return chunks.slice(0, Math.min(3, chunks.length));
 }
 
 export function retrieveTaskChunks(
   taskId: TaskId,
   query: string,
+  taskPackage: TaskPackage,
+  limit = 4
+): RetrievedChunk[] {
+  const chunks = chunkDocuments(taskId, taskPackage.documents);
+  const totalChunks = chunks.length;
+
+  const scored = chunks
+    .map((chunk) => ({
+      ...chunk,
+      score: scoreChunk(taskId, chunk, query, totalChunks),
+    }))
+    .filter((chunk) => chunk.score > 0)
+    .sort((a, b) => b.score - a.score || a.chunkIndex - b.chunkIndex)
+    .slice(0, limit);
+
+  if (scored.length > 0) {
+    return scored;
+  }
+
+  return fallbackChunks(chunks, query).map((chunk) => ({
+    ...chunk,
+    score: taskPackage.condition === "dynamic" ? 0.5 : 0.4,
+  }));
+}
+
+export function retrieveTaskDocumentsForCondition(
+  taskId: TaskId,
+  query: string,
+  documents: TaskDocument[],
   condition: TaskCondition,
   limit = 4
 ): RetrievedChunk[] {
-  const taskPackage = loadTaskPackage(taskId, condition);
-  const conditionConfig = taskPackage.config.conditions[condition];
+  const chunks = chunkDocuments(taskId, documents);
+  const totalChunks = chunks.length;
 
-  if (!conditionConfig.retrieval_enabled) {
-    return [];
-  }
-
-  const chunks = chunkDocuments(taskPackage.config.task_id, taskPackage.documents);
-  const maxChunkIndex = chunks.reduce((max, chunk) => Math.max(max, chunk.chunkIndex), 0);
-  const explicitSegment = detectSegmentIntent(query);
-  const lexiconSegments = detectLexiconSegments(taskId, query);
-  const preferredSegments = explicitSegment ? [explicitSegment] : lexiconSegments;
-
-  const ranked = chunks
+  const scored = chunks
     .map((chunk) => ({
       ...chunk,
-      score:
-        scoreChunk(taskId, query, chunk.content) +
-        segmentPositionBoost(chunk, maxChunkIndex, preferredSegments),
+      score: scoreChunk(taskId, chunk, query, totalChunks),
     }))
-    .sort((a, b) => b.score - a.score);
+    .filter((chunk) => chunk.score > 0)
+    .sort((a, b) => b.score - a.score || a.chunkIndex - b.chunkIndex)
+    .slice(0, limit);
 
-  const positive = ranked.filter((chunk) => chunk.score > 0).slice(0, limit);
-
-  if (positive.length > 0) {
-    return positive;
+  if (scored.length > 0) {
+    return scored;
   }
 
-  if (preferredSegments.includes("end")) {
-    return [...chunks]
-      .sort((a, b) => b.chunkIndex - a.chunkIndex)
-      .slice(0, Math.min(limit, chunks.length))
-      .map((chunk) => ({ ...chunk, score: 0 }));
-  }
-
-  if (preferredSegments.includes("beginning")) {
-    return [...chunks]
-      .sort((a, b) => a.chunkIndex - b.chunkIndex)
-      .slice(0, Math.min(limit, chunks.length))
-      .map((chunk) => ({ ...chunk, score: 0 }));
-  }
-
-  if (preferredSegments.includes("middle")) {
-    return [...chunks]
-      .sort(
-        (a, b) =>
-          Math.abs(a.chunkIndex - maxChunkIndex / 2) - Math.abs(b.chunkIndex - maxChunkIndex / 2)
-      )
-      .slice(0, Math.min(limit, chunks.length))
-      .map((chunk) => ({ ...chunk, score: 0 }));
-  }
-
-  return ranked.slice(0, Math.min(2, ranked.length));
+  return fallbackChunks(chunks, query).map((chunk) => ({
+    ...chunk,
+    score: condition === "dynamic" ? 0.5 : 0.4,
+  }));
 }

@@ -1,8 +1,5 @@
 Requirements
-
-Use the story as a base for your writing
-Add new events to continue the story
-Make sure your story makes sense
-Keep it consistent with the original story
-Use your own words
-Write between 120 and 350 words
+1. Add new events.
+2. Keep a logical flow.
+3. Use your own words.
+4. Write between 120 and 350 words.

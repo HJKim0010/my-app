@@ -3,107 +3,100 @@
     {
       "id": "anna",
       "category": "character",
-      "terms": ["Anna", "안나", "그녀", "주인공"],
-      "related": ["main character", "she", "student", "young woman", "여자", "main person"],
+      "terms": ["Anna", "anna", "안나", "애나", "그녀", "여자 주인공"],
+      "related": ["she", "her", "main character", "young woman", "student", "woman"],
       "segments": ["beginning", "middle", "end"]
     },
     {
       "id": "man_table7",
       "category": "character",
-      "terms": ["man", "table 7 man", "남자", "테이블 7 남자"],
-      "related": ["he", "reader", "stranger", "coffee drinker", "수상한 남자", "reading man"],
+      "terms": ["man", "남자", "그 남자", "table 7 man", "reader", "손님"],
+      "related": ["stranger", "man at table 7", "customer", "coffee drinker", "he", "him"],
       "segments": ["middle"]
     },
     {
-      "id": "package_box",
+      "id": "box_package",
       "category": "object",
-      "terms": ["package", "box", "small box", "상자", "소포"],
-      "related": ["brown paper", "wrapped box", "mysterious box", "갈색 종이", "꾸러미", "parcel"],
+      "terms": ["box", "package", "small box", "상자", "박스", "소포"],
+      "related": ["parcel", "brown paper", "wrapped box", "mysterious box", "package on table", "brown package"],
       "segments": ["middle"]
     },
     {
       "id": "book_note",
       "category": "object",
-      "terms": ["book", "black book", "note", "쪽지", "책"],
-      "related": ["folded note", "message", "paper", "small note", "메시지", "메모"],
+      "terms": ["book", "black book", "note", "책", "쪽지", "메모"],
+      "related": ["folded note", "message", "paper", "small note", "written note", "letter"],
       "segments": ["middle"]
     },
     {
       "id": "hidden_object",
       "category": "object",
-      "terms": ["something under the table", "hidden thing", "taped object", "테이블 밑 물건", "숨겨진 물건"],
-      "related": ["under table 7", "bottom of the table", "hidden item", "붙어 있는 것", "숨겨진 것", "taped underneath"],
+      "terms": ["hidden object", "something under the table", "taped object", "숨겨진 물건", "테이블 밑 물건", "밑에 붙은 것"],
+      "related": ["under table 7", "bottom of the table", "hidden item", "taped underneath", "secret thing", "object below"],
       "segments": ["end"]
     },
     {
       "id": "cafe",
       "category": "place",
-      "terms": ["cafe", "coffee shop", "카페", "커피숍"],
-      "related": ["window seat", "outdoor table", "table 7", "coffee", "창가 자리", "카페 안"],
+      "terms": ["cafe", "coffee shop", "카페", "테이블 7", "커피숍", "커피"],
+      "related": ["outdoor table", "window seat", "inside the cafe", "shop", "seat", "coffeehouse"],
       "segments": ["beginning", "middle", "end"]
     },
     {
-      "id": "apartment_street",
+      "id": "street_home",
       "category": "place",
-      "terms": ["apartment", "street", "home", "아파트", "길"],
-      "related": ["outside", "morning street", "walk", "바깥", "거리", "출발한 곳"],
+      "terms": ["apartment", "street", "home", "아파트", "거리", "집"],
+      "related": ["outside", "morning street", "walk", "city", "fresh air", "sunny street"],
       "segments": ["beginning"]
     },
     {
       "id": "go_to_cafe",
       "category": "action",
-      "terms": ["walk to the cafe", "go to the cafe", "카페로 가다", "걷다"],
-      "related": ["take a break", "leave home", "carry laptop", "산책처럼 가다", "나오다", "카페에 도착하다"],
+      "terms": ["walk to the cafe", "go to the cafe", "카페로 가다", "걷다", "leave home", "밖으로 나가다"],
+      "related": ["take a break", "carry laptop", "go outside", "walk slowly", "head to the cafe", "leave the apartment"],
       "segments": ["beginning"]
     },
     {
       "id": "open_box",
       "category": "action",
-      "terms": ["open the box", "pick up the box", "상자를 열다", "상자를 들다"],
-      "related": ["carry it inside", "look at the box", "notice the package", "호기심", "상자를 발견하다", "집어들다"],
+      "terms": ["open the box", "pick up the box", "상자를 열다", "상자를 집다", "notice the box", "상자를 보다"],
+      "related": ["look at the package", "take the box", "wrapped box", "bring inside", "find a box", "carry it inside"],
       "segments": ["middle"]
     },
     {
       "id": "watch_man",
       "category": "action",
-      "terms": ["watch the man", "wait until he leaves", "남자를 지켜보다", "기다리다"],
-      "related": ["pretend to look at her phone", "reading", "drinking coffee", "휴대폰 보는 척", "지켜보다", "떠날 때까지 기다리다"],
+      "terms": ["watch the man", "wait until he leaves", "남자를 지켜보다", "기다리다", "폰 보는 척하다", "휴대폰 보는 척하다"],
+      "related": ["reading", "drinking coffee", "man at table 7", "look at phone", "keep watching", "wait"],
       "segments": ["middle"]
     },
     {
       "id": "look_under_table",
       "category": "action",
-      "terms": ["look under table 7", "bend down", "check under the table", "테이블 밑을 보다", "몸을 숙이다"],
-      "related": ["under table 7", "taped to the bottom", "walk toward table 7", "테이블 7", "확인하다", "찾아보다"],
+      "terms": ["look under table 7", "bend down", "check under the table", "테이블 밑을 보다", "몸을 숙이다", "아래를 확인하다"],
+      "related": ["walk to table 7", "see underneath", "check below", "find something taped", "look down", "under the table"],
       "segments": ["end"]
     },
     {
-      "id": "mystery_problem",
+      "id": "problem",
       "category": "problem",
-      "terms": ["mystery", "strange", "problem", "confusing", "이상한", "수상한 문제"],
-      "related": ["no name", "no address", "no label", "joke", "label 없음", "수수께끼"],
+      "terms": ["problem", "mystery", "trouble", "문제", "이상한 상황", "수상한 일"],
+      "related": ["strange box", "no label", "table 7 note", "hidden object", "joke or not", "confusing situation"],
       "segments": ["middle", "end"]
     },
     {
-      "id": "take_it_or_not",
-      "category": "problem",
-      "terms": ["should she take it", "not sure what to do", "take it or not", "가져가야 할지", "어떻게 할지 모름"],
-      "related": ["hesitate", "reach out", "stop halfway", "uncertain", "망설이다", "주저하다"],
-      "segments": ["end"]
-    },
-    {
-      "id": "anna_feelings",
-      "category": "feeling",
-      "terms": ["curious", "relaxed", "nervous", "uncertain", "궁금한", "불안한"],
-      "related": ["peaceful", "heart beat faster", "not sure", "tense", "편안한", "망설임"],
-      "segments": ["beginning", "middle", "end"]
-    },
-    {
-      "id": "decision_end",
+      "id": "decision",
       "category": "decision",
-      "terms": ["decision", "choice", "what to do next", "결정", "선택"],
-      "related": ["take it", "leave it", "hesitate", "joke or real", "가져갈지", "두고 갈지"],
+      "terms": ["decision", "choice", "what to do next", "결정", "선택", "다음 행동"],
+      "related": ["take it", "leave it", "hesitate", "not sure", "whether to take it", "next step"],
       "segments": ["end"]
+    },
+    {
+      "id": "feelings",
+      "category": "feeling",
+      "terms": ["curious", "relaxed", "nervous", "uncertain", "궁금", "불안"],
+      "related": ["peaceful", "heart beat faster", "hesitant", "tense", "worried", "주저"],
+      "segments": ["beginning", "middle", "end"]
     }
   ]
 }

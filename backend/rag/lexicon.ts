@@ -3,103 +3,133 @@ import path from "node:path";
 import type { TaskId } from "@/backend/rag/loader";
 
 export type StorySegment = "beginning" | "middle" | "end";
+export type LexiconCategory =
+  | "character"
+  | "object"
+  | "place"
+  | "action"
+  | "problem"
+  | "feeling"
+  | "decision";
 
 export type LexiconEntry = {
   id: string;
-  category: "character" | "object" | "place" | "action" | "problem" | "feeling" | "decision";
+  category: LexiconCategory;
   terms: string[];
   related: string[];
   segments?: StorySegment[];
 };
 
-export type TaskLexicon = {
-  entries: LexiconEntry[];
+type LexiconFile = {
+  entries?: LexiconEntry[];
 };
 
-const EMPTY_LEXICON: TaskLexicon = {
-  entries: [],
-};
+const cache = new Map<TaskId, LexiconEntry[]>();
 
-function getLexiconPath(taskId: TaskId): string {
+const PARTICLE_SUFFIXES = [
+  "으로",
+  "로",
+  "에서",
+  "에게",
+  "한테",
+  "이랑",
+  "랑",
+  "은",
+  "는",
+  "이",
+  "가",
+  "을",
+  "를",
+  "도",
+  "만",
+  "과",
+  "와",
+  "의",
+];
+
+function lexiconPath(taskId: TaskId): string {
   return path.join(process.cwd(), "data", taskId, `${taskId}-lexicon.json`);
 }
 
-function normalize(text: string): string {
+export function normalizeLexiconText(text: string): string {
   return text
     .toLowerCase()
     .replace(/([a-z])([\uac00-\ud7a3])/g, "$1 $2")
     .replace(/([\uac00-\ud7a3])([a-z])/g, "$1 $2")
+    .replace(/([0-9])([\uac00-\ud7a3a-z])/g, "$1 $2")
+    .replace(/([\uac00-\ud7a3a-z])([0-9])/g, "$1 $2")
     .replace(/[^a-z0-9\uac00-\ud7a3\s]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-function tokenize(text: string): string[] {
-  return normalize(text)
+function stripParticle(token: string): string {
+  for (const suffix of PARTICLE_SUFFIXES) {
+    if (token.endsWith(suffix) && token.length > suffix.length + 1) {
+      return token.slice(0, -suffix.length);
+    }
+  }
+
+  return token;
+}
+
+export function tokenizeLexiconText(text: string): string[] {
+  return normalizeLexiconText(text)
     .split(" ")
     .map((token) => token.trim())
-    .filter((token) => token.length > 0);
+    .filter(Boolean)
+    .map(stripParticle)
+    .filter(Boolean);
 }
 
-export function loadTaskLexicon(taskId: TaskId): TaskLexicon {
-  const fullPath = getLexiconPath(taskId);
-
-  if (!fs.existsSync(fullPath)) {
-    return EMPTY_LEXICON;
+export function loadTaskLexicon(taskId: TaskId): LexiconEntry[] {
+  const cached = cache.get(taskId);
+  if (cached) {
+    return cached;
   }
 
-  try {
-    const parsed = JSON.parse(fs.readFileSync(fullPath, "utf8")) as TaskLexicon;
-    return Array.isArray(parsed.entries) ? parsed : EMPTY_LEXICON;
-  } catch {
-    return EMPTY_LEXICON;
+  const filePath = lexiconPath(taskId);
+  if (!fs.existsSync(filePath)) {
+    cache.set(taskId, []);
+    return [];
   }
+
+  const parsed = JSON.parse(fs.readFileSync(filePath, "utf8")) as LexiconFile;
+  const entries = Array.isArray(parsed.entries) ? parsed.entries : [];
+  cache.set(taskId, entries);
+  return entries;
 }
 
-export function findMatchingLexiconEntries(taskId: TaskId, text: string): LexiconEntry[] {
-  const lexicon = loadTaskLexicon(taskId);
-  const normalizedText = normalize(text);
-  const tokens = new Set(tokenize(text));
+export function findMatchingLexiconEntries(taskId: TaskId, query: string): LexiconEntry[] {
+  const queryTokens = new Set(tokenizeLexiconText(query));
+  const entries = loadTaskLexicon(taskId);
 
-  return lexicon.entries.filter((entry) => {
-    const candidates = [...entry.terms, ...entry.related];
-
-    return candidates.some((candidate) => {
-      const normalizedCandidate = normalize(candidate);
-
-      if (!normalizedCandidate) {
-        return false;
-      }
-
-      if (normalizedText.includes(normalizedCandidate)) {
-        return true;
-      }
-
-      return tokenize(candidate).some((token) => tokens.has(token));
-    });
+  return entries.filter((entry) => {
+    const combined = [...entry.terms, ...entry.related];
+    return combined.some((term) =>
+      tokenizeLexiconText(term).some((token) => queryTokens.has(token))
+    );
   });
 }
 
-export function expandQueryTerms(taskId: TaskId, text: string): string[] {
-  const tokens = new Set(tokenize(text));
-  const matches = findMatchingLexiconEntries(taskId, text);
+export function expandQueryTerms(taskId: TaskId, query: string): string[] {
+  const expanded = new Set(tokenizeLexiconText(query));
 
-  for (const entry of matches) {
+  for (const entry of findMatchingLexiconEntries(taskId, query)) {
     for (const term of [...entry.terms, ...entry.related]) {
-      for (const token of tokenize(term)) {
-        tokens.add(token);
+      for (const token of tokenizeLexiconText(term)) {
+        expanded.add(token);
       }
     }
   }
 
-  return [...tokens];
+  return [...expanded];
 }
 
-export function detectLexiconSegments(taskId: TaskId, text: string): StorySegment[] {
-  const matches = findMatchingLexiconEntries(taskId, text);
+export function detectLexiconSegments(taskId: TaskId, query: string): StorySegment[] {
   const segments = new Set<StorySegment>();
 
-  for (const entry of matches) {
+  for (const entry of findMatchingLexiconEntries(taskId, query)) {
     for (const segment of entry.segments || []) {
       segments.add(segment);
     }

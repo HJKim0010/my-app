@@ -1,1 +1,5 @@
-[TODO] Add the Task 2 learner-facing instruction here.
+Requirements
+1. Add new events.
+2. Keep a logical flow.
+3. Use your own words.
+4. Write between 120 and 350 words.

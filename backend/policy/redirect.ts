@@ -1,59 +1,15 @@
-import type { RestrictionReason } from "./classifier";
+import type { RestrictionReason } from "@/backend/policy/classifier";
 
 export function redirectResponse(reason: RestrictionReason): string {
-  if (reason === "whole_source_summary") {
-    return `
-I cannot summarize the whole source for you.
-
-That would reduce your own reading work, so I can only help in a limited way:
-
-1. Clarify one specific scene, line, or timestamp
-2. Explain what happens in one short part of the source
-3. Track one character's feeling, goal, or problem in a selected segment
-
-Try asking about one scene, one difficult part, or one detail from the assigned materials.
-`;
+  switch (reason) {
+    case "whole_source_summary":
+      return "I cannot summarize the whole story for you. You can ask about one short part, one character, one problem, or one selected scene from the assigned materials.";
+    case "draft_feedback":
+      return "I cannot correct or rewrite your draft. I can help you understand the story, plan your ideas, or find useful words and expressions.";
+    case "outside_content":
+      return "I cannot add outside content beyond the assigned materials. I can help you think of ideas that stay consistent with the story you were given.";
+    case "sentence_generation":
+    default:
+      return "I cannot write the answer or continuation for you. I can help with one scene, possible ideas, writing plans, or useful words and expressions.";
   }
-
-  if (reason === "draft_feedback") {
-    return `
-I cannot correct, rewrite, or evaluate your draft for you.
-
-I can still help in a limited way:
-
-1. Suggest general ways to organize your continuation
-2. Explain a useful word or expression
-3. Offer an abstract sentence frame with blanks
-
-Try asking for planning help, vocabulary help, or a general writing pattern.
-`;
-  }
-
-  if (reason === "outside_content") {
-    return `
-I cannot add outside content knowledge beyond the assigned source.
-
-I can still help in a limited way:
-
-1. Find ideas based only on the given source
-2. Clarify what a specific scene implies
-3. Help you plan a continuation that stays consistent with the source
-
-Try asking about a source-based idea, conflict, emotion, or next-step possibility.
-`;
-  }
-
-  return `
-I cannot write the answer for you, but I can help you plan it.
-
-That would replace your own writing, so I can only support your thinking.
-
-Here are 3 safer directions:
-
-1. Focus on the character's reaction
-2. Develop the situation further
-3. Add a new event based on the source
-
-Try choosing one and writing it in your own words. I can also help with a short outline, key ideas, or simple vocabulary.
-`;
 }

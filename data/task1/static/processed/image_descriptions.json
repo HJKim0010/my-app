@@ -1,3 +1,39 @@
 {
-  "images": []
+  "images": [
+    {
+      "id": "task1_cover",
+      "label": "Task 1 cover image",
+      "description": "A visual introduction to Jack's difficult day, highlighting the theme that everything begins to go wrong before an important presentation."
+    },
+    {
+      "id": "task1_scene_01",
+      "label": "Task 1 Scene 1",
+      "description": "Jack is presented as a hardworking student who has spent a long time preparing for an important team presentation."
+    },
+    {
+      "id": "task1_scene_02",
+      "label": "Task 1 Scene 2",
+      "description": "Bright sunlight and Jack's shocked reaction suggest that he has overslept and suddenly realized he is late."
+    },
+    {
+      "id": "task1_scene_03",
+      "label": "Task 1 Scene 3",
+      "description": "Jack rushes out with his bag and laptop, then realizes at the subway station that he forgot his wallet and student ID."
+    },
+    {
+      "id": "task1_scene_04",
+      "label": "Task 1 Scene 4",
+      "description": "On a crowded train, Jack drops his phone and nearly falls, showing how stressful and chaotic his morning has become."
+    },
+    {
+      "id": "task1_scene_05",
+      "label": "Task 1 Scene 5",
+      "description": "A woman gives Jack a folded note with a strange message telling him to stay on the train and get off at the last station."
+    },
+    {
+      "id": "task1_scene_06",
+      "label": "Task 1 Scene 6",
+      "description": "Jack feels tense and uncertain as he tries to decide whether he should trust the mysterious message or get off early to reach class in time."
+    }
+  ]
 }

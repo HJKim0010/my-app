@@ -1,3 +1,52 @@
 {
-  "scene_labels": []
+  "scene_labels": [
+    {
+      "id": "scene_01",
+      "label": "Anna leaves for the cafe after studying",
+      "description": "Anna finishes a long study session, packs her laptop and notebook, and walks toward her favorite cafe on a calm, sunny morning.",
+      "timestamp_start": "00:00:03",
+      "timestamp_end": "00:00:24",
+      "keyframes": ["scene01_f01.png"]
+    },
+    {
+      "id": "scene_02",
+      "label": "Anna notices a mysterious package",
+      "description": "At the cafe, Anna spots a small brown-paper package with no name, address, or label, and she becomes curious about it.",
+      "timestamp_start": "00:00:24",
+      "timestamp_end": "00:00:52",
+      "keyframes": ["scene02_f01.png"]
+    },
+    {
+      "id": "scene_03",
+      "label": "Anna finds a book and a note in the box",
+      "description": "Anna opens the package and discovers a thin black book and a folded note telling her to look under table 7.",
+      "timestamp_start": "00:00:52",
+      "timestamp_end": "00:01:05",
+      "keyframes": ["scene03_f01.png"]
+    },
+    {
+      "id": "scene_04",
+      "label": "Anna watches the man at table 7",
+      "description": "A man sits at table 7 reading and drinking coffee. Anna watches him from a distance and waits until he leaves the cafe.",
+      "timestamp_start": "00:01:05",
+      "timestamp_end": "00:01:27",
+      "keyframes": ["scene04_f01.png"]
+    },
+    {
+      "id": "scene_05",
+      "label": "Anna checks under table 7",
+      "description": "After the man leaves, Anna slowly walks to table 7, bends down, and sees something taped under the table.",
+      "timestamp_start": "00:01:27",
+      "timestamp_end": "00:01:39",
+      "keyframes": ["scene05_f01.png"]
+    },
+    {
+      "id": "scene_06",
+      "label": "Anna hesitates and feels unsure",
+      "description": "Anna feels nervous and uncertain. She wonders whether the situation is a joke or a real mystery, and she hesitates before taking the hidden object.",
+      "timestamp_start": "00:01:39",
+      "timestamp_end": "00:02:00",
+      "keyframes": ["scene06_f01.png"]
+    }
+  ]
 }
