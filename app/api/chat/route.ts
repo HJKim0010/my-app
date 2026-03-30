@@ -12,7 +12,7 @@ import {
 } from "@/backend/rag/loader";
 import { expandQueryTerms } from "@/backend/rag/lexicon";
 import { buildSystemInstruction, buildUserInput } from "@/backend/rag/promptBuilder";
-import { retrieveTaskChunks } from "@/backend/rag/retriever";
+import { retrieveTaskChunks, type RetrievedChunk } from "@/backend/rag/retriever";
 
 const CONFUSION_PATTERNS = [
   "i don't understand",
@@ -490,6 +490,13 @@ function formatClarification(sentences: string[], tail?: string): string {
   return bulletLines.join("\n");
 }
 
+function shouldUseContextForUnderstanding(query: string): boolean {
+  const normalized = normalize(query);
+  const tokens = tokenize(query);
+
+  return normalized.length <= 18 || tokens.length <= 3;
+}
+
 function buildSegmentClarification(
   taskId: TaskId,
   query: string,
@@ -560,18 +567,30 @@ function buildStoryClarification(
   taskId: TaskId,
   query: string,
   contextualQuery: string,
-  taskPackage: TaskPackage
+  taskPackage: TaskPackage,
+  retrievedChunks: RetrievedChunk[]
 ): string | null {
-  const narrative = extractNarrativeText(taskPackage);
+  const retrievedNarrative = retrievedChunks
+    .map((chunk) => chunk.content.trim())
+    .filter(Boolean)
+    .join("\n\n");
+  const narrative = retrievedNarrative || extractNarrativeText(taskPackage);
 
   if (!narrative) {
     return null;
   }
 
-  const bestSentences =
-    takeBestSentences(taskId, narrative, contextualQuery, 2).length > 0
+  const primaryMatches = takeBestSentences(taskId, narrative, query, 2);
+  const contextualMatches =
+    contextualQuery && contextualQuery !== query
       ? takeBestSentences(taskId, narrative, contextualQuery, 2)
-      : takeBestSentences(taskId, narrative, query, 2);
+      : [];
+  const bestSentences =
+    primaryMatches.length > 0
+      ? primaryMatches
+      : shouldUseContextForUnderstanding(query)
+        ? contextualMatches
+        : [];
 
   if (bestSentences.length === 0) {
     return null;
@@ -755,7 +774,7 @@ export async function POST(request: NextRequest) {
   ) {
     localResponse =
       buildSegmentClarification(taskId, contextualQuery || query, taskPackage, referenceMode) ||
-      buildStoryClarification(taskId, query, contextualQuery || query, taskPackage);
+      buildStoryClarification(taskId, query, contextualQuery || query, taskPackage, retrievedChunks);
   } else if (isPlanningOrLanguageQuery(query)) {
     localResponse = buildPlanningResponse(taskId, query);
   }
