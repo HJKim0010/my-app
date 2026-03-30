@@ -296,6 +296,43 @@ function isShortFollowUpUnderstandingQuery(query: string): boolean {
   ].some((term) => normalized.includes(term));
 }
 
+function isLikelyLocalClarificationQuery(query: string): boolean {
+  const normalized = normalize(query);
+
+  if (normalized.length > 60) {
+    return false;
+  }
+
+  const clueTerms = [
+    "왜",
+    "뭐",
+    "뭘",
+    "무엇",
+    "어디",
+    "어느",
+    "보고",
+    "봤",
+    "보았",
+    "보고 놀",
+    "놀란",
+    "놀랐",
+    "놀랬",
+    "거지",
+    "건지",
+    "것 같",
+    "what",
+    "where",
+    "why",
+    "saw",
+    "see",
+    "looked",
+    "surprised",
+    "shocked",
+  ];
+
+  return clueTerms.some((term) => normalized.includes(term));
+}
+
 function isPlanningOrLanguageQuery(query: string): boolean {
   return includesAny(query.toLowerCase(), PLANNING_OR_LANGUAGE_PATTERNS);
 }
@@ -709,7 +746,11 @@ export async function POST(request: NextRequest) {
   let localResponse: string | null = null;
 
   if (
-    (isUnderstandingQuery(query) || isShortFollowUpUnderstandingQuery(query)) &&
+    (
+      isUnderstandingQuery(query) ||
+      isShortFollowUpUnderstandingQuery(query) ||
+      isLikelyLocalClarificationQuery(query)
+    ) &&
     !isPlanningOrLanguageQuery(query)
   ) {
     localResponse =

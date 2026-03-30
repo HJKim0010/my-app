@@ -336,6 +336,8 @@ export default function Home() {
   const threadEndRef = useRef<HTMLDivElement | null>(null);
   const taskStatesRef = useRef(taskStates);
   const revealedAssistantIdsRef = useRef<Set<string>>(collectAssistantIds(taskStates));
+  const inFlightRequestRef = useRef<AbortController | null>(null);
+  const loadingTimeoutRef = useRef<number | null>(null);
 
   const activeTaskState = useMemo(() => taskStates[selectedTask], [selectedTask, taskStates]);
   const normalizedParticipantInput = useMemo(
@@ -347,6 +349,15 @@ export default function Home() {
   useEffect(() => {
     taskStatesRef.current = taskStates;
   }, [taskStates]);
+
+  useEffect(() => {
+    return () => {
+      inFlightRequestRef.current?.abort();
+      if (loadingTimeoutRef.current !== null) {
+        window.clearTimeout(loadingTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!guideAccepted) {
@@ -549,6 +560,12 @@ export default function Home() {
     setInput("");
     setIsLoading(true);
 
+    const controller = new AbortController();
+    inFlightRequestRef.current = controller;
+    loadingTimeoutRef.current = window.setTimeout(() => {
+      controller.abort();
+    }, 15000);
+
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -570,6 +587,7 @@ export default function Home() {
           interactionCount: nextInteractionCount,
           sessionStartedAt: currentState.sessionStartedAt,
         }),
+        signal: controller.signal,
       });
 
       const text = await res.text();
@@ -588,6 +606,11 @@ export default function Home() {
       }));
     } catch (error) {
       console.error(error);
+      const message =
+        error instanceof Error && error.name === "AbortError"
+          ? "The request took too long. Please try one shorter question."
+          : "Error occurred.";
+
       setTaskStates((current) => ({
         ...current,
         [selectedTask]: {
@@ -597,12 +620,17 @@ export default function Home() {
             {
               id: `${Date.now()}-assistant-error`,
               role: "assistant",
-              text: "Error occurred.",
+              text: message,
             },
           ],
         },
       }));
     } finally {
+      if (loadingTimeoutRef.current !== null) {
+        window.clearTimeout(loadingTimeoutRef.current);
+        loadingTimeoutRef.current = null;
+      }
+      inFlightRequestRef.current = null;
       setIsLoading(false);
     }
   };

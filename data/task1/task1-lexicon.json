@@ -1,102 +1,716 @@
 {
+  "version": 2,
+  "taskId": "task1",
   "entries": [
     {
       "id": "jack",
       "category": "character",
-      "terms": ["Jack", "jack", "잭", "주인공", "남자 주인공", "그"],
-      "related": ["he", "him", "student", "main character", "young man", "team member"],
-      "segments": ["beginning", "middle", "end"]
-    },
-    {
-      "id": "woman_on_train",
-      "category": "character",
-      "terms": ["woman", "lady", "여자", "그 여자", "지하철 여자", "승객"],
-      "related": ["she", "her", "passenger", "stranger", "helper", "woman on the train"],
-      "segments": ["middle", "end"]
-    },
-    {
-      "id": "presentation",
-      "category": "object",
-      "terms": ["presentation", "project presentation", "team project", "발표", "프로젝트", "슬라이드"],
-      "related": ["talk", "final presentation", "slides", "lead the talk", "team project presentation", "final project"],
-      "segments": ["beginning"]
+      "canonical": "Jack",
+      "terms": [
+        "Jack",
+        "jack",
+        "잭",
+        "그",
+        "학생",
+        "the student",
+        "he",
+        "그 학생",
+        "남자 주인공",
+        "the main character",
+        "Jack이",
+        "he가",
+        "Jack은",
+        "Jack은 왜 급했어",
+        "잭 왜 그렇게 급했지",
+        "why was Jack in a hurry",
+        "why was Jack stressed"
+      ],
+      "related": [
+        "rush",
+        "worry",
+        "search",
+        "panic",
+        "be late",
+        "check",
+        "realize",
+        "decide",
+        "stressed",
+        "anxious",
+        "rushed",
+        "worried"
+      ],
+      "korean_terms": [
+        "잭",
+        "그",
+        "그 학생",
+        "남자 주인공"
+      ],
+      "english_terms": [
+        "Jack",
+        "he",
+        "the student",
+        "the main character"
+      ],
+      "mixed_terms": [
+        "Jack이",
+        "he가",
+        "Jack은"
+      ],
+      "question_forms": [
+        "Jack은 왜 급했어",
+        "잭 왜 그렇게 급했지",
+        "why was Jack in a hurry",
+        "why was Jack stressed"
+      ],
+      "actions": [
+        "rush",
+        "search",
+        "check",
+        "realize",
+        "decide"
+      ],
+      "feelings": [
+        "stressed",
+        "anxious",
+        "rushed",
+        "worried"
+      ],
+      "priority": 10,
+      "segments": [
+        "beginning",
+        "middle",
+        "end"
+      ]
     },
     {
       "id": "wallet_student_id",
       "category": "object",
-      "terms": ["wallet", "student ID", "지갑", "학생증", "ID", "신분증"],
-      "related": ["forgot his wallet", "forgot his student ID", "pockets", "important things", "card", "left behind"],
-      "segments": ["middle"]
+      "canonical": "wallet and student ID",
+      "terms": [
+        "wallet and student ID",
+        "wallet",
+        "student ID",
+        "ID card",
+        "지갑",
+        "학생증",
+        "ID 카드",
+        "wallet이",
+        "student ID가",
+        "지갑 wallet",
+        "지갑 왜 중요해",
+        "학생증 왜 중요해",
+        "why is the wallet important",
+        "why does the student ID matter"
+      ],
+      "related": [
+        "missing item",
+        "important card",
+        "pocket",
+        "bag",
+        "lose",
+        "search for",
+        "check pockets",
+        "panicked",
+        "worried",
+        "stressed"
+      ],
+      "korean_terms": [
+        "지갑",
+        "학생증",
+        "ID 카드"
+      ],
+      "english_terms": [
+        "wallet",
+        "student ID",
+        "ID card"
+      ],
+      "mixed_terms": [
+        "wallet이",
+        "student ID가",
+        "지갑 wallet"
+      ],
+      "question_forms": [
+        "지갑 왜 중요해",
+        "학생증 왜 중요해",
+        "why is the wallet important",
+        "why does the student ID matter"
+      ],
+      "actions": [
+        "lose",
+        "search for",
+        "check pockets"
+      ],
+      "feelings": [
+        "panicked",
+        "worried",
+        "stressed"
+      ],
+      "priority": 10,
+      "segments": [
+        "middle"
+      ]
     },
     {
-      "id": "phone",
-      "category": "object",
-      "terms": ["phone", "cell phone", "전화", "핸드폰", "notes on phone", "메모"],
-      "related": ["check his notes", "slipped from his hand", "fell under a seat", "sweaty hand", "mobile", "device"],
-      "segments": ["middle"]
-    },
-    {
-      "id": "note_message",
-      "category": "object",
-      "terms": ["note", "message", "paper", "쪽지", "메시지", "종이"],
-      "related": ["folded paper", "warning", "stay on the train", "last station", "unfamiliar handwriting", "memo"],
-      "segments": ["end"]
-    },
-    {
-      "id": "home_room",
-      "category": "place",
-      "terms": ["room", "home", "bed", "방", "집", "침대"],
-      "related": ["sunlight", "clock", "wake up", "alarms", "morning room", "sleeping"],
-      "segments": ["beginning"]
+      "id": "presentation",
+      "category": "problem",
+      "canonical": "presentation pressure",
+      "terms": [
+        "presentation pressure",
+        "presentation",
+        "class presentation",
+        "speech",
+        "발표",
+        "수업 발표",
+        "발표 준비",
+        "presentation이",
+        "발표 presentation",
+        "class presentation이",
+        "발표가 왜 중요해",
+        "발표 때문에 스트레스야",
+        "why is the presentation important",
+        "is he stressed because of the presentation"
+      ],
+      "related": [
+        "deadline",
+        "class",
+        "being late",
+        "pressure to perform",
+        "prepare",
+        "worry about",
+        "rush to class",
+        "anxious",
+        "nervous",
+        "under pressure"
+      ],
+      "korean_terms": [
+        "발표",
+        "수업 발표",
+        "발표 준비"
+      ],
+      "english_terms": [
+        "presentation",
+        "class presentation",
+        "speech"
+      ],
+      "mixed_terms": [
+        "presentation이",
+        "발표 presentation",
+        "class presentation이"
+      ],
+      "question_forms": [
+        "발표가 왜 중요해",
+        "발표 때문에 스트레스야",
+        "why is the presentation important",
+        "is he stressed because of the presentation"
+      ],
+      "actions": [
+        "prepare",
+        "worry about",
+        "rush to class"
+      ],
+      "feelings": [
+        "anxious",
+        "nervous",
+        "under pressure"
+      ],
+      "priority": 9,
+      "segments": [
+        "beginning",
+        "middle"
+      ]
     },
     {
       "id": "subway_train",
       "category": "place",
-      "terms": ["subway", "train", "subway station", "지하철", "전철", "역"],
-      "related": ["platform", "crowded train", "station", "ride", "carriage", "on the train"],
-      "segments": ["middle", "end"]
+      "canonical": "subway",
+      "terms": [
+        "subway",
+        "train",
+        "subway train",
+        "지하철",
+        "열차",
+        "지하철 칸",
+        "역",
+        "subway car",
+        "station",
+        "subway에서",
+        "지하철 train",
+        "train 안에서",
+        "지하철에서 무슨 일 있었어",
+        "열차 안에서 뭐 happened",
+        "what happened on the subway",
+        "what happened on the train"
+      ],
+      "related": [
+        "station",
+        "platform",
+        "commute",
+        "public transit",
+        "ride",
+        "board",
+        "get off",
+        "search on the train",
+        "rushed",
+        "stressed"
+      ],
+      "korean_terms": [
+        "지하철",
+        "열차",
+        "지하철 칸",
+        "역"
+      ],
+      "english_terms": [
+        "subway",
+        "train",
+        "subway car",
+        "station"
+      ],
+      "mixed_terms": [
+        "subway에서",
+        "지하철 train",
+        "train 안에서"
+      ],
+      "question_forms": [
+        "지하철에서 무슨 일 있었어",
+        "열차 안에서 뭐 happened",
+        "what happened on the subway",
+        "what happened on the train"
+      ],
+      "actions": [
+        "ride",
+        "board",
+        "get off",
+        "search on the train"
+      ],
+      "feelings": [
+        "rushed",
+        "stressed"
+      ],
+      "priority": 8,
+      "segments": [
+        "middle",
+        "end"
+      ]
     },
     {
-      "id": "wake_up_late",
-      "category": "action",
-      "terms": ["wake up late", "oversleep", "늦잠", "늦게 일어나다", "깜짝 놀라다", "alarm failed"],
-      "related": ["bright sunlight", "look at the clock", "very late", "jump out of bed", "shocked", "alarms had failed"],
-      "segments": ["beginning"]
-    },
-    {
-      "id": "rush_out",
-      "category": "action",
-      "terms": ["rush out", "grab", "run out", "급히 나가다", "서두르다", "챙기다"],
-      "related": ["grabbed his clothes", "laptop", "bag", "without breakfast", "raced out the door", "hurry"],
-      "segments": ["middle"]
-    },
-    {
-      "id": "train_incident",
-      "category": "action",
-      "terms": ["lose balance", "drop phone", "meet the woman", "균형을 잃다", "핸드폰을 떨어뜨리다", "여자를 만나다"],
-      "related": ["fell under a seat", "train moved quickly", "caught his arm", "helped him stand", "crowded train", "standing woman"],
-      "segments": ["middle"]
-    },
-    {
-      "id": "decision",
-      "category": "decision",
-      "terms": ["decision", "choice", "what to do next", "결정", "선택", "어떻게 할지"],
-      "related": ["stay on the train", "get off early", "last station", "trust the message", "warning", "next step"],
-      "segments": ["end"]
-    },
-    {
-      "id": "problem",
+      "id": "lateness",
       "category": "problem",
-      "terms": ["problem", "trouble", "issue", "문제", "곤란", "위기"],
-      "related": ["late for presentation", "alarms failed", "forgot wallet", "forgot student ID", "mysterious note", "running out of time"],
-      "segments": ["beginning", "middle", "end"]
+      "canonical": "being late",
+      "terms": [
+        "being late",
+        "late",
+        "running late",
+        "늦다",
+        "지각",
+        "늦는 상황",
+        "late한 상태",
+        "왜 late야",
+        "running late한 상황",
+        "왜 늦었어",
+        "왜 지각했어",
+        "why was he late",
+        "why was he running late"
+      ],
+      "related": [
+        "time pressure",
+        "deadline",
+        "class",
+        "presentation",
+        "check the time",
+        "rush",
+        "panic",
+        "anxious",
+        "rushed",
+        "worried"
+      ],
+      "korean_terms": [
+        "늦다",
+        "지각",
+        "늦는 상황"
+      ],
+      "english_terms": [
+        "late",
+        "being late",
+        "running late"
+      ],
+      "mixed_terms": [
+        "late한 상태",
+        "왜 late야",
+        "running late한 상황"
+      ],
+      "question_forms": [
+        "왜 늦었어",
+        "왜 지각했어",
+        "why was he late",
+        "why was he running late"
+      ],
+      "actions": [
+        "check the time",
+        "rush",
+        "panic"
+      ],
+      "feelings": [
+        "anxious",
+        "rushed",
+        "worried"
+      ],
+      "priority": 9,
+      "segments": [
+        "beginning",
+        "middle"
+      ]
     },
     {
-      "id": "feelings",
+      "id": "searching",
+      "category": "action",
+      "canonical": "search for missing item",
+      "terms": [
+        "search for missing item",
+        "search",
+        "look for",
+        "check pockets",
+        "찾다",
+        "찾아보다",
+        "주머니 확인하다",
+        "주머니를 확인하다",
+        "가방을 뒤지다",
+        "check the bag",
+        "wallet을 search하다",
+        "주머니 check하다",
+        "왜 계속 찾았어",
+        "뭘 찾고 있었어",
+        "why did he keep searching",
+        "what was he looking for"
+      ],
+      "related": [
+        "missing wallet",
+        "missing ID",
+        "bag",
+        "pocket",
+        "check",
+        "pat pockets",
+        "open bag",
+        "look around",
+        "panicked",
+        "stressed",
+        "frustrated"
+      ],
+      "korean_terms": [
+        "찾다",
+        "찾아보다",
+        "주머니를 확인하다",
+        "가방을 뒤지다"
+      ],
+      "english_terms": [
+        "search",
+        "look for",
+        "check pockets",
+        "check the bag"
+      ],
+      "mixed_terms": [
+        "wallet을 search하다",
+        "주머니 check하다"
+      ],
+      "question_forms": [
+        "왜 계속 찾았어",
+        "뭘 찾고 있었어",
+        "why did he keep searching",
+        "what was he looking for"
+      ],
+      "actions": [
+        "check",
+        "pat pockets",
+        "open bag",
+        "look around"
+      ],
+      "feelings": [
+        "panicked",
+        "stressed",
+        "frustrated"
+      ],
+      "priority": 8,
+      "segments": [
+        "middle"
+      ]
+    },
+    {
+      "id": "time_pressure",
       "category": "feeling",
-      "terms": ["shocked", "nervous", "tense", "worried", "당황", "불안"],
-      "related": ["stomach sank", "rushed", "sighed", "tense", "every minute mattered", "stress"],
-      "segments": ["beginning", "middle", "end"]
+      "canonical": "time pressure",
+      "terms": [
+        "time pressure",
+        "under pressure",
+        "rushed",
+        "시간 압박",
+        "급한 상태",
+        "압박감",
+        "마음이 급한",
+        "time pressure를 느낌",
+        "rushed한 상태",
+        "왜 그렇게 조급해",
+        "시간 압박이 있었어",
+        "why was he under pressure",
+        "why did he feel rushed"
+      ],
+      "related": [
+        "lateness",
+        "presentation",
+        "deadline",
+        "schedule",
+        "check the time",
+        "rush",
+        "move quickly",
+        "stressed",
+        "anxious",
+        "worried"
+      ],
+      "korean_terms": [
+        "시간 압박",
+        "급한 상태",
+        "압박감",
+        "마음이 급한"
+      ],
+      "english_terms": [
+        "time pressure",
+        "under pressure",
+        "rushed"
+      ],
+      "mixed_terms": [
+        "time pressure를 느낌",
+        "rushed한 상태"
+      ],
+      "question_forms": [
+        "왜 그렇게 조급해",
+        "시간 압박이 있었어",
+        "why was he under pressure",
+        "why did he feel rushed"
+      ],
+      "actions": [
+        "check the time",
+        "rush",
+        "move quickly"
+      ],
+      "feelings": [
+        "stressed",
+        "anxious",
+        "worried"
+      ],
+      "priority": 8,
+      "segments": [
+        "beginning",
+        "middle",
+        "end"
+      ]
+    },
+    {
+      "id": "phone_time_check",
+      "category": "action",
+      "canonical": "check the phone for time",
+      "terms": [
+        "check the phone for time",
+        "check the time",
+        "look at his phone",
+        "phone screen",
+        "시간 확인",
+        "폰 보다",
+        "휴대폰 화면",
+        "폰을 보다",
+        "휴대폰 화면을 보다",
+        "phone으로 time check",
+        "시간을 check하다",
+        "언제 시간을 봤어",
+        "폰으로 시간 확인했어",
+        "when did he check the time",
+        "did he look at his phone"
+      ],
+      "related": [
+        "late",
+        "deadline",
+        "schedule",
+        "notice",
+        "realize",
+        "panic",
+        "anxious",
+        "stressed"
+      ],
+      "korean_terms": [
+        "시간 확인",
+        "폰을 보다",
+        "휴대폰 화면을 보다"
+      ],
+      "english_terms": [
+        "check the time",
+        "look at his phone",
+        "phone screen"
+      ],
+      "mixed_terms": [
+        "phone으로 time check",
+        "시간을 check하다"
+      ],
+      "question_forms": [
+        "언제 시간을 봤어",
+        "폰으로 시간 확인했어",
+        "when did he check the time",
+        "did he look at his phone"
+      ],
+      "actions": [
+        "notice",
+        "realize",
+        "panic"
+      ],
+      "feelings": [
+        "anxious",
+        "stressed"
+      ],
+      "priority": 6,
+      "segments": [
+        "beginning",
+        "middle"
+      ]
+    },
+    {
+      "id": "decision_next_move",
+      "category": "decision",
+      "canonical": "decide what to do next",
+      "terms": [
+        "decide what to do next",
+        "decision",
+        "choice",
+        "what to do next",
+        "결정",
+        "선택",
+        "다음에 뭘 할지",
+        "next move 결정",
+        "choice를 하다",
+        "이제 어떻게 하려 했어",
+        "다음 행동이 뭐였어",
+        "what did he decide to do next",
+        "what was his next move"
+      ],
+      "related": [
+        "problem-solving",
+        "time pressure",
+        "missing item",
+        "decide",
+        "choose",
+        "act",
+        "go on",
+        "turn back",
+        "hesitant",
+        "pressured",
+        "determined"
+      ],
+      "korean_terms": [
+        "결정",
+        "선택",
+        "다음에 뭘 할지"
+      ],
+      "english_terms": [
+        "decision",
+        "choice",
+        "what to do next"
+      ],
+      "mixed_terms": [
+        "next move 결정",
+        "choice를 하다"
+      ],
+      "question_forms": [
+        "이제 어떻게 하려 했어",
+        "다음 행동이 뭐였어",
+        "what did he decide to do next",
+        "what was his next move"
+      ],
+      "actions": [
+        "decide",
+        "choose",
+        "act",
+        "go on",
+        "turn back"
+      ],
+      "feelings": [
+        "hesitant",
+        "pressured",
+        "determined"
+      ],
+      "priority": 7,
+      "segments": [
+        "middle",
+        "end"
+      ]
+    },
+    {
+      "id": "stress_reaction",
+      "category": "feeling",
+      "canonical": "stress reaction",
+      "terms": [
+        "stress reaction",
+        "stressed",
+        "anxious",
+        "panicked",
+        "스트레스",
+        "불안",
+        "당황",
+        "긴장",
+        "nervous",
+        "stressed한 상태",
+        "panic한 느낌",
+        "왜 그렇게 스트레스받아",
+        "왜 panic했어",
+        "why was he stressed",
+        "why was he panicking"
+      ],
+      "related": [
+        "lateness",
+        "presentation pressure",
+        "missing wallet",
+        "time pressure",
+        "panic",
+        "search",
+        "check again",
+        "hurry",
+        "worried",
+        "overwhelmed",
+        "rushed"
+      ],
+      "korean_terms": [
+        "스트레스",
+        "불안",
+        "당황",
+        "긴장"
+      ],
+      "english_terms": [
+        "stressed",
+        "anxious",
+        "panicked",
+        "nervous"
+      ],
+      "mixed_terms": [
+        "stressed한 상태",
+        "panic한 느낌"
+      ],
+      "question_forms": [
+        "왜 그렇게 스트레스받아",
+        "왜 panic했어",
+        "why was he stressed",
+        "why was he panicking"
+      ],
+      "actions": [
+        "panic",
+        "search",
+        "check again",
+        "hurry"
+      ],
+      "feelings": [
+        "worried",
+        "overwhelmed",
+        "rushed"
+      ],
+      "priority": 9,
+      "segments": [
+        "beginning",
+        "middle",
+        "end"
+      ]
     }
   ]
 }
