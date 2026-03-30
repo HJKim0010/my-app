@@ -659,6 +659,15 @@ export default function Home() {
     setTypingText("");
   };
 
+  const returnToHomeScreen = () => {
+    setGuideAccepted(false);
+    setGuideChecked(false);
+    setShowGuide(true);
+    setTypingMessageId(null);
+    setTypingText("");
+    setInput("");
+  };
+
   const taskLabel = selectedTask === "task2" ? "Task 2" : "Task 1";
 
   const clearSavedLocalLogs = () => {
@@ -810,6 +819,13 @@ export default function Home() {
             </div>
 
             <div className="chat-header-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={returnToHomeScreen}
+              >
+                Go to Home
+              </button>
               <button
                 type="button"
                 className="secondary-button"
