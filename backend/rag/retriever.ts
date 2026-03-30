@@ -74,6 +74,40 @@ function scoreChunk(taskId: TaskId, chunk: TaskChunk, query: string, totalChunks
     }
   }
 
+  const normalizedQuery = normalizeLexiconText(query);
+  const normalizedChunk = normalizeLexiconText(chunk.content);
+
+  const emphasisPhrases = [
+    "under the table",
+    "table 7",
+    "look under",
+    "looked under",
+    "taped",
+    "taped object",
+    "hidden object",
+    "heart beat faster",
+    "heartbeat",
+    "hesitate",
+    "hesitation",
+    "stop halfway",
+    "not sure what to do",
+    "테이블 아래",
+    "테이블 7",
+    "붙어 있는 물건",
+    "숨겨진 물건",
+    "심장이 빨리",
+    "망설",
+    "멈칫",
+    "놀랐",
+    "놀란",
+  ];
+
+  for (const phrase of emphasisPhrases) {
+    if (normalizedQuery.includes(phrase) && normalizedChunk.includes(phrase)) {
+      score += 8;
+    }
+  }
+
   const explicitSegment = detectExplicitSegment(query);
   const lexicalSegments = detectLexiconSegments(taskId, query);
   const chunkSegment = getSegmentForChunk(chunk, totalChunks);

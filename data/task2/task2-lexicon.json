@@ -18,12 +18,13 @@
         "여자 주인공",
         "the main character",
         "Anna가",
-        "she가",
         "Anna는",
-        "Anna가 왜 무서워했지",
-        "Anna가 왜 망설였어",
-        "why was Anna scared",
-        "why did Anna hesitate"
+        "she가",
+        "그 woman",
+        "Anna는 왜 망설였어",
+        "Anna는 왜 무서워했어",
+        "why did Anna hesitate",
+        "why was Anna scared"
       ],
       "related": [
         "hesitate",
@@ -53,14 +54,15 @@
       ],
       "mixed_terms": [
         "Anna가",
+        "Anna는",
         "she가",
-        "Anna는"
+        "그 woman"
       ],
       "question_forms": [
-        "Anna가 왜 무서워했지",
-        "Anna가 왜 망설였어",
-        "why was Anna scared",
-        "why did Anna hesitate"
+        "Anna는 왜 망설였어",
+        "Anna는 왜 무서워했어",
+        "why did Anna hesitate",
+        "why was Anna scared"
       ],
       "actions": [
         "hesitate",
@@ -88,20 +90,20 @@
       "canonical": "man at table 7",
       "terms": [
         "man at table 7",
-        "man",
         "the man",
+        "man",
         "table 7 man",
         "그 남자",
         "테이블 7 남자",
         "수상한 남자",
         "stranger",
         "table 7 남자",
-        "man이",
         "그 man",
-        "그 남자 수상했어",
-        "table 7 남자 누구야",
+        "man이",
+        "그 남자는 왜 수상해 보여",
+        "그 남자 누구야",
         "was the man suspicious",
-        "why did the man leave"
+        "why did the man seem suspicious"
       ],
       "related": [
         "customer",
@@ -109,8 +111,8 @@
         "leave",
         "sit",
         "watch",
+        "read",
         "drink coffee",
-        "seem suspicious",
         "suspicious",
         "ordinary-looking"
       ],
@@ -126,28 +128,443 @@
       ],
       "mixed_terms": [
         "table 7 남자",
-        "man이",
-        "그 man"
+        "그 man",
+        "man이"
       ],
       "question_forms": [
-        "그 남자 수상했어",
-        "table 7 남자 누구야",
+        "그 남자는 왜 수상해 보여",
+        "그 남자 누구야",
         "was the man suspicious",
-        "why did the man leave"
+        "why did the man seem suspicious"
       ],
       "actions": [
         "sit",
         "leave",
-        "drink coffee",
-        "seem suspicious"
+        "read",
+        "drink coffee"
       ],
       "feelings": [
         "suspicious",
         "ordinary-looking"
       ],
-      "priority": 9,
+      "priority": 8,
       "segments": [
         "middle"
+      ]
+    },
+    {
+      "id": "cafe",
+      "category": "place",
+      "canonical": "cafe",
+      "terms": [
+        "cafe",
+        "coffee shop",
+        "coffeehouse",
+        "카페",
+        "커피숍",
+        "카페 안",
+        "조용한 카페",
+        "inside the cafe",
+        "cafe에서",
+        "카페 cafe",
+        "coffee shop에서",
+        "카페 분위기는 어땠어",
+        "왜 카페가 중요해",
+        "what is the cafe like",
+        "why is the cafe setting important"
+      ],
+      "related": [
+        "peaceful setting",
+        "public place",
+        "table 7",
+        "seat",
+        "sit",
+        "rest",
+        "watch",
+        "notice",
+        "peaceful",
+        "calm",
+        "suddenly tense"
+      ],
+      "korean_terms": [
+        "카페",
+        "커피숍",
+        "카페 안",
+        "조용한 카페"
+      ],
+      "english_terms": [
+        "cafe",
+        "coffee shop",
+        "inside the cafe"
+      ],
+      "mixed_terms": [
+        "cafe에서",
+        "카페 cafe",
+        "coffee shop에서"
+      ],
+      "question_forms": [
+        "카페 분위기는 어땠어",
+        "왜 카페가 중요해",
+        "what is the cafe like",
+        "why is the cafe setting important"
+      ],
+      "actions": [
+        "sit",
+        "rest",
+        "watch",
+        "notice"
+      ],
+      "feelings": [
+        "peaceful",
+        "calm",
+        "suddenly tense"
+      ],
+      "priority": 7,
+      "segments": [
+        "beginning",
+        "middle",
+        "end"
+      ]
+    },
+    {
+      "id": "peaceful_cafe_mood",
+      "category": "feeling",
+      "canonical": "peaceful cafe mood",
+      "terms": [
+        "peaceful cafe mood",
+        "peaceful",
+        "calm",
+        "quiet",
+        "relaxed",
+        "평화로운",
+        "차분한",
+        "조용한",
+        "여유로운",
+        "peaceful한 카페",
+        "calm한 분위기",
+        "relaxed한 상태",
+        "처음 분위기는 어땠어",
+        "초반엔 차분했어",
+        "how was the mood at the beginning",
+        "was the beginning calm"
+      ],
+      "related": [
+        "cafe",
+        "morning",
+        "rest",
+        "before tension",
+        "sit",
+        "look outside",
+        "peaceful",
+        "calm",
+        "relaxed"
+      ],
+      "korean_terms": [
+        "평화로운",
+        "차분한",
+        "조용한",
+        "여유로운"
+      ],
+      "english_terms": [
+        "peaceful",
+        "calm",
+        "quiet",
+        "relaxed"
+      ],
+      "mixed_terms": [
+        "peaceful한 카페",
+        "calm한 분위기",
+        "relaxed한 상태"
+      ],
+      "question_forms": [
+        "처음 분위기는 어땠어",
+        "초반엔 차분했어",
+        "how was the mood at the beginning",
+        "was the beginning calm"
+      ],
+      "actions": [
+        "sit",
+        "rest",
+        "look outside"
+      ],
+      "feelings": [
+        "peaceful",
+        "calm",
+        "relaxed"
+      ],
+      "priority": 8,
+      "segments": [
+        "beginning"
+      ]
+    },
+    {
+      "id": "box_package",
+      "category": "object",
+      "canonical": "box",
+      "terms": [
+        "box",
+        "package",
+        "small box",
+        "parcel",
+        "상자",
+        "박스",
+        "소포",
+        "작은 상자",
+        "box를",
+        "상자 box",
+        "package가",
+        "상자가 왜 중요해",
+        "why is the box important",
+        "what is in the box",
+        "did the box seem strange"
+      ],
+      "related": [
+        "carry inside",
+        "no label",
+        "no address",
+        "wrapped box",
+        "carry",
+        "pick up",
+        "bring inside",
+        "open",
+        "curious",
+        "suspicious"
+      ],
+      "korean_terms": [
+        "상자",
+        "박스",
+        "작은 상자",
+        "소포"
+      ],
+      "english_terms": [
+        "box",
+        "package",
+        "small box",
+        "parcel"
+      ],
+      "mixed_terms": [
+        "box를",
+        "상자 box",
+        "package가"
+      ],
+      "question_forms": [
+        "상자가 왜 중요해",
+        "why is the box important",
+        "what is in the box",
+        "did the box seem strange"
+      ],
+      "actions": [
+        "carry",
+        "pick up",
+        "bring inside",
+        "open"
+      ],
+      "feelings": [
+        "curious",
+        "suspicious"
+      ],
+      "priority": 8,
+      "segments": [
+        "middle"
+      ]
+    },
+    {
+      "id": "package_without_label",
+      "category": "object",
+      "canonical": "box with no name or address",
+      "terms": [
+        "box with no name or address",
+        "no label",
+        "no name",
+        "no address",
+        "unlabeled box",
+        "이름 없는 상자",
+        "주소 없는 상자",
+        "표시 없는 상자",
+        "no label 상자",
+        "주소 없는 box",
+        "unlabeled한 상자",
+        "이름이 없는 게 왜 중요해",
+        "주소 없는 상자가 왜 이상해",
+        "why is the unlabeled box important",
+        "why is no address suspicious"
+      ],
+      "related": [
+        "box",
+        "package",
+        "suspicious",
+        "strange",
+        "notice",
+        "pick up",
+        "bring inside",
+        "curious",
+        "uneasy"
+      ],
+      "korean_terms": [
+        "이름 없는 상자",
+        "주소 없는 상자",
+        "표시 없는 상자"
+      ],
+      "english_terms": [
+        "no label",
+        "no name",
+        "no address",
+        "unlabeled box"
+      ],
+      "mixed_terms": [
+        "no label 상자",
+        "주소 없는 box",
+        "unlabeled한 상자"
+      ],
+      "question_forms": [
+        "이름이 없는 게 왜 중요해",
+        "주소 없는 상자가 왜 이상해",
+        "why is the unlabeled box important",
+        "why is no address suspicious"
+      ],
+      "actions": [
+        "notice",
+        "pick up",
+        "bring inside"
+      ],
+      "feelings": [
+        "curious",
+        "suspicious",
+        "uneasy"
+      ],
+      "priority": 8,
+      "segments": [
+        "middle"
+      ]
+    },
+    {
+      "id": "note_message",
+      "category": "object",
+      "canonical": "note",
+      "terms": [
+        "note",
+        "message",
+        "written note",
+        "쪽지",
+        "메시지",
+        "종이 쪽지",
+        "적힌 쪽지",
+        "paper note",
+        "note가",
+        "message가",
+        "쪽지 note",
+        "쪽지에 뭐라고 써 있었어",
+        "그 note가 무슨 뜻이야",
+        "what did the note say",
+        "what was the note"
+      ],
+      "related": [
+        "look under table 7",
+        "clue",
+        "written words",
+        "instruction",
+        "read",
+        "find",
+        "interpret",
+        "curious",
+        "uneasy"
+      ],
+      "korean_terms": [
+        "쪽지",
+        "메시지",
+        "적힌 쪽지"
+      ],
+      "english_terms": [
+        "note",
+        "message",
+        "written note",
+        "paper note"
+      ],
+      "mixed_terms": [
+        "note가",
+        "message가",
+        "쪽지 note"
+      ],
+      "question_forms": [
+        "쪽지에 뭐라고 써 있었어",
+        "그 note가 무슨 뜻이야",
+        "what did the note say",
+        "what was the note"
+      ],
+      "actions": [
+        "read",
+        "find",
+        "interpret"
+      ],
+      "feelings": [
+        "curious",
+        "uneasy"
+      ],
+      "priority": 10,
+      "segments": [
+        "middle",
+        "end"
+      ]
+    },
+    {
+      "id": "written_instruction_table7",
+      "category": "object",
+      "canonical": "look under table 7 message",
+      "terms": [
+        "look under table 7 message",
+        "look under table 7",
+        "message about table 7",
+        "instruction to check table 7",
+        "테이블 7 아래를 보라",
+        "테이블 7을 확인하라는 쪽지",
+        "table 7 아래를 look",
+        "table 7 확인하라는 note",
+        "쪽지에 뭐라고 적혀 있었어",
+        "왜 table 7 아래를 보래",
+        "why does it say look under table 7",
+        "what does the message mean"
+      ],
+      "related": [
+        "note",
+        "table 7",
+        "follow a clue",
+        "read",
+        "interpret",
+        "follow",
+        "curious",
+        "uneasy"
+      ],
+      "korean_terms": [
+        "테이블 7 아래를 보라",
+        "테이블 7을 확인하라는 쪽지"
+      ],
+      "english_terms": [
+        "look under table 7",
+        "instruction to check table 7"
+      ],
+      "mixed_terms": [
+        "table 7 아래를 look",
+        "table 7 확인하라는 note"
+      ],
+      "question_forms": [
+        "쪽지에 뭐라고 적혀 있었어",
+        "왜 table 7 아래를 보래",
+        "why does it say look under table 7",
+        "what does the message mean"
+      ],
+      "actions": [
+        "read",
+        "interpret",
+        "follow"
+      ],
+      "feelings": [
+        "curious",
+        "uneasy"
+      ],
+      "priority": 10,
+      "segments": [
+        "middle",
+        "end"
       ]
     },
     {
@@ -164,8 +581,8 @@
         "table 7이",
         "table 7로",
         "7번 table",
-        "table 7 왜 중요해",
-        "테이블 7이 왜 중요해",
+        "table 7이 왜 중요해",
+        "왜 테이블 7이야",
         "why table 7",
         "why is table 7 important"
       ],
@@ -198,8 +615,8 @@
         "7번 table"
       ],
       "question_forms": [
-        "table 7 왜 중요해",
-        "테이블 7이 왜 중요해",
+        "table 7이 왜 중요해",
+        "왜 테이블 7이야",
         "why table 7",
         "why is table 7 important"
       ],
@@ -221,289 +638,137 @@
       ]
     },
     {
-      "id": "note_message",
-      "category": "object",
-      "canonical": "note",
+      "id": "watching_the_man",
+      "category": "action",
+      "canonical": "watch the man at table 7",
       "terms": [
-        "note",
-        "message",
-        "written note",
-        "쪽지",
-        "메시지",
-        "종이 쪽지",
-        "적힌 쪽지",
-        "paper note",
-        "note가",
-        "message가",
-        "쪽지 note",
-        "쪽지 뭐야",
-        "쪽지에 뭐라고 써 있었어",
-        "what did the note say",
-        "what was the note"
+        "watch the man at table 7",
+        "watch the man",
+        "keep watching",
+        "wait until he leaves",
+        "남자를 지켜보다",
+        "계속 보다",
+        "그가 떠날 때까지 기다리다",
+        "man을 watch하다",
+        "그가 leave할 때까지 wait",
+        "계속 watching",
+        "왜 그 남자를 계속 봤어",
+        "왜 떠날 때까지 기다렸어",
+        "why did she keep watching the man",
+        "why did she wait until he left"
       ],
       "related": [
-        "look under table 7",
-        "clue",
-        "written words",
-        "instruction",
-        "read",
-        "find",
-        "interpret",
-        "curious",
+        "man at table 7",
+        "suspicious",
+        "phone pretending",
+        "watch",
+        "wait",
+        "notice",
+        "glance",
+        "careful",
         "uneasy"
       ],
       "korean_terms": [
-        "쪽지",
-        "메시지",
-        "적힌 쪽지"
+        "남자를 지켜보다",
+        "계속 보다",
+        "그가 떠날 때까지 기다리다"
       ],
       "english_terms": [
-        "note",
-        "message",
-        "written note",
-        "paper note"
+        "watch the man",
+        "keep watching",
+        "wait until he leaves"
       ],
       "mixed_terms": [
-        "note가",
-        "message가",
-        "쪽지 note"
+        "man을 watch하다",
+        "그가 leave할 때까지 wait",
+        "계속 watching"
       ],
       "question_forms": [
-        "쪽지 뭐야",
-        "쪽지에 뭐라고 써 있었어",
-        "what did the note say",
-        "what was the note"
+        "왜 그 남자를 계속 봤어",
+        "왜 떠날 때까지 기다렸어",
+        "why did she keep watching the man",
+        "why did she wait until he left"
       ],
       "actions": [
-        "read",
-        "find",
-        "interpret"
+        "watch",
+        "wait",
+        "notice",
+        "glance"
       ],
       "feelings": [
-        "curious",
+        "suspicious",
+        "careful",
         "uneasy"
       ],
-      "priority": 10,
-      "segments": [
-        "middle",
-        "end"
-      ]
-    },
-    {
-      "id": "box_package",
-      "category": "object",
-      "canonical": "box",
-      "terms": [
-        "box",
-        "package",
-        "small box",
-        "parcel",
-        "상자",
-        "박스",
-        "소포",
-        "작은 상자",
-        "box를",
-        "상자 box",
-        "package가",
-        "상자 왜 중요해",
-        "상자 안에 뭐 있어",
-        "why is the box important",
-        "what is in the box"
-      ],
-      "related": [
-        "carry inside",
-        "no label",
-        "no address",
-        "wrapped box",
-        "carry",
-        "pick up",
-        "bring inside",
-        "open",
-        "curious",
-        "suspicious"
-      ],
-      "korean_terms": [
-        "상자",
-        "박스",
-        "작은 상자",
-        "소포"
-      ],
-      "english_terms": [
-        "box",
-        "package",
-        "small box",
-        "parcel"
-      ],
-      "mixed_terms": [
-        "box를",
-        "상자 box",
-        "package가"
-      ],
-      "question_forms": [
-        "상자 왜 중요해",
-        "상자 안에 뭐 있어",
-        "why is the box important",
-        "what is in the box"
-      ],
-      "actions": [
-        "carry",
-        "pick up",
-        "bring inside",
-        "open"
-      ],
-      "feelings": [
-        "curious",
-        "suspicious"
-      ],
-      "priority": 8,
+      "priority": 9,
       "segments": [
         "middle"
       ]
     },
     {
-      "id": "hidden_object",
-      "category": "object",
-      "canonical": "hidden object under the table",
+      "id": "phone_pretending",
+      "category": "action",
+      "canonical": "pretend to look at her phone",
       "terms": [
-        "hidden object under the table",
-        "hidden object",
-        "taped object",
-        "something under the table",
-        "under-table object",
-        "숨겨진 물건",
-        "붙어 있는 물건",
-        "테이블 아래 물건",
-        "아래 있던 것",
-        "object under the table",
-        "under the table 물건",
-        "hidden object를",
-        "taped된 object",
-        "테이블 아래 뭐 있었어",
-        "뭘 보고 놀란 거야",
-        "what was under the table",
-        "what did she find there"
+        "pretend to look at her phone",
+        "pretend to check her phone",
+        "look at her phone",
+        "폰 보는 척하다",
+        "휴대폰 보는 척하다",
+        "아무렇지 않은 척하다",
+        "phone 보는 척",
+        "pretend해서 phone 보기",
+        "폰 check하는 척",
+        "왜 폰 보는 척했어",
+        "왜 아무렇지 않은 척했어",
+        "why did she pretend to look at her phone",
+        "why did she act normal"
       ],
       "related": [
-        "under table 7",
-        "note",
-        "discover",
-        "hesitate",
-        "find",
-        "notice",
-        "reach for",
-        "stop",
-        "surprised",
+        "hide reaction",
+        "act normal",
+        "watch the man",
+        "pretend",
+        "hide",
+        "stay seated",
+        "watch",
         "uneasy",
-        "scared"
+        "careful",
+        "self-conscious"
       ],
       "korean_terms": [
-        "숨겨진 물건",
-        "붙어 있는 물건",
-        "테이블 아래 물건",
-        "아래 있던 것"
+        "폰 보는 척하다",
+        "휴대폰 보는 척하다",
+        "아무렇지 않은 척하다"
       ],
       "english_terms": [
-        "hidden object",
-        "taped object",
-        "object under the table"
+        "pretend to look at her phone",
+        "pretend to check her phone"
       ],
       "mixed_terms": [
-        "under the table 물건",
-        "hidden object를",
-        "taped된 object"
+        "phone 보는 척",
+        "pretend해서 phone 보기",
+        "폰 check하는 척"
       ],
       "question_forms": [
-        "테이블 아래 뭐 있었어",
-        "뭘 보고 놀란 거야",
-        "what was under the table",
-        "what did she find there"
+        "왜 폰 보는 척했어",
+        "왜 아무렇지 않은 척했어",
+        "why did she pretend to look at her phone",
+        "why did she act normal"
       ],
       "actions": [
-        "find",
-        "notice",
-        "reach for",
-        "stop"
+        "pretend",
+        "hide",
+        "stay seated",
+        "watch"
       ],
       "feelings": [
-        "surprised",
         "uneasy",
-        "scared"
+        "careful",
+        "self-conscious"
       ],
-      "priority": 10,
+      "priority": 8,
       "segments": [
-        "end"
-      ]
-    },
-    {
-      "id": "cafe",
-      "category": "place",
-      "canonical": "cafe",
-      "terms": [
-        "cafe",
-        "coffee shop",
-        "coffeehouse",
-        "카페",
-        "커피숍",
-        "카페 안",
-        "조용한 카페",
-        "inside the cafe",
-        "cafe에서",
-        "카페 cafe",
-        "coffee shop에서",
-        "카페 분위기 어땠어",
-        "왜 카페가 중요해",
-        "what is the cafe like",
-        "why is the cafe setting important"
-      ],
-      "related": [
-        "quiet setting",
-        "public place",
-        "table 7",
-        "seat",
-        "sit",
-        "rest",
-        "watch",
-        "notice",
-        "peaceful",
-        "calm",
-        "suddenly tense"
-      ],
-      "korean_terms": [
-        "카페",
-        "커피숍",
-        "카페 안",
-        "조용한 카페"
-      ],
-      "english_terms": [
-        "cafe",
-        "coffee shop",
-        "inside the cafe"
-      ],
-      "mixed_terms": [
-        "cafe에서",
-        "카페 cafe",
-        "coffee shop에서"
-      ],
-      "question_forms": [
-        "카페 분위기 어땠어",
-        "왜 카페가 중요해",
-        "what is the cafe like",
-        "why is the cafe setting important"
-      ],
-      "actions": [
-        "sit",
-        "rest",
-        "watch",
-        "notice"
-      ],
-      "feelings": [
-        "peaceful",
-        "calm",
-        "suddenly tense"
-      ],
-      "priority": 7,
-      "segments": [
-        "beginning",
         "middle",
         "end"
       ]
@@ -524,8 +789,8 @@
         "under the table를 보다",
         "bend down하다",
         "table 7 아래를 look",
-        "왜 아래를 봤어",
         "언제 테이블 아래를 봤어",
+        "왜 아래를 확인했어",
         "why did she look under the table",
         "when did she check under table 7"
       ],
@@ -556,8 +821,8 @@
         "table 7 아래를 look"
       ],
       "question_forms": [
-        "왜 아래를 봤어",
         "언제 테이블 아래를 봤어",
+        "왜 아래를 확인했어",
         "why did she look under the table",
         "when did she check under table 7"
       ],
@@ -572,6 +837,333 @@
         "uneasy"
       ],
       "priority": 9,
+      "segments": [
+        "end"
+      ]
+    },
+    {
+      "id": "hidden_object",
+      "category": "object",
+      "canonical": "hidden object under the table",
+      "terms": [
+        "hidden object under the table",
+        "hidden object",
+        "taped object",
+        "something under the table",
+        "object under the table",
+        "숨겨진 물건",
+        "붙어 있는 물건",
+        "테이블 아래 물건",
+        "taped 된 물건",
+        "under the table 물건",
+        "hidden object를",
+        "taped된 object",
+        "테이블 아래 뭐가 있었어",
+        "taped 된 물건이 뭐였어",
+        "what was under the table",
+        "what did she find there"
+      ],
+      "related": [
+        "under table 7",
+        "note",
+        "discover",
+        "hesitate",
+        "find",
+        "notice",
+        "reach for",
+        "stop",
+        "surprised",
+        "uneasy",
+        "scared"
+      ],
+      "korean_terms": [
+        "숨겨진 물건",
+        "붙어 있는 물건",
+        "테이블 아래 물건",
+        "taped 된 물건"
+      ],
+      "english_terms": [
+        "hidden object",
+        "taped object",
+        "object under the table"
+      ],
+      "mixed_terms": [
+        "under the table 물건",
+        "hidden object를",
+        "taped된 object"
+      ],
+      "question_forms": [
+        "테이블 아래 뭐가 있었어",
+        "taped 된 물건이 뭐였어",
+        "what was under the table",
+        "what did she find there"
+      ],
+      "actions": [
+        "find",
+        "notice",
+        "reach for",
+        "stop"
+      ],
+      "feelings": [
+        "surprised",
+        "uneasy",
+        "scared"
+      ],
+      "priority": 10,
+      "segments": [
+        "end"
+      ]
+    },
+    {
+      "id": "surprised_reaction",
+      "category": "feeling",
+      "canonical": "surprised by what she found",
+      "terms": [
+        "surprised by what she found",
+        "surprised",
+        "startled",
+        "shocked",
+        "놀란",
+        "깜짝 놀란",
+        "충격받은",
+        "surprised한 반응",
+        "startled한 느낌",
+        "Anna는 뭘 보고 놀랐어",
+        "왜 그렇게 놀랐어",
+        "what surprised her",
+        "why was she startled"
+      ],
+      "related": [
+        "hidden object",
+        "under the table",
+        "stop halfway",
+        "notice",
+        "find",
+        "freeze",
+        "surprised",
+        "uneasy",
+        "scared"
+      ],
+      "korean_terms": [
+        "놀란",
+        "깜짝 놀란",
+        "충격받은"
+      ],
+      "english_terms": [
+        "surprised",
+        "startled",
+        "shocked"
+      ],
+      "mixed_terms": [
+        "surprised한 반응",
+        "startled한 느낌"
+      ],
+      "question_forms": [
+        "Anna는 뭘 보고 놀랐어",
+        "왜 그렇게 놀랐어",
+        "what surprised her",
+        "why was she startled"
+      ],
+      "actions": [
+        "notice",
+        "find",
+        "freeze"
+      ],
+      "feelings": [
+        "surprised",
+        "uneasy",
+        "scared"
+      ],
+      "priority": 10,
+      "segments": [
+        "end"
+      ]
+    },
+    {
+      "id": "heart_beating_faster",
+      "category": "feeling",
+      "canonical": "her heart beat faster",
+      "terms": [
+        "her heart beat faster",
+        "heart beat faster",
+        "heartbeat",
+        "심장이 빨리 뛰다",
+        "심장이 뛰다",
+        "heart가 빨리 뛰다",
+        "heartbeat가 빨라짐",
+        "왜 심장이 빨리 뛰어",
+        "심장이 빨라진 이유가 뭐야",
+        "why did her heart beat faster",
+        "what made her heartbeat faster"
+      ],
+      "related": [
+        "fear",
+        "tension",
+        "hidden object",
+        "surprised reaction",
+        "notice",
+        "freeze",
+        "hesitate",
+        "nervous",
+        "scared",
+        "tense"
+      ],
+      "korean_terms": [
+        "심장이 빨리 뛰다",
+        "심장이 뛰다"
+      ],
+      "english_terms": [
+        "heart beat faster",
+        "heartbeat"
+      ],
+      "mixed_terms": [
+        "heart가 빨리 뛰다",
+        "heartbeat가 빨라짐"
+      ],
+      "question_forms": [
+        "왜 심장이 빨리 뛰어",
+        "심장이 빨라진 이유가 뭐야",
+        "why did her heart beat faster",
+        "what made her heartbeat faster"
+      ],
+      "actions": [
+        "notice",
+        "freeze",
+        "hesitate"
+      ],
+      "feelings": [
+        "nervous",
+        "scared",
+        "tense"
+      ],
+      "priority": 8,
+      "segments": [
+        "end"
+      ]
+    },
+    {
+      "id": "reach_under_table",
+      "category": "action",
+      "canonical": "reach under the table",
+      "terms": [
+        "reach under the table",
+        "reach out",
+        "stretch her hand",
+        "테이블 아래로 손을 뻗다",
+        "손을 뻗다",
+        "under the table로 reach",
+        "손을 reach out하다",
+        "언제 손을 뻗었어",
+        "왜 만지려 했어",
+        "when did she reach under the table",
+        "why did she reach for it"
+      ],
+      "related": [
+        "hidden object",
+        "stop halfway",
+        "hesitation",
+        "reach",
+        "touch",
+        "stop",
+        "curious",
+        "afraid",
+        "uncertain"
+      ],
+      "korean_terms": [
+        "테이블 아래로 손을 뻗다",
+        "손을 뻗다"
+      ],
+      "english_terms": [
+        "reach under the table",
+        "reach out",
+        "stretch her hand"
+      ],
+      "mixed_terms": [
+        "under the table로 reach",
+        "손을 reach out하다"
+      ],
+      "question_forms": [
+        "언제 손을 뻗었어",
+        "왜 만지려 했어",
+        "when did she reach under the table",
+        "why did she reach for it"
+      ],
+      "actions": [
+        "reach",
+        "touch",
+        "stop"
+      ],
+      "feelings": [
+        "curious",
+        "afraid",
+        "uncertain"
+      ],
+      "priority": 8,
+      "segments": [
+        "end"
+      ]
+    },
+    {
+      "id": "stop_halfway",
+      "category": "action",
+      "canonical": "stop halfway",
+      "terms": [
+        "stop halfway",
+        "pull back",
+        "freeze",
+        "하다 말고 멈추다",
+        "손을 거두다",
+        "멈칫하다",
+        "halfway에서 stop",
+        "손을 pull back",
+        "freeze한 느낌",
+        "왜 하다 말고 멈췄어",
+        "왜 손을 거뒀어",
+        "why did she stop halfway",
+        "why did she pull back"
+      ],
+      "related": [
+        "hesitate",
+        "reach out",
+        "not sure what to do",
+        "stop",
+        "pull back",
+        "uncertain",
+        "afraid",
+        "uneasy"
+      ],
+      "korean_terms": [
+        "하다 말고 멈추다",
+        "손을 거두다",
+        "멈칫하다"
+      ],
+      "english_terms": [
+        "stop halfway",
+        "pull back",
+        "freeze"
+      ],
+      "mixed_terms": [
+        "halfway에서 stop",
+        "손을 pull back",
+        "freeze한 느낌"
+      ],
+      "question_forms": [
+        "왜 하다 말고 멈췄어",
+        "왜 손을 거뒀어",
+        "why did she stop halfway",
+        "why did she pull back"
+      ],
+      "actions": [
+        "stop",
+        "hesitate",
+        "pull back"
+      ],
+      "feelings": [
+        "uncertain",
+        "afraid",
+        "uneasy"
+      ],
+      "priority": 10,
       "segments": [
         "end"
       ]
@@ -651,754 +1243,6 @@
       ]
     },
     {
-      "id": "feelings_shift",
-      "category": "feeling",
-      "canonical": "calm to uneasy shift",
-      "terms": [
-        "calm to uneasy shift",
-        "curious",
-        "relaxed",
-        "uneasy",
-        "nervous",
-        "uncertain",
-        "호기심",
-        "여유로운",
-        "불안한",
-        "긴장한",
-        "확신 없는",
-        "relaxed했다가 uneasy해짐",
-        "curious하지만 scared함",
-        "처음엔 어땠어",
-        "왜 갑자기 긴장돼",
-        "how did Anna feel at first",
-        "why does the mood become tense"
-      ],
-      "related": [
-        "mood shift",
-        "peaceful cafe",
-        "hidden object",
-        "hesitation",
-        "feel",
-        "change",
-        "become tense",
-        "calm",
-        "curious",
-        "uneasy",
-        "nervous"
-      ],
-      "korean_terms": [
-        "호기심",
-        "여유로운",
-        "불안한",
-        "긴장한",
-        "확신 없는"
-      ],
-      "english_terms": [
-        "curious",
-        "relaxed",
-        "uneasy",
-        "nervous",
-        "uncertain"
-      ],
-      "mixed_terms": [
-        "relaxed했다가 uneasy해짐",
-        "curious하지만 scared함"
-      ],
-      "question_forms": [
-        "처음엔 어땠어",
-        "왜 갑자기 긴장돼",
-        "how did Anna feel at first",
-        "why does the mood become tense"
-      ],
-      "actions": [
-        "feel",
-        "change",
-        "become tense"
-      ],
-      "feelings": [
-        "calm",
-        "curious",
-        "uneasy",
-        "nervous"
-      ],
-      "priority": 8,
-      "segments": [
-        "beginning",
-        "middle",
-        "end"
-      ]
-    },
-    {
-      "id": "peaceful_cafe_mood",
-      "category": "feeling",
-      "canonical": "peaceful cafe mood",
-      "terms": [
-        "peaceful cafe mood",
-        "peaceful",
-        "calm",
-        "quiet",
-        "relaxed",
-        "평화로운",
-        "차분한",
-        "조용한",
-        "여유로운",
-        "peaceful한 카페",
-        "calm한 분위기",
-        "relaxed한 상태",
-        "처음 분위기 어땠어",
-        "카페가 원래 평화로웠어",
-        "was the cafe peaceful at first",
-        "how was the mood at the beginning"
-      ],
-      "related": [
-        "cafe",
-        "morning",
-        "rest",
-        "before tension",
-        "sit",
-        "look outside",
-        "peaceful",
-        "calm",
-        "relaxed"
-      ],
-      "korean_terms": [
-        "평화로운",
-        "차분한",
-        "조용한",
-        "여유로운"
-      ],
-      "english_terms": [
-        "peaceful",
-        "calm",
-        "quiet",
-        "relaxed"
-      ],
-      "mixed_terms": [
-        "peaceful한 카페",
-        "calm한 분위기",
-        "relaxed한 상태"
-      ],
-      "question_forms": [
-        "처음 분위기 어땠어",
-        "카페가 원래 평화로웠어",
-        "was the cafe peaceful at first",
-        "how was the mood at the beginning"
-      ],
-      "actions": [
-        "sit",
-        "rest",
-        "look outside"
-      ],
-      "feelings": [
-        "peaceful",
-        "calm",
-        "relaxed"
-      ],
-      "priority": 7,
-      "segments": [
-        "beginning"
-      ]
-    },
-    {
-      "id": "package_without_label",
-      "category": "object",
-      "canonical": "box with no name or address",
-      "terms": [
-        "box with no name or address",
-        "no label",
-        "no name",
-        "no address",
-        "unlabeled box",
-        "이름 없는 상자",
-        "주소 없는 상자",
-        "표시 없는 상자",
-        "no label 상자",
-        "주소 없는 box",
-        "unlabeled한 상자",
-        "이름이 없던 게 왜 중요해",
-        "주소 없는 상자가 왜 이상해",
-        "why is the unlabeled box important",
-        "why is no address suspicious"
-      ],
-      "related": [
-        "box",
-        "package",
-        "suspicious",
-        "strange",
-        "notice",
-        "pick up",
-        "bring inside",
-        "curious",
-        "uneasy"
-      ],
-      "korean_terms": [
-        "이름 없는 상자",
-        "주소 없는 상자",
-        "표시 없는 상자"
-      ],
-      "english_terms": [
-        "no label",
-        "no name",
-        "no address",
-        "unlabeled box"
-      ],
-      "mixed_terms": [
-        "no label 상자",
-        "주소 없는 box",
-        "unlabeled한 상자"
-      ],
-      "question_forms": [
-        "이름이 없던 게 왜 중요해",
-        "주소 없는 상자가 왜 이상해",
-        "why is the unlabeled box important",
-        "why is no address suspicious"
-      ],
-      "actions": [
-        "notice",
-        "pick up",
-        "bring inside"
-      ],
-      "feelings": [
-        "curious",
-        "suspicious",
-        "uneasy"
-      ],
-      "priority": 8,
-      "segments": [
-        "middle"
-      ]
-    },
-    {
-      "id": "phone_pretending",
-      "category": "action",
-      "canonical": "pretend to look at her phone",
-      "terms": [
-        "pretend to look at her phone",
-        "pretend to check her phone",
-        "look at her phone",
-        "폰 보는 척하다",
-        "휴대폰 보는 척하다",
-        "아무렇지 않은 척하다",
-        "phone 보는 척",
-        "pretend해서 phone 보기",
-        "폰 check하는 척",
-        "왜 폰 보는 척했어",
-        "왜 아무렇지 않은 척했어",
-        "why did she pretend to look at her phone",
-        "why did she act normal"
-      ],
-      "related": [
-        "hide reaction",
-        "act normal",
-        "watch the man",
-        "pretend",
-        "hide",
-        "stay seated",
-        "watch",
-        "uneasy",
-        "careful",
-        "self-conscious"
-      ],
-      "korean_terms": [
-        "폰 보는 척하다",
-        "휴대폰 보는 척하다",
-        "아무렇지 않은 척하다"
-      ],
-      "english_terms": [
-        "pretend to look at her phone",
-        "pretend to check her phone"
-      ],
-      "mixed_terms": [
-        "phone 보는 척",
-        "pretend해서 phone 보기",
-        "폰 check하는 척"
-      ],
-      "question_forms": [
-        "왜 폰 보는 척했어",
-        "왜 아무렇지 않은 척했어",
-        "why did she pretend to look at her phone",
-        "why did she act normal"
-      ],
-      "actions": [
-        "pretend",
-        "hide",
-        "stay seated",
-        "watch"
-      ],
-      "feelings": [
-        "uneasy",
-        "careful",
-        "self-conscious"
-      ],
-      "priority": 9,
-      "segments": [
-        "middle",
-        "end"
-      ]
-    },
-    {
-      "id": "watching_the_man",
-      "category": "action",
-      "canonical": "watch the man at table 7",
-      "terms": [
-        "watch the man at table 7",
-        "watch the man",
-        "keep watching",
-        "wait until he leaves",
-        "남자를 지켜보다",
-        "계속 보다",
-        "그가 떠날 때까지 기다리다",
-        "man을 watch하다",
-        "그가 leave할 때까지 wait",
-        "계속 watching",
-        "왜 그 남자를 계속 봤어",
-        "왜 떠날 때까지 기다렸어",
-        "why did she keep watching the man",
-        "why did she wait until he left"
-      ],
-      "related": [
-        "man at table 7",
-        "suspicious",
-        "phone pretending",
-        "watch",
-        "wait",
-        "notice",
-        "glance",
-        "careful",
-        "uneasy"
-      ],
-      "korean_terms": [
-        "남자를 지켜보다",
-        "계속 보다",
-        "그가 떠날 때까지 기다리다"
-      ],
-      "english_terms": [
-        "watch the man",
-        "keep watching",
-        "wait until he leaves"
-      ],
-      "mixed_terms": [
-        "man을 watch하다",
-        "그가 leave할 때까지 wait",
-        "계속 watching"
-      ],
-      "question_forms": [
-        "왜 그 남자를 계속 봤어",
-        "왜 떠날 때까지 기다렸어",
-        "why did she keep watching the man",
-        "why did she wait until he left"
-      ],
-      "actions": [
-        "watch",
-        "wait",
-        "notice",
-        "glance"
-      ],
-      "feelings": [
-        "suspicious",
-        "careful",
-        "uneasy"
-      ],
-      "priority": 9,
-      "segments": [
-        "middle"
-      ]
-    },
-    {
-      "id": "stop_halfway",
-      "category": "action",
-      "canonical": "stop halfway",
-      "terms": [
-        "stop halfway",
-        "pull back",
-        "freeze",
-        "하다 말고 멈추다",
-        "손을 거두다",
-        "멈칫하다",
-        "halfway에서 stop",
-        "손을 pull back",
-        "freeze한 느낌",
-        "왜 하다 말고 멈췄어",
-        "왜 손을 거뒀어",
-        "why did she stop halfway",
-        "why did she pull back"
-      ],
-      "related": [
-        "hesitate",
-        "reach out",
-        "not sure what to do",
-        "stop",
-        "pull back",
-        "uncertain",
-        "afraid",
-        "uneasy"
-      ],
-      "korean_terms": [
-        "하다 말고 멈추다",
-        "손을 거두다",
-        "멈칫하다"
-      ],
-      "english_terms": [
-        "stop halfway",
-        "pull back",
-        "freeze"
-      ],
-      "mixed_terms": [
-        "halfway에서 stop",
-        "손을 pull back",
-        "freeze한 느낌"
-      ],
-      "question_forms": [
-        "왜 하다 말고 멈췄어",
-        "왜 손을 거뒀어",
-        "why did she stop halfway",
-        "why did she pull back"
-      ],
-      "actions": [
-        "stop",
-        "hesitate",
-        "pull back"
-      ],
-      "feelings": [
-        "uncertain",
-        "afraid",
-        "uneasy"
-      ],
-      "priority": 9,
-      "segments": [
-        "end"
-      ]
-    },
-    {
-      "id": "reach_under_table",
-      "category": "action",
-      "canonical": "reach under the table",
-      "terms": [
-        "reach under the table",
-        "reach out",
-        "stretch her hand",
-        "테이블 아래로 손을 뻗다",
-        "손을 뻗다",
-        "under the table로 reach",
-        "손을 reach out하다",
-        "언제 손을 뻗었어",
-        "왜 만지려 했어",
-        "when did she reach under the table",
-        "why did she reach for it"
-      ],
-      "related": [
-        "hidden object",
-        "stop halfway",
-        "hesitation",
-        "reach",
-        "touch",
-        "stop",
-        "curious",
-        "afraid",
-        "uncertain"
-      ],
-      "korean_terms": [
-        "테이블 아래로 손을 뻗다",
-        "손을 뻗다"
-      ],
-      "english_terms": [
-        "reach under the table",
-        "reach out",
-        "stretch her hand"
-      ],
-      "mixed_terms": [
-        "under the table로 reach",
-        "손을 reach out하다"
-      ],
-      "question_forms": [
-        "언제 손을 뻗었어",
-        "왜 만지려 했어",
-        "when did she reach under the table",
-        "why did she reach for it"
-      ],
-      "actions": [
-        "reach",
-        "touch",
-        "stop"
-      ],
-      "feelings": [
-        "curious",
-        "afraid",
-        "uncertain"
-      ],
-      "priority": 8,
-      "segments": [
-        "end"
-      ]
-    },
-    {
-      "id": "surprised_reaction",
-      "category": "feeling",
-      "canonical": "surprised by what she found",
-      "terms": [
-        "surprised by what she found",
-        "surprised",
-        "startled",
-        "shocked",
-        "놀란",
-        "깜짝 놀란",
-        "충격받은",
-        "surprised한 반응",
-        "startled한 느낌",
-        "뭘 보고 놀란 거야",
-        "왜 그렇게 놀랐어",
-        "what surprised her",
-        "why was she startled"
-      ],
-      "related": [
-        "hidden object",
-        "under the table",
-        "stop halfway",
-        "notice",
-        "find",
-        "freeze",
-        "surprised",
-        "uneasy",
-        "scared"
-      ],
-      "korean_terms": [
-        "놀란",
-        "깜짝 놀란",
-        "충격받은"
-      ],
-      "english_terms": [
-        "surprised",
-        "startled",
-        "shocked"
-      ],
-      "mixed_terms": [
-        "surprised한 반응",
-        "startled한 느낌"
-      ],
-      "question_forms": [
-        "뭘 보고 놀란 거야",
-        "왜 그렇게 놀랐어",
-        "what surprised her",
-        "why was she startled"
-      ],
-      "actions": [
-        "notice",
-        "find",
-        "freeze"
-      ],
-      "feelings": [
-        "surprised",
-        "uneasy",
-        "scared"
-      ],
-      "priority": 10,
-      "segments": [
-        "end"
-      ]
-    },
-    {
-      "id": "public_place_tension",
-      "category": "theme",
-      "canonical": "something strange in a public place",
-      "terms": [
-        "something strange in a public place",
-        "public place",
-        "in public",
-        "ordinary place",
-        "공공장소",
-        "사람들 있는 곳",
-        "평범한 장소",
-        "public place에서",
-        "ordinary한 장소",
-        "공공 place",
-        "왜 공공장소라서 더 이상해",
-        "카페라서 왜 더 긴장돼",
-        "why does it matter that this happens in public",
-        "why is the public setting important"
-      ],
-      "related": [
-        "cafe",
-        "quiet tension",
-        "act normal",
-        "hide reaction",
-        "stay seated",
-        "pretend",
-        "watch",
-        "uneasy",
-        "careful",
-        "self-conscious"
-      ],
-      "korean_terms": [
-        "공공장소",
-        "사람들 있는 곳",
-        "평범한 장소"
-      ],
-      "english_terms": [
-        "public place",
-        "in public",
-        "ordinary place"
-      ],
-      "mixed_terms": [
-        "public place에서",
-        "ordinary한 장소",
-        "공공 place"
-      ],
-      "question_forms": [
-        "왜 공공장소라서 더 이상해",
-        "카페라서 왜 더 긴장돼",
-        "why does it matter that this happens in public",
-        "why is the public setting important"
-      ],
-      "actions": [
-        "stay seated",
-        "pretend",
-        "watch"
-      ],
-      "feelings": [
-        "uneasy",
-        "careful",
-        "self-conscious"
-      ],
-      "priority": 6,
-      "segments": [
-        "middle",
-        "end"
-      ]
-    },
-    {
-      "id": "ordinary_to_strange",
-      "category": "theme",
-      "canonical": "ordinary place becoming strange",
-      "terms": [
-        "ordinary place becoming strange",
-        "ordinary place strange event",
-        "something feels off",
-        "mood shift",
-        "평범한 장소의 이상한 일",
-        "뭔가 이상하다",
-        "분위기 변화",
-        "ordinary place인데 strange함",
-        "mood가 shift됨",
-        "왜 갑자기 이상해져",
-        "왜 평범한데 긴장돼",
-        "why does it suddenly feel strange",
-        "why does the mood shift here"
-      ],
-      "related": [
-        "cafe",
-        "peaceful mood",
-        "hidden object",
-        "tension",
-        "notice the shift",
-        "feel uneasy",
-        "uneasy",
-        "suspicious",
-        "tense"
-      ],
-      "korean_terms": [
-        "평범한 장소의 이상한 일",
-        "뭔가 이상하다",
-        "분위기 변화"
-      ],
-      "english_terms": [
-        "ordinary place strange event",
-        "something feels off",
-        "mood shift"
-      ],
-      "mixed_terms": [
-        "ordinary place인데 strange함",
-        "mood가 shift됨"
-      ],
-      "question_forms": [
-        "왜 갑자기 이상해져",
-        "왜 평범한데 긴장돼",
-        "why does it suddenly feel strange",
-        "why does the mood shift here"
-      ],
-      "actions": [
-        "notice the shift",
-        "feel uneasy"
-      ],
-      "feelings": [
-        "uneasy",
-        "suspicious",
-        "tense"
-      ],
-      "priority": 7,
-      "segments": [
-        "beginning",
-        "middle",
-        "end"
-      ]
-    },
-    {
-      "id": "clue_following",
-      "category": "theme",
-      "canonical": "following a clue",
-      "terms": [
-        "following a clue",
-        "follow a clue",
-        "follow the note",
-        "trace the message",
-        "단서를 따라가다",
-        "쪽지를 따라가다",
-        "메시지를 따라가다",
-        "clue를 따라가다",
-        "note를 follow하다",
-        "왜 쪽지를 따라갔어",
-        "단서를 따라간 거야",
-        "why did she follow the note",
-        "did she follow the clue"
-      ],
-      "related": [
-        "table 7",
-        "note",
-        "hidden object",
-        "decision",
-        "read",
-        "go to",
-        "look under",
-        "discover",
-        "curious",
-        "uneasy"
-      ],
-      "korean_terms": [
-        "단서를 따라가다",
-        "쪽지를 따라가다",
-        "메시지를 따라가다"
-      ],
-      "english_terms": [
-        "follow a clue",
-        "follow the note",
-        "trace the message"
-      ],
-      "mixed_terms": [
-        "clue를 따라가다",
-        "note를 follow하다"
-      ],
-      "question_forms": [
-        "왜 쪽지를 따라갔어",
-        "단서를 따라간 거야",
-        "why did she follow the note",
-        "did she follow the clue"
-      ],
-      "actions": [
-        "read",
-        "go to",
-        "look under",
-        "discover"
-      ],
-      "feelings": [
-        "curious",
-        "uneasy"
-      ],
-      "priority": 8,
-      "segments": [
-        "middle",
-        "end"
-      ]
-    },
-    {
       "id": "take_or_leave_choice",
       "category": "decision",
       "canonical": "take it or leave it",
@@ -1466,445 +1310,6 @@
       ]
     },
     {
-      "id": "street_to_cafe",
-      "category": "place",
-      "canonical": "from the street to the cafe",
-      "terms": [
-        "from the street to the cafe",
-        "street",
-        "outside",
-        "outside the cafe",
-        "거리",
-        "밖",
-        "카페 밖",
-        "바깥",
-        "street에서",
-        "카페 outside",
-        "밖에서 cafe로",
-        "밖에서 안으로 가져온 거야",
-        "거리에서 발견한 거야",
-        "did she bring it from outside",
-        "did she find it on the street"
-      ],
-      "related": [
-        "carry the box",
-        "bring inside",
-        "walk to the cafe",
-        "walk",
-        "carry",
-        "calm",
-        "curious"
-      ],
-      "korean_terms": [
-        "거리",
-        "밖",
-        "카페 밖",
-        "바깥"
-      ],
-      "english_terms": [
-        "street",
-        "outside",
-        "outside the cafe"
-      ],
-      "mixed_terms": [
-        "street에서",
-        "카페 outside",
-        "밖에서 cafe로"
-      ],
-      "question_forms": [
-        "밖에서 안으로 가져온 거야",
-        "거리에서 발견한 거야",
-        "did she bring it from outside",
-        "did she find it on the street"
-      ],
-      "actions": [
-        "walk",
-        "carry",
-        "bring inside"
-      ],
-      "feelings": [
-        "calm",
-        "curious"
-      ],
-      "priority": 7,
-      "segments": [
-        "beginning",
-        "middle"
-      ]
-    },
-    {
-      "id": "morning_break",
-      "category": "theme",
-      "canonical": "taking a break in the morning",
-      "terms": [
-        "taking a break in the morning",
-        "take a break",
-        "morning break",
-        "rest",
-        "휴식",
-        "잠깐 쉬다",
-        "아침에 쉬다",
-        "break를 가지다",
-        "morning에 rest하다",
-        "처음에 쉬러 간 거야",
-        "왜 카페에 갔어",
-        "did she go there to take a break",
-        "why did she go to the cafe"
-      ],
-      "related": [
-        "peaceful cafe",
-        "relaxed mood",
-        "before tension",
-        "sit",
-        "rest",
-        "enjoy the morning",
-        "relaxed",
-        "peaceful"
-      ],
-      "korean_terms": [
-        "휴식",
-        "잠깐 쉬다",
-        "아침에 쉬다"
-      ],
-      "english_terms": [
-        "take a break",
-        "morning break",
-        "rest"
-      ],
-      "mixed_terms": [
-        "break를 가지다",
-        "morning에 rest하다"
-      ],
-      "question_forms": [
-        "처음에 쉬러 간 거야",
-        "왜 카페에 갔어",
-        "did she go there to take a break",
-        "why did she go to the cafe"
-      ],
-      "actions": [
-        "sit",
-        "rest",
-        "enjoy the morning"
-      ],
-      "feelings": [
-        "relaxed",
-        "peaceful"
-      ],
-      "priority": 6,
-      "segments": [
-        "beginning"
-      ]
-    },
-    {
-      "id": "man_leaves_table",
-      "category": "action",
-      "canonical": "the man leaves table 7",
-      "terms": [
-        "the man leaves table 7",
-        "leave the table",
-        "leave table 7",
-        "walk away",
-        "자리를 뜨다",
-        "테이블 7을 떠나다",
-        "떠나다",
-        "table 7을 leave",
-        "자리에서 walk away",
-        "남자가 언제 떠났어",
-        "왜 떠날 때까지 기다렸어",
-        "when did the man leave",
-        "why did she wait until he left"
-      ],
-      "related": [
-        "watch the man",
-        "wait until he leaves",
-        "go to table 7",
-        "stand",
-        "leave",
-        "walk away",
-        "suspicious",
-        "careful"
-      ],
-      "korean_terms": [
-        "자리를 뜨다",
-        "테이블 7을 떠나다",
-        "떠나다"
-      ],
-      "english_terms": [
-        "leave the table",
-        "leave table 7",
-        "walk away"
-      ],
-      "mixed_terms": [
-        "table 7을 leave",
-        "자리에서 walk away"
-      ],
-      "question_forms": [
-        "남자가 언제 떠났어",
-        "왜 떠날 때까지 기다렸어",
-        "when did the man leave",
-        "why did she wait until he left"
-      ],
-      "actions": [
-        "stand",
-        "leave",
-        "walk away"
-      ],
-      "feelings": [
-        "suspicious",
-        "careful"
-      ],
-      "priority": 8,
-      "segments": [
-        "middle"
-      ]
-    },
-    {
-      "id": "coffee_and_reading",
-      "category": "action",
-      "canonical": "the man is reading and drinking coffee",
-      "terms": [
-        "the man is reading and drinking coffee",
-        "reading",
-        "drink coffee",
-        "read a book",
-        "책을 읽다",
-        "커피를 마시다",
-        "읽고 있다",
-        "책을 reading",
-        "coffee를 마시다",
-        "그 남자 뭐 하고 있었어",
-        "책 읽고 있었어",
-        "what was the man doing",
-        "was he reading and drinking coffee"
-      ],
-      "related": [
-        "ordinary-looking man",
-        "table 7",
-        "watch the man",
-        "sit",
-        "read",
-        "drink",
-        "ordinary",
-        "calm"
-      ],
-      "korean_terms": [
-        "책을 읽다",
-        "커피를 마시다",
-        "읽고 있다"
-      ],
-      "english_terms": [
-        "reading",
-        "drink coffee",
-        "read a book"
-      ],
-      "mixed_terms": [
-        "책을 reading",
-        "coffee를 마시다"
-      ],
-      "question_forms": [
-        "그 남자 뭐 하고 있었어",
-        "책 읽고 있었어",
-        "what was the man doing",
-        "was he reading and drinking coffee"
-      ],
-      "actions": [
-        "sit",
-        "read",
-        "drink"
-      ],
-      "feelings": [
-        "ordinary",
-        "calm"
-      ],
-      "priority": 6,
-      "segments": [
-        "middle"
-      ]
-    },
-    {
-      "id": "written_instruction_table7",
-      "category": "object",
-      "canonical": "look under table 7 message",
-      "terms": [
-        "look under table 7 message",
-        "look under table 7",
-        "message about table 7",
-        "instruction to check table 7",
-        "테이블 7 아래를 보라",
-        "테이블 7을 확인하라는 쪽지",
-        "table 7 아래를 look",
-        "table 7 확인하라는 note",
-        "왜 table 7 아래를 보래",
-        "그 문구가 무슨 뜻이야",
-        "why does it say look under table 7",
-        "what does the message mean"
-      ],
-      "related": [
-        "note",
-        "table 7",
-        "follow a clue",
-        "read",
-        "interpret",
-        "follow",
-        "curious",
-        "uneasy"
-      ],
-      "korean_terms": [
-        "테이블 7 아래를 보라",
-        "테이블 7을 확인하라는 쪽지"
-      ],
-      "english_terms": [
-        "look under table 7",
-        "instruction to check table 7"
-      ],
-      "mixed_terms": [
-        "table 7 아래를 look",
-        "table 7 확인하라는 note"
-      ],
-      "question_forms": [
-        "왜 table 7 아래를 보래",
-        "그 문구가 무슨 뜻이야",
-        "why does it say look under table 7",
-        "what does the message mean"
-      ],
-      "actions": [
-        "read",
-        "interpret",
-        "follow"
-      ],
-      "feelings": [
-        "curious",
-        "uneasy"
-      ],
-      "priority": 10,
-      "segments": [
-        "middle",
-        "end"
-      ]
-    },
-    {
-      "id": "ordinary_looking_man",
-      "category": "character",
-      "canonical": "ordinary-looking man",
-      "terms": [
-        "ordinary-looking man",
-        "normal man",
-        "평범해 보이는 남자",
-        "멀쩡해 보이는 남자",
-        "ordinary-looking한 남자",
-        "normal한 man",
-        "평범해 보였는데 왜 수상해",
-        "그냥 평범한 남자 아니야",
-        "did he seem ordinary",
-        "why does he still feel suspicious"
-      ],
-      "related": [
-        "man at table 7",
-        "reading",
-        "suspicious anyway",
-        "sit",
-        "read",
-        "drink coffee",
-        "leave",
-        "ordinary",
-        "possibly suspicious"
-      ],
-      "korean_terms": [
-        "평범해 보이는 남자",
-        "멀쩡해 보이는 남자"
-      ],
-      "english_terms": [
-        "ordinary-looking man",
-        "normal man"
-      ],
-      "mixed_terms": [
-        "ordinary-looking한 남자",
-        "normal한 man"
-      ],
-      "question_forms": [
-        "평범해 보였는데 왜 수상해",
-        "그냥 평범한 남자 아니야",
-        "did he seem ordinary",
-        "why does he still feel suspicious"
-      ],
-      "actions": [
-        "sit",
-        "read",
-        "drink coffee",
-        "leave"
-      ],
-      "feelings": [
-        "ordinary",
-        "possibly suspicious"
-      ],
-      "priority": 7,
-      "segments": [
-        "middle"
-      ]
-    },
-    {
-      "id": "heart_beating_faster",
-      "category": "feeling",
-      "canonical": "her heart beat faster",
-      "terms": [
-        "her heart beat faster",
-        "heart beat faster",
-        "heartbeat",
-        "심장이 빨리 뛰다",
-        "심장이 뛰다",
-        "heart가 빨리 뛰다",
-        "heartbeat가 빨라짐",
-        "왜 심장이 빨리 뛰어",
-        "심장이 빨라진 이유가 뭐야",
-        "why did her heart beat faster",
-        "what made her heartbeat faster"
-      ],
-      "related": [
-        "fear",
-        "tension",
-        "hidden object",
-        "surprised reaction",
-        "notice",
-        "freeze",
-        "hesitate",
-        "nervous",
-        "scared",
-        "tense"
-      ],
-      "korean_terms": [
-        "심장이 빨리 뛰다",
-        "심장이 뛰다"
-      ],
-      "english_terms": [
-        "heart beat faster",
-        "heartbeat"
-      ],
-      "mixed_terms": [
-        "heart가 빨리 뛰다",
-        "heartbeat가 빨라짐"
-      ],
-      "question_forms": [
-        "왜 심장이 빨리 뛰어",
-        "심장이 빨라진 이유가 뭐야",
-        "why did her heart beat faster",
-        "what made her heartbeat faster"
-      ],
-      "actions": [
-        "notice",
-        "freeze",
-        "hesitate"
-      ],
-      "feelings": [
-        "nervous",
-        "scared",
-        "tense"
-      ],
-      "priority": 7,
-      "segments": [
-        "end"
-      ]
-    },
-    {
       "id": "what_to_do_next",
       "category": "decision",
       "canonical": "not sure what to do next",
@@ -1918,8 +1323,8 @@
         "다음 행동",
         "next move가 없음",
         "what to do next를 모르다",
+        "왜 어떻게 해야 할지 몰랐어",
         "왜 다음 행동을 못 정해",
-        "어떻게 할지 몰랐던 거야",
         "why didn't she know what to do next",
         "was she unsure about her next move"
       ],
@@ -1949,8 +1354,8 @@
         "what to do next를 모르다"
       ],
       "question_forms": [
+        "왜 어떻게 해야 할지 몰랐어",
         "왜 다음 행동을 못 정해",
-        "어떻게 할지 몰랐던 거야",
         "why didn't she know what to do next",
         "was she unsure about her next move"
       ],
@@ -1970,637 +1375,63 @@
       ]
     },
     {
-      "id": "scene_beginning_middle_end",
-      "category": "question",
-      "canonical": "beginning middle end scene reference",
+      "id": "ordinary_to_strange",
+      "category": "theme",
+      "canonical": "ordinary place becoming strange",
       "terms": [
-        "beginning middle end scene reference",
-        "beginning",
-        "middle",
-        "end",
-        "처음",
-        "중간",
-        "끝",
-        "마지막 부분",
-        "beginning 부분",
-        "middle 장면",
-        "end 부분",
-        "앞부분 말하는 거야",
-        "중간 장면이야",
-        "do you mean the beginning middle or end",
-        "which part do you mean"
-      ],
-      "related": [
-        "scene",
-        "part",
-        "which part",
-        "locate",
-        "clarify",
-        "ask back"
-      ],
-      "korean_terms": [
-        "처음",
-        "중간",
-        "끝",
-        "마지막 부분"
-      ],
-      "english_terms": [
-        "beginning",
-        "middle",
-        "end"
-      ],
-      "mixed_terms": [
-        "beginning 부분",
-        "middle 장면",
-        "end 부분"
-      ],
-      "question_forms": [
-        "앞부분 말하는 거야",
-        "중간 장면이야",
-        "do you mean the beginning middle or end",
-        "which part do you mean"
-      ],
-      "actions": [
-        "locate",
-        "clarify",
-        "ask back"
-      ],
-      "feelings": [],
-      "priority": 6,
-      "segments": [
-        "beginning",
-        "middle",
-        "end"
-      ]
-    },
-    {
-      "id": "why_so_strange",
-      "category": "question",
-      "canonical": "why does it feel strange",
-      "terms": [
-        "why does it feel strange",
-        "why strange",
-        "왜 이상해",
-        "왜 수상해",
-        "왜 묘해",
-        "왜 strange해",
-        "why 이상해",
-        "왜 갑자기 이상해",
-        "왜 수상하게 느껴져",
-        "why does it suddenly feel strange",
-        "why does this feel suspicious"
-      ],
-      "related": [
-        "ordinary to strange",
+        "ordinary place becoming strange",
+        "ordinary place strange event",
+        "something feels off",
         "mood shift",
-        "public place tension",
-        "interpret",
-        "explain",
-        "uneasy",
-        "suspicious"
-      ],
-      "korean_terms": [
-        "왜 이상해",
-        "왜 수상해",
-        "왜 묘해"
-      ],
-      "english_terms": [
-        "why strange",
-        "why does it feel strange"
-      ],
-      "mixed_terms": [
-        "왜 strange해",
-        "why 이상해"
-      ],
-      "question_forms": [
-        "왜 갑자기 이상해",
-        "왜 수상하게 느껴져",
+        "평범한 장소의 이상한 일",
+        "뭔가 이상하다",
+        "분위기 변화",
+        "ordinary place인데 strange함",
+        "mood가 shift됨",
+        "왜 카페가 갑자기 이상하게 느껴져",
+        "왜 갑자기 분위기가 바뀌어",
         "why does it suddenly feel strange",
-        "why does this feel suspicious"
-      ],
-      "actions": [
-        "interpret",
-        "explain"
-      ],
-      "feelings": [
-        "uneasy",
-        "suspicious"
-      ],
-      "priority": 8,
-      "segments": [
-        "middle",
-        "end"
-      ]
-    },
-    {
-      "id": "why_scared_short",
-      "category": "question",
-      "canonical": "why was she scared short form",
-      "terms": [
-        "why was she scared short form",
-        "why scared",
-        "why fear",
-        "왜 무서워",
-        "왜 겁먹어",
-        "왜 무서워했지",
-        "why was she scared",
-        "왜 scared",
-        "why 무서워",
-        "왜 scared해"
+        "why does the mood shift here"
       ],
       "related": [
-        "surprised reaction",
+        "cafe",
+        "peaceful mood",
         "hidden object",
-        "heart beat faster",
-        "infer meaning",
-        "route to understanding",
-        "scared",
+        "tension",
+        "notice the shift",
+        "feel uneasy",
         "uneasy",
-        "surprised"
+        "suspicious",
+        "tense"
       ],
       "korean_terms": [
-        "왜 무서워",
-        "왜 겁먹어",
-        "왜 무서워했지"
+        "평범한 장소의 이상한 일",
+        "뭔가 이상하다",
+        "분위기 변화"
       ],
       "english_terms": [
-        "why scared",
-        "why was she scared"
+        "ordinary place strange event",
+        "something feels off",
+        "mood shift"
       ],
       "mixed_terms": [
-        "왜 scared",
-        "why 무서워"
+        "ordinary place인데 strange함",
+        "mood가 shift됨"
       ],
       "question_forms": [
-        "왜 무서워",
-        "왜 scared해",
-        "why scared",
-        "why was she scared"
+        "왜 카페가 갑자기 이상하게 느껴져",
+        "왜 갑자기 분위기가 바뀌어",
+        "why does it suddenly feel strange",
+        "why does the mood shift here"
       ],
       "actions": [
-        "infer meaning",
-        "route to understanding"
+        "notice the shift",
+        "feel uneasy"
       ],
       "feelings": [
-        "scared",
         "uneasy",
-        "surprised"
-      ],
-      "priority": 9,
-      "segments": [
-        "end"
-      ]
-    },
-    {
-      "id": "what_did_she_see_short",
-      "category": "question",
-      "canonical": "what did she see short form",
-      "terms": [
-        "what did she see short form",
-        "what did she see",
-        "what saw",
-        "뭘 봤어",
-        "뭘 본 거야",
-        "무엇을 봤어",
-        "what 봤어",
-        "she가 뭘 saw"
-      ],
-      "related": [
-        "hidden object",
-        "under the table",
-        "surprised reaction",
-        "infer meaning",
-        "route to understanding",
-        "surprised",
-        "curious"
-      ],
-      "korean_terms": [
-        "뭘 봤어",
-        "뭘 본 거야",
-        "무엇을 봤어"
-      ],
-      "english_terms": [
-        "what did she see",
-        "what saw"
-      ],
-      "mixed_terms": [
-        "what 봤어",
-        "she가 뭘 saw"
-      ],
-      "question_forms": [
-        "뭘 봤어",
-        "뭘 본 거야",
-        "what did she see",
-        "what saw"
-      ],
-      "actions": [
-        "infer meaning",
-        "route to understanding"
-      ],
-      "feelings": [
-        "surprised",
-        "curious"
-      ],
-      "priority": 10,
-      "segments": [
-        "end"
-      ]
-    },
-    {
-      "id": "why_not_go_immediately",
-      "category": "question",
-      "canonical": "why didn't she go immediately",
-      "terms": [
-        "why didn't she go immediately",
-        "why didn't she go",
-        "not go right away",
-        "왜 바로 안 갔어",
-        "왜 바로 안 움직였어",
-        "왜 바로 안 갔지",
-        "why didn't she move right away",
-        "왜 right away 안 갔어",
-        "why 바로 안 움직였어",
-        "why didn't she go right away",
-        "why didn't she move immediately"
-      ],
-      "related": [
-        "table 7",
-        "hesitation",
-        "careful watching",
-        "wait",
-        "watch",
-        "hesitate",
-        "careful",
-        "uneasy",
-        "uncertain"
-      ],
-      "korean_terms": [
-        "왜 바로 안 갔어",
-        "왜 바로 안 움직였어",
-        "왜 바로 안 갔지"
-      ],
-      "english_terms": [
-        "why didn't she go",
-        "why didn't she move right away"
-      ],
-      "mixed_terms": [
-        "왜 right away 안 갔어",
-        "why 바로 안 움직였어"
-      ],
-      "question_forms": [
-        "왜 바로 안 갔어",
-        "왜 바로 안 움직였어",
-        "why didn't she go right away",
-        "why didn't she move immediately"
-      ],
-      "actions": [
-        "wait",
-        "watch",
-        "hesitate"
-      ],
-      "feelings": [
-        "careful",
-        "uneasy",
-        "uncertain"
-      ],
-      "priority": 8,
-      "segments": [
-        "middle",
-        "end"
-      ]
-    },
-    {
-      "id": "why_waited",
-      "category": "question",
-      "canonical": "why did she wait",
-      "terms": [
-        "why did she wait",
-        "why wait",
-        "왜 기다렸어",
-        "왜 기다린 거야",
-        "왜 wait했어",
-        "why 기다렸어",
-        "왜 떠날 때까지 본 거야",
-        "why did she keep waiting"
-      ],
-      "related": [
-        "watching the man",
-        "man leaves table",
-        "careful choice",
-        "wait",
-        "watch",
-        "hold back",
-        "careful",
-        "suspicious"
-      ],
-      "korean_terms": [
-        "왜 기다렸어",
-        "왜 기다린 거야"
-      ],
-      "english_terms": [
-        "why wait",
-        "why did she wait"
-      ],
-      "mixed_terms": [
-        "왜 wait했어",
-        "why 기다렸어"
-      ],
-      "question_forms": [
-        "왜 기다렸어",
-        "왜 떠날 때까지 본 거야",
-        "why did she wait",
-        "why did she keep waiting"
-      ],
-      "actions": [
-        "wait",
-        "watch",
-        "hold back"
-      ],
-      "feelings": [
-        "careful",
-        "suspicious"
-      ],
-      "priority": 7,
-      "segments": [
-        "middle"
-      ]
-    },
-    {
-      "id": "why_note_important",
-      "category": "question",
-      "canonical": "why is the note important",
-      "terms": [
-        "why is the note important",
-        "why note important",
-        "note matters",
-        "쪽지 왜 중요해",
-        "왜 쪽지가 중요해",
-        "note 왜 중요해",
-        "why 쪽지가 중요해",
-        "왜 그 note가 중요해",
-        "why does the note matter"
-      ],
-      "related": [
-        "written instruction table7",
-        "clue following",
-        "message meaning",
-        "read",
-        "interpret",
-        "follow",
-        "curious",
-        "uneasy"
-      ],
-      "korean_terms": [
-        "쪽지 왜 중요해",
-        "왜 쪽지가 중요해"
-      ],
-      "english_terms": [
-        "why note important",
-        "why is the note important"
-      ],
-      "mixed_terms": [
-        "note 왜 중요해",
-        "why 쪽지가 중요해"
-      ],
-      "question_forms": [
-        "쪽지 왜 중요해",
-        "왜 그 note가 중요해",
-        "why is the note important",
-        "why does the note matter"
-      ],
-      "actions": [
-        "read",
-        "interpret",
-        "follow"
-      ],
-      "feelings": [
-        "curious",
-        "uneasy"
-      ],
-      "priority": 9,
-      "segments": [
-        "middle",
-        "end"
-      ]
-    },
-    {
-      "id": "why_box_important",
-      "category": "question",
-      "canonical": "why is the box important",
-      "terms": [
-        "why is the box important",
-        "why box important",
-        "box matters",
-        "상자 왜 중요해",
-        "왜 상자가 중요해",
-        "box 왜 중요해",
-        "why 상자가 중요해",
-        "왜 그 box가 중요해",
-        "why does the package matter"
-      ],
-      "related": [
-        "package without label",
-        "street to cafe",
-        "curiosity",
-        "pick up",
-        "carry",
-        "notice",
-        "curious",
-        "suspicious"
-      ],
-      "korean_terms": [
-        "상자 왜 중요해",
-        "왜 상자가 중요해"
-      ],
-      "english_terms": [
-        "why box important",
-        "why is the box important"
-      ],
-      "mixed_terms": [
-        "box 왜 중요해",
-        "why 상자가 중요해"
-      ],
-      "question_forms": [
-        "상자 왜 중요해",
-        "왜 그 box가 중요해",
-        "why is the box important",
-        "why does the package matter"
-      ],
-      "actions": [
-        "pick up",
-        "carry",
-        "notice"
-      ],
-      "feelings": [
-        "curious",
-        "suspicious"
-      ],
-      "priority": 8,
-      "segments": [
-        "middle"
-      ]
-    },
-    {
-      "id": "what_was_under_table7",
-      "category": "question",
-      "canonical": "what was under table 7",
-      "terms": [
-        "what was under table 7",
-        "under table 7 what",
-        "테이블 7 아래 뭐야",
-        "테이블 7 아래 뭐 있었어",
-        "what was there under table 7",
-        "table 7 아래 뭐야",
-        "under table 7 뭐 있었어",
-        "what was there under the table"
-      ],
-      "related": [
-        "hidden object",
-        "look under the table",
-        "surprised reaction",
-        "look",
-        "find",
-        "notice",
-        "surprised",
-        "uneasy"
-      ],
-      "korean_terms": [
-        "테이블 7 아래 뭐야",
-        "테이블 7 아래 뭐 있었어"
-      ],
-      "english_terms": [
-        "what was under table 7",
-        "what was there under table 7"
-      ],
-      "mixed_terms": [
-        "table 7 아래 뭐야",
-        "under table 7 뭐 있었어"
-      ],
-      "question_forms": [
-        "테이블 7 아래 뭐 있었어",
-        "table 7 아래 뭐야",
-        "what was under table 7",
-        "what was there under the table"
-      ],
-      "actions": [
-        "look",
-        "find",
-        "notice"
-      ],
-      "feelings": [
-        "surprised",
-        "uneasy"
-      ],
-      "priority": 10,
-      "segments": [
-        "end"
-      ]
-    },
-    {
-      "id": "which_scene_or_part",
-      "category": "question",
-      "canonical": "which scene or part",
-      "terms": [
-        "which scene or part",
-        "which scene",
-        "which part",
-        "어느 장면",
-        "어느 부분",
-        "무슨 부분",
-        "which 장면",
-        "어느 part",
-        "어느 부분 말해",
-        "어느 장면이야",
-        "which part do you mean",
-        "which scene do you mean"
-      ],
-      "related": [
-        "scene beginning middle end",
-        "clarification",
-        "ask back",
-        "clarify",
-        "locate"
-      ],
-      "korean_terms": [
-        "어느 장면",
-        "어느 부분",
-        "무슨 부분"
-      ],
-      "english_terms": [
-        "which scene",
-        "which part"
-      ],
-      "mixed_terms": [
-        "which 장면",
-        "어느 part"
-      ],
-      "question_forms": [
-        "어느 부분 말해",
-        "어느 장면이야",
-        "which part do you mean",
-        "which scene do you mean"
-      ],
-      "actions": [
-        "clarify",
-        "locate"
-      ],
-      "feelings": [],
-      "priority": 6,
-      "segments": [
-        "beginning",
-        "middle",
-        "end"
-      ]
-    },
-    {
-      "id": "scene_meaning",
-      "category": "question",
-      "canonical": "what does this scene mean",
-      "terms": [
-        "what does this scene mean",
-        "scene meaning",
-        "이 장면 무슨 뜻",
-        "이 장면 의미",
-        "장면 의미",
-        "scene 의미",
-        "이 scene 무슨 뜻",
-        "이 장면 무슨 뜻이야",
-        "장면 의미가 뭐야",
-        "what is the meaning of this scene"
-      ],
-      "related": [
-        "what does this part mean",
-        "ordinary to strange",
-        "mood shift",
-        "interpret",
-        "explain",
-        "curious"
-      ],
-      "korean_terms": [
-        "이 장면 무슨 뜻",
-        "이 장면 의미",
-        "장면 의미"
-      ],
-      "english_terms": [
-        "scene meaning",
-        "what does this scene mean"
-      ],
-      "mixed_terms": [
-        "scene 의미",
-        "이 scene 무슨 뜻"
-      ],
-      "question_forms": [
-        "이 장면 무슨 뜻이야",
-        "장면 의미가 뭐야",
-        "what does this scene mean",
-        "what is the meaning of this scene"
-      ],
-      "actions": [
-        "interpret",
-        "explain"
-      ],
-      "feelings": [
-        "curious"
+        "suspicious",
+        "tense"
       ],
       "priority": 8,
       "segments": [
@@ -2729,280 +1560,65 @@
       ]
     },
     {
-      "id": "why_public_setting_matters_short",
+      "id": "scene_reference",
       "category": "question",
-      "canonical": "why does the public setting matter short form",
+      "canonical": "beginning middle end reference",
       "terms": [
-        "why does the public setting matter short form",
-        "why public",
-        "왜 카페라서 중요해",
-        "왜 공공장소가 중요해",
-        "why does the public setting matter",
-        "public setting이 왜 중요해",
-        "왜 public이 중요해",
-        "왜 공공장소라 더 이상해",
-        "why is it important that this happens in public"
+        "beginning middle end reference",
+        "beginning",
+        "middle",
+        "end",
+        "처음",
+        "중간",
+        "끝",
+        "마지막 부분",
+        "beginning 부분",
+        "middle 장면",
+        "end 부분",
+        "어느 장면이야",
+        "어느 부분 말하는 거야",
+        "which part do you mean",
+        "which scene do you mean"
       ],
       "related": [
-        "public place tension",
-        "act normal",
-        "hide reaction",
-        "interpret",
-        "explain",
-        "uneasy",
-        "careful"
+        "scene",
+        "part",
+        "which part",
+        "locate",
+        "clarify",
+        "ask back"
       ],
       "korean_terms": [
-        "왜 카페라서 중요해",
-        "왜 공공장소가 중요해"
+        "처음",
+        "중간",
+        "끝",
+        "마지막 부분"
       ],
       "english_terms": [
-        "why public",
-        "why does the public setting matter"
+        "beginning",
+        "middle",
+        "end"
       ],
       "mixed_terms": [
-        "public setting이 왜 중요해",
-        "왜 public이 중요해"
+        "beginning 부분",
+        "middle 장면",
+        "end 부분"
       ],
       "question_forms": [
-        "왜 카페라서 중요해",
-        "왜 공공장소라 더 이상해",
-        "why does the public setting matter",
-        "why is it important that this happens in public"
+        "어느 장면이야",
+        "어느 부분 말하는 거야",
+        "which part do you mean",
+        "which scene do you mean"
       ],
       "actions": [
-        "interpret",
-        "explain"
+        "locate",
+        "clarify",
+        "ask back"
       ],
-      "feelings": [
-        "uneasy",
-        "careful"
-      ],
+      "feelings": [],
       "priority": 6,
       "segments": [
-        "middle",
-        "end"
-      ]
-    },
-    {
-      "id": "beginning_mood_question",
-      "category": "question",
-      "canonical": "how was the beginning mood",
-      "terms": [
-        "how was the beginning mood",
-        "beginning mood",
-        "first mood",
-        "처음 분위기",
-        "초반 분위기",
-        "beginning 분위기",
-        "first mood가 어때",
-        "처음 분위기 어땠어",
-        "초반엔 차분했어",
-        "how was the mood at the beginning",
-        "was the beginning calm"
-      ],
-      "related": [
-        "peaceful cafe mood",
-        "morning break",
-        "feelings shift",
-        "describe",
-        "compare",
-        "peaceful",
-        "calm",
-        "relaxed"
-      ],
-      "korean_terms": [
-        "처음 분위기",
-        "초반 분위기"
-      ],
-      "english_terms": [
-        "beginning mood",
-        "first mood"
-      ],
-      "mixed_terms": [
-        "beginning 분위기",
-        "first mood가 어때"
-      ],
-      "question_forms": [
-        "처음 분위기 어땠어",
-        "초반엔 차분했어",
-        "how was the mood at the beginning",
-        "was the beginning calm"
-      ],
-      "actions": [
-        "describe",
-        "compare"
-      ],
-      "feelings": [
-        "peaceful",
-        "calm",
-        "relaxed"
-      ],
-      "priority": 7,
-      "segments": [
-        "beginning"
-      ]
-    },
-    {
-      "id": "ending_hesitation_question",
-      "category": "question",
-      "canonical": "why does the story end with hesitation",
-      "terms": [
-        "why does the story end with hesitation",
-        "ending hesitation",
-        "why end with hesitation",
-        "마지막 망설임",
-        "왜 망설임으로 끝나",
-        "ending이 hesitation으로 끝나",
-        "왜 hesitation ending이야",
-        "마지막에 왜 행동 안 해",
-        "why does it end with hesitation",
-        "why doesn't she act at the end"
-      ],
-      "related": [
-        "hesitation decision",
-        "take or leave choice",
-        "what to do next",
-        "interpret",
-        "explain",
-        "uncertain",
-        "tense"
-      ],
-      "korean_terms": [
-        "마지막 망설임",
-        "왜 망설임으로 끝나"
-      ],
-      "english_terms": [
-        "ending hesitation",
-        "why end with hesitation"
-      ],
-      "mixed_terms": [
-        "ending이 hesitation으로 끝나",
-        "왜 hesitation ending이야"
-      ],
-      "question_forms": [
-        "왜 망설임으로 끝나",
-        "마지막에 왜 행동 안 해",
-        "why does it end with hesitation",
-        "why doesn't she act at the end"
-      ],
-      "actions": [
-        "interpret",
-        "explain"
-      ],
-      "feelings": [
-        "uncertain",
-        "tense"
-      ],
-      "priority": 8,
-      "segments": [
-        "end"
-      ]
-    },
-    {
-      "id": "simple_what_now",
-      "category": "question",
-      "canonical": "what now short ambiguous form",
-      "terms": [
-        "what now short ambiguous form",
-        "what now",
-        "now what",
-        "이제 뭐야",
-        "그다음은",
-        "다음은",
-        "이제 what",
-        "now 그다음은"
-      ],
-      "related": [
-        "ask back",
-        "idea or structure",
-        "clarification",
-        "clarify",
-        "route"
-      ],
-      "korean_terms": [
-        "이제 뭐야",
-        "그다음은",
-        "다음은"
-      ],
-      "english_terms": [
-        "what now",
-        "now what"
-      ],
-      "mixed_terms": [
-        "이제 what",
-        "now 그다음은"
-      ],
-      "question_forms": [
-        "그다음은",
-        "이제 뭐야",
-        "what now",
-        "now what"
-      ],
-      "actions": [
-        "clarify",
-        "route"
-      ],
-      "feelings": [],
-      "priority": 5,
-      "segments": [
-        "middle",
-        "end"
-      ]
-    },
-    {
-      "id": "natural_or_too_much",
-      "category": "question",
-      "canonical": "is this natural or too much",
-      "terms": [
-        "is this natural or too much",
-        "too much",
-        "natural",
-        "okay or too much",
-        "너무 세",
-        "자연스러워",
-        "과해",
-        "too much야",
-        "natural해",
-        "과한가 too much",
-        "is it too much",
-        "is it natural"
-      ],
-      "related": [
-        "ask back",
-        "idea or expression",
-        "clarification",
-        "clarify",
-        "route"
-      ],
-      "korean_terms": [
-        "너무 세",
-        "자연스러워",
-        "과해"
-      ],
-      "english_terms": [
-        "too much",
-        "natural",
-        "okay or too much"
-      ],
-      "mixed_terms": [
-        "too much야",
-        "natural해",
-        "과한가 too much"
-      ],
-      "question_forms": [
-        "너무 세",
-        "자연스러워",
-        "is it too much",
-        "is it natural"
-      ],
-      "actions": [
-        "clarify",
-        "route"
-      ],
-      "feelings": [],
-      "priority": 5,
-      "segments": [
+        "beginning",
         "middle",
         "end"
       ]

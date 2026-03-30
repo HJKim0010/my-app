@@ -463,6 +463,73 @@ function compactSentence(text: string): string {
   return text.replace(/\s+/g, " ").replace(/\s+([,.!?])/g, "$1").trim();
 }
 
+function sentenceIntentBoost(query: string, sentence: string): number {
+  const normalizedQuery = normalize(query);
+  const normalizedSentence = normalize(sentence);
+  let score = 0;
+
+  const boostIfMatched = (queryTerms: string[], sentenceTerms: string[], weight: number) => {
+    const queryMatched = queryTerms.some((term) => normalizedQuery.includes(term));
+    const sentenceMatched = sentenceTerms.some((term) => normalizedSentence.includes(term));
+
+    if (queryMatched && sentenceMatched) {
+      score += weight;
+    }
+  };
+
+  boostIfMatched(
+    ["놀랐", "놀란", "뭘 봤", "뭘 보고", "what did she see", "what was under", "surprised"],
+    [
+      "there was something taped",
+      "something taped to the bottom",
+      "looked under the table",
+      "found",
+      "under the table",
+      "taped",
+    ],
+    8
+  );
+
+  boostIfMatched(
+    ["망설", "왜 바로 안", "왜 안 갔", "why did she hesitate", "why didn't she take", "not sure"],
+    [
+      "stopped halfway",
+      "not sure what to do next",
+      "should she take it",
+      "reached out her hand",
+      "hesitate",
+      "waited",
+    ],
+    8
+  );
+
+  boostIfMatched(
+    ["쪽지", "what did the note say", "message", "무슨 뜻"],
+    ["look under table 7", "the note said", "small folded note"],
+    8
+  );
+
+  boostIfMatched(
+    ["table 7", "왜 중요", "why table 7"],
+    ["table 7", "look under table 7", "glanced toward table 7"],
+    6
+  );
+
+  boostIfMatched(
+    ["처음 분위기", "초반", "beginning", "at first"],
+    ["peaceful morning", "felt relaxed", "streets were quiet", "peaceful"],
+    6
+  );
+
+  boostIfMatched(
+    ["이상", "수상", "strange", "suspicious", "왜 이상해"],
+    ["noticed something strange", "no name no address", "no one seemed to notice", "strange"],
+    6
+  );
+
+  return score;
+}
+
 function takeBestSentences(taskId: TaskId, text: string, query: string, limit = 2): string[] {
   const sentences = text
     .split(/(?<=[.!?])\s+/)
@@ -472,7 +539,7 @@ function takeBestSentences(taskId: TaskId, text: string, query: string, limit = 
   return sentences
     .map((sentence) => ({
       sentence,
-      score: scoreSentence(taskId, sentence, query),
+      score: scoreSentence(taskId, sentence, query) + sentenceIntentBoost(query, sentence),
     }))
     .sort((a, b) => b.score - a.score || a.sentence.length - b.sentence.length)
     .filter((item) => item.score > 0)
