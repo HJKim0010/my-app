@@ -12,8 +12,9 @@ import { loadTaskPackage, type TaskCondition, type TaskId } from "@/backend/rag/
 import {
   buildSystemInstruction,
   buildUserInput,
+  detectResponseLanguage,
   detectSupportMode,
-  prefersKorean,
+  type ResponseLanguage,
   type SupportMode,
 } from "@/backend/rag/promptBuilder";
 import { retrieveTaskChunks } from "@/backend/rag/retriever";
@@ -29,7 +30,107 @@ function sanitizeAssistantResponse(text: string): string {
     .trim();
 }
 
-function buildNoChunkResponse(mode: SupportMode, korean: boolean): string {
+const CLARIFICATION_REQUEST_PATTERNS = [
+  /^what\??$/i,
+  /^what do you mean\??$/i,
+  /^huh\??$/i,
+  /^again\??$/i,
+  /^sorry\??$/i,
+  /^pardon\??$/i,
+  /^what was that\??$/i,
+  /^뭐라고\??$/i,
+  /^뭐라는 거야\??$/i,
+  /^무슨 말이야\??$/i,
+  /^무슨 뜻이야\??$/i,
+  /^다시\??$/i,
+  /^다시 말해줘\??$/i,
+  /^다시 설명해줘\??$/i,
+  /^쉽게 말해줘\??$/i,
+];
+
+function compactText(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function isClarificationRequest(query: string): boolean {
+  const normalized = compactText(query);
+
+  if (!normalized || normalized.length > 24) {
+    return false;
+  }
+
+  return CLARIFICATION_REQUEST_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+function extractLastAssistantMessage(recentMessages: RecentMessage[]): string {
+  for (let index = recentMessages.length - 1; index >= 0; index -= 1) {
+    const message = recentMessages[index];
+    if (message.role === "assistant") {
+      return compactText(message.text);
+    }
+  }
+
+  return "";
+}
+
+function summarizeAssistantMessage(text: string, language: ResponseLanguage): string {
+  const normalized = compactText(
+    text
+      .replace(/^assistant\s*/i, "")
+      .replace(/^[-*]\s*/gm, "")
+      .replace(/\s+/g, " ")
+  );
+
+  if (!normalized) {
+    return language === "korean"
+      ? "방금 답을 더 짧고 쉽게 다시 설명할 수 있어요."
+      : "I can explain the last answer again in a shorter and simpler way.";
+  }
+
+  const firstSentence = normalized.split(/(?<=[.!?])\s+/)[0] || normalized;
+  const clipped =
+    firstSentence.length > 110 ? `${firstSentence.slice(0, 107).trim()}...` : firstSentence;
+
+  if (language === "korean") {
+    return `짧게 다시 말하면, ${clipped}`;
+  }
+
+  return `In short, ${clipped}`;
+}
+
+function buildClarificationResponse(
+  recentMessages: RecentMessage[],
+  language: ResponseLanguage
+): string {
+  const summary = summarizeAssistantMessage(
+    extractLastAssistantMessage(recentMessages),
+    language
+  );
+
+  if (language === "korean") {
+    return [
+      summary,
+      "원하면 이렇게 말해줘도 괜찮아요.",
+      "1) 너무 길었어",
+      "2) 어려운 표현이 있었어",
+      "3) 어느 부분 말인지 모르겠어",
+      "번호나 짧은 말로 답하면 그 방식으로 다시 설명할게요.",
+    ].join("\n");
+  }
+
+  return [
+    summary,
+    "You can reply like this.",
+    "1) It was too long.",
+    "2) There was a difficult expression.",
+    "3) I am not sure which part you mean.",
+    "Reply with a number or a short phrase, and I will explain it that way.",
+  ].join("\n");
+}
+
+function buildNoChunkResponse(mode: SupportMode, language: ResponseLanguage): string {
+  const korean = language === "korean";
+
   if (mode === "comprehension") {
     return korean
       ? "지금 질문만으로는 어느 장면이나 부분을 말하는지 확실하지 않아요. 이야기의 한 장면, 인물 행동, 물건, 또는 문장을 하나만 더 말해주면 그 부분을 같이 이해해볼게요."
@@ -132,8 +233,41 @@ export async function POST(request: NextRequest) {
   const policyDecision = classifyQuery(query);
   const restrictionReason = detectRestrictionReason(query);
   const supportMode = detectSupportMode(query, category);
-  const korean = prefersKorean(query);
+  const responseLanguage = detectResponseLanguage(query);
   const conversationMemory = buildConversationMemory(taskId, query, recentMessages);
+
+  if (isClarificationRequest(query) && recentMessages.length > 0) {
+    const clarificationResponse = buildClarificationResponse(
+      recentMessages,
+      responseLanguage
+    );
+
+    persistChatLogInBackground({
+      participant_id: participantId,
+      session_id: sessionId,
+      task_id: taskPackage.config.task_id,
+      condition_label: taskPackage.config.ai_condition,
+      selected_category: category,
+      raw_user_query: query,
+      policy_decision: "allowed",
+      status: "allowed",
+      retrieved_chunk_ids: [],
+      retrieved_chunk_metadata: [],
+      assistant_response: clarificationResponse,
+      timestamp,
+      response_length: clarificationResponse.length,
+      interaction_count: interactionCount,
+      session_duration_ms: sessionDurationMs,
+      query_type_label: "clarification_request",
+      source_types_used: [],
+      visual_assets_used: [],
+    });
+
+    return new Response(clarificationResponse, {
+      status: 200,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
+  }
 
   if (policyDecision === "restricted") {
     const redirected = redirectResponse(restrictionReason ?? "sentence_generation");
@@ -176,7 +310,7 @@ export async function POST(request: NextRequest) {
   );
 
   if (retrievedChunks.length === 0) {
-    const boundedResponse = buildNoChunkResponse(supportMode, korean);
+    const boundedResponse = buildNoChunkResponse(supportMode, responseLanguage);
 
     persistChatLogInBackground({
       participant_id: participantId,
@@ -226,7 +360,7 @@ export async function POST(request: NextRequest) {
     const response = await client.responses.create(
       {
         model,
-        instructions: buildSystemInstruction(),
+        instructions: buildSystemInstruction(responseLanguage),
         input: [
           {
             role: "user",
@@ -239,6 +373,7 @@ export async function POST(request: NextRequest) {
                   taskPackage,
                   retrievedChunks,
                   supportMode,
+                  responseLanguage,
                   conversationMemory
                 ),
               },

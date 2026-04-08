@@ -3,6 +3,7 @@ import type { ConversationMemory } from "@/backend/rag/conversationMemory";
 import type { RetrievedChunk } from "@/backend/rag/retriever";
 
 export type SupportMode = "comprehension" | "ideas" | "organization" | "language";
+export type ResponseLanguage = "korean" | "english";
 
 const SENTENCE_SUPPORT_TERMS = [
   "in english",
@@ -81,6 +82,46 @@ export function prefersKorean(text: string): boolean {
   return /[\uac00-\ud7a3]/.test(text);
 }
 
+function prefersEnglish(text: string): boolean {
+  return /[a-z]/i.test(text) && !prefersKorean(text);
+}
+
+export function detectResponseLanguage(query: string): ResponseLanguage {
+  const normalized = query.toLowerCase();
+
+  const wantsEnglish = [
+    "in english",
+    "english please",
+    "answer in english",
+    "say it in english",
+    "영어로",
+    "영어로 답",
+    "영어로 설명",
+  ].some((term) => normalized.includes(term));
+
+  if (wantsEnglish) {
+    return "english";
+  }
+
+  const wantsKorean = [
+    "in korean",
+    "korean please",
+    "answer in korean",
+    "한국어로",
+    "한글로",
+    "한국어로 답",
+    "한글로 답",
+    "한국어로 설명",
+    "한글로 설명",
+  ].some((term) => normalized.includes(term));
+
+  if (wantsKorean) {
+    return "korean";
+  }
+
+  return prefersEnglish(query) ? "english" : "korean";
+}
+
 export function detectSupportMode(query: string, category?: string): SupportMode {
   const normalized = query.toLowerCase();
   const loweredCategory = category?.toLowerCase() || "";
@@ -120,7 +161,7 @@ export function detectSentenceLevelSupport(query: string): boolean {
   return SENTENCE_SUPPORT_TERMS.some((term) => normalized.includes(term.toLowerCase()));
 }
 
-export function buildSystemInstruction(): string {
+export function buildSystemInstruction(language: ResponseLanguage): string {
   return [
     "You are My Writing Assistant, a supportive and source-grounded chatbot for integrated writing.",
     "You are a helper and thinking partner, not a scorer, rater, evaluator, or judge.",
@@ -147,7 +188,9 @@ export function buildSystemInstruction(): string {
     "Prefer fact plus reason plus implication, not isolated fact recall.",
     "Keep responses concise, practical, and supportive.",
     "Use plain text only.",
-    "If the user writes in Korean, answer mainly in Korean and add short English words only when useful.",
+    language === "english"
+      ? "Answer in English for this turn. Only switch languages if the user explicitly asks you to."
+      : "Answer mainly in Korean for this turn. Add short English words or phrases only when useful for learning.",
     "If the retrieved materials are not enough to answer safely, say so briefly and ask the user to specify one scene, object, action, or line.",
   ].join("\n");
 }
@@ -205,6 +248,7 @@ export function buildUserInput(
   taskPackage: TaskPackage,
   retrievedChunks: RetrievedChunk[],
   mode: SupportMode,
+  language: ResponseLanguage,
   memory?: ConversationMemory
 ): string {
   const chunksText =
@@ -221,6 +265,7 @@ export function buildUserInput(
     `Task ID: ${taskPackage.taskId}`,
     `Category: ${category}`,
     `Support mode: ${mode}`,
+    `Response language: ${language}`,
     "",
     buildModeInstruction(mode),
     buildSentenceSupportInstruction(query),
