@@ -1,4 +1,5 @@
 import { chunkDocuments, type TaskChunk } from "@/backend/rag/chunker";
+import type { ConversationMemory } from "@/backend/rag/conversationMemory";
 import {
   detectLexiconSegments,
   expandQueryTerms,
@@ -63,8 +64,15 @@ function sourceBoost(sourceType: string): number {
   return 0;
 }
 
-function scoreChunk(taskId: TaskId, chunk: TaskChunk, query: string, totalChunks: number): number {
-  const expandedTerms = new Set(expandQueryTerms(taskId, query));
+function scoreChunk(
+  taskId: TaskId,
+  chunk: TaskChunk,
+  query: string,
+  totalChunks: number,
+  memory?: ConversationMemory
+): number {
+  const memoryText = [memory?.lastUserFocus || "", ...(memory?.activeEntities || [])].join(" ");
+  const expandedTerms = new Set(expandQueryTerms(taskId, `${query} ${memoryText}`));
   const chunkTokens = splitNormalized(chunk.content);
   let score = 0;
 
@@ -109,7 +117,7 @@ function scoreChunk(taskId: TaskId, chunk: TaskChunk, query: string, totalChunks
   }
 
   const explicitSegment = detectExplicitSegment(query);
-  const lexicalSegments = detectLexiconSegments(taskId, query);
+  const lexicalSegments = detectLexiconSegments(taskId, `${query} ${memoryText}`);
   const chunkSegment = getSegmentForChunk(chunk, totalChunks);
 
   if (explicitSegment && explicitSegment === chunkSegment) {
@@ -118,6 +126,19 @@ function scoreChunk(taskId: TaskId, chunk: TaskChunk, query: string, totalChunks
 
   if (lexicalSegments.includes(chunkSegment)) {
     score += 2;
+  }
+
+  if (memory?.activeScene && memory.activeScene === chunkSegment) {
+    score += 3;
+  }
+
+  if (memory?.activeEntities?.length) {
+    const normalizedChunk = normalizeLexiconText(chunk.content);
+    for (const entity of memory.activeEntities) {
+      if (normalizedChunk.includes(normalizeLexiconText(entity))) {
+        score += 2;
+      }
+    }
   }
 
   score += sourceBoost(chunk.sourceType);
@@ -147,7 +168,9 @@ export function retrieveTaskChunks(
   taskId: TaskId,
   query: string,
   taskPackage: TaskPackage,
-  limit = 4
+  limit = 4,
+  allowFallback = true,
+  memory?: ConversationMemory
 ): RetrievedChunk[] {
   const chunks = chunkDocuments(taskId, taskPackage.documents);
   const totalChunks = chunks.length;
@@ -155,7 +178,7 @@ export function retrieveTaskChunks(
   const scored = chunks
     .map((chunk) => ({
       ...chunk,
-      score: scoreChunk(taskId, chunk, query, totalChunks),
+      score: scoreChunk(taskId, chunk, query, totalChunks, memory),
     }))
     .filter((chunk) => chunk.score > 0)
     .sort((a, b) => b.score - a.score || a.chunkIndex - b.chunkIndex)
@@ -163,6 +186,10 @@ export function retrieveTaskChunks(
 
   if (scored.length > 0) {
     return scored;
+  }
+
+  if (!allowFallback) {
+    return [];
   }
 
   return fallbackChunks(chunks, query).map((chunk) => ({
@@ -176,7 +203,8 @@ export function retrieveTaskDocumentsForCondition(
   query: string,
   documents: TaskDocument[],
   condition: TaskCondition,
-  limit = 4
+  limit = 4,
+  memory?: ConversationMemory
 ): RetrievedChunk[] {
   const chunks = chunkDocuments(taskId, documents);
   const totalChunks = chunks.length;
@@ -184,7 +212,7 @@ export function retrieveTaskDocumentsForCondition(
   const scored = chunks
     .map((chunk) => ({
       ...chunk,
-      score: scoreChunk(taskId, chunk, query, totalChunks),
+      score: scoreChunk(taskId, chunk, query, totalChunks, memory),
     }))
     .filter((chunk) => chunk.score > 0)
     .sort((a, b) => b.score - a.score || a.chunkIndex - b.chunkIndex)
