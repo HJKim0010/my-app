@@ -598,7 +598,6 @@ export default function Home() {
           participantId,
           query: userText,
           recentMessages: currentState.messages
-            .filter((message) => message.role === "user")
             .filter((message) => message.id !== "welcome")
             .slice(-4)
             .map(({ role, text }) => ({ role, text })),
@@ -954,7 +953,7 @@ export default function Home() {
                 }}
                 rows={4}
                 className="chat-input"
-                placeholder="Ask what a part means, what could happen next, how to plan your writing, or what words, expressions, and language help might help."
+                placeholder="Ask what a clue means, why a character feels that way, what could happen next, how to organize your story, or what words fit the scene."
               />
 
               <div className="composer-footer">

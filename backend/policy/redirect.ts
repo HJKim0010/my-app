@@ -10,6 +10,6 @@ export function redirectResponse(reason: RestrictionReason): string {
       return "I cannot add outside content beyond the assigned materials. I can help you think of ideas that stay consistent with the story you were given.";
     case "sentence_generation":
     default:
-      return "I cannot write the answer or continuation for you. I can help with one scene, possible ideas, writing plans, or useful words and expressions.";
+      return "I cannot write the answer or continuation for you. I can help with one scene, possible ideas, writing plans, useful words and expressions, or one short sentence pattern.";
   }
 }
