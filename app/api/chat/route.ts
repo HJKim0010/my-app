@@ -59,13 +59,25 @@ function persistChatLogInBackground(entry: ChatLogEntry): void {
   });
 }
 
+function normalizeParticipantId(value: unknown): string {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value.trim().replace(/\s+/g, "-").toUpperCase();
+}
+
+function isValidParticipantId(value: string): boolean {
+  return /^[A-Z0-9_-]{2,40}$/.test(value);
+}
+
 export async function POST(request: NextRequest) {
   let query = "";
   let category = "Others";
   let taskId: TaskId = "task1";
   let condition: TaskCondition = "static";
-  let participantId = "anonymous";
   let sessionId = "unknown-session";
+  let participantId = "";
   let interactionCount = 1;
   let sessionStartedAt = Date.now();
   let recentMessages: RecentMessage[] = [];
@@ -76,11 +88,8 @@ export async function POST(request: NextRequest) {
     category = typeof body?.category === "string" ? body.category : category;
     taskId = body?.taskId === "task2" ? "task2" : "task1";
     condition = body?.condition === "dynamic" ? "dynamic" : "static";
-    participantId =
-      typeof body?.participantId === "string" && body.participantId.trim()
-        ? body.participantId.trim()
-        : participantId;
     sessionId = typeof body?.sessionId === "string" ? body.sessionId : sessionId;
+    participantId = normalizeParticipantId(body?.participantId);
     interactionCount =
       typeof body?.interactionCount === "number" ? body.interactionCount : interactionCount;
     sessionStartedAt =
@@ -114,6 +123,12 @@ export async function POST(request: NextRequest) {
   const taskPackage = loadTaskPackage(taskId, condition);
   const timestamp = new Date().toISOString();
   const sessionDurationMs = Math.max(0, Date.now() - sessionStartedAt);
+  if (!isValidParticipantId(participantId)) {
+    return new Response("Participant ID is required before starting the chat.", {
+      status: 400,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
+  }
   const policyDecision = classifyQuery(query);
   const restrictionReason = detectRestrictionReason(query);
   const supportMode = detectSupportMode(query, category);
