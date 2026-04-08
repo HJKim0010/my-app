@@ -48,6 +48,8 @@ const CLARIFICATION_REQUEST_PATTERNS = [
   /^쉽게 말해줘\??$/i,
 ];
 
+type ClarificationOption = "shorter" | "simpler" | "which_part" | null;
+
 function compactText(text: string): string {
   return text.replace(/\s+/g, " ").trim();
 }
@@ -62,6 +64,56 @@ function isClarificationRequest(query: string): boolean {
   return CLARIFICATION_REQUEST_PATTERNS.some((pattern) => pattern.test(normalized));
 }
 
+function detectClarificationOption(query: string): ClarificationOption {
+  const normalized = compactText(query).toLowerCase();
+
+  if (!normalized || normalized.length > 30) {
+    return null;
+  }
+
+  if (
+    ["1", "1)", "too long", "shorter", "brief", "짧게", "너무 길었어", "길었어"].includes(
+      normalized
+    )
+  ) {
+    return "shorter";
+  }
+
+  if (
+    [
+      "2",
+      "2)",
+      "simpler",
+      "easy",
+      "easier",
+      "쉽게",
+      "더 쉽게",
+      "어려운 표현",
+      "어려웠어",
+    ].includes(normalized)
+  ) {
+    return "simpler";
+  }
+
+  if (
+    [
+      "3",
+      "3)",
+      "which part",
+      "what part",
+      "어느 부분",
+      "어느 부분인지",
+      "부분",
+      "뭐를 말하는지",
+      "뭐가 뭔지",
+    ].includes(normalized)
+  ) {
+    return "which_part";
+  }
+
+  return null;
+}
+
 function extractLastAssistantMessage(recentMessages: RecentMessage[]): string {
   for (let index = recentMessages.length - 1; index >= 0; index -= 1) {
     const message = recentMessages[index];
@@ -71,6 +123,19 @@ function extractLastAssistantMessage(recentMessages: RecentMessage[]): string {
   }
 
   return "";
+}
+
+function hasClarificationMenu(text: string): boolean {
+  const normalized = compactText(text).toLowerCase();
+  return (
+    normalized.includes("1)") &&
+    normalized.includes("2)") &&
+    normalized.includes("3)") &&
+    (normalized.includes("너무 길었어") ||
+      normalized.includes("it was too long") ||
+      normalized.includes("어려운 표현") ||
+      normalized.includes("difficult expression"))
+  );
 }
 
 function summarizeAssistantMessage(text: string, language: ResponseLanguage): string {
@@ -125,6 +190,71 @@ function buildClarificationResponse(
     "2) There was a difficult expression.",
     "3) I am not sure which part you mean.",
     "Reply with a number or a short phrase, and I will explain it that way.",
+  ].join("\n");
+}
+
+function buildClarificationOptionResponse(
+  option: ClarificationOption,
+  recentMessages: RecentMessage[],
+  language: ResponseLanguage
+): string | null {
+  if (!option) {
+    return null;
+  }
+
+  const lastAssistant = extractLastAssistantMessage(recentMessages);
+  if (!lastAssistant || !hasClarificationMenu(lastAssistant)) {
+    return null;
+  }
+
+  const summary = summarizeAssistantMessage(lastAssistant, language);
+
+  if (language === "korean") {
+    if (option === "shorter") {
+      return [
+        summary,
+        "핵심만 말하면 이 뜻이에요.",
+        "원하면 2) 더 쉽게, 3) 어느 부분인지 집어서 다시 설명할게요.",
+      ].join("\n");
+    }
+
+    if (option === "simpler") {
+      return [
+        summary,
+        "쉽게 말하면, 방금 답의 핵심 하나만 잡으면 돼요.",
+        "헷갈린 단어가 있으면 그 단어만 말해줘도 돼요.",
+        "원하면 1) 더 짧게, 3) 어느 부분인지 집어서 다시 설명할게요.",
+      ].join("\n");
+    }
+
+    return [
+      "좋아요. 그럼 헷갈린 부분만 집어서 다시 볼게요.",
+      "장면, 인물, 물건, 행동, 문장 중 하나를 짧게 말해줘.",
+      "예: table 7 / 쪽지 / Anna가 왜 멈췄는지",
+    ].join("\n");
+  }
+
+  if (option === "shorter") {
+    return [
+      summary,
+      "That is the main point.",
+      "If you want, I can also 2) make it simpler or 3) focus on one specific part.",
+    ].join("\n");
+  }
+
+  if (option === "simpler") {
+    return [
+      summary,
+      "In easier words, focus on just one main idea from the last answer.",
+      "If one word is confusing, you can send just that word.",
+      "If you want, I can also 1) make it shorter or 3) focus on one specific part.",
+    ].join("\n");
+  }
+
+  return [
+    "Okay. Then tell me only the part that is confusing.",
+    "You can name one scene, person, object, action, or line.",
+    "Example: table 7 / the note / why Anna stopped",
   ].join("\n");
 }
 
@@ -235,6 +365,43 @@ export async function POST(request: NextRequest) {
   const supportMode = detectSupportMode(query, category);
   const responseLanguage = detectResponseLanguage(query);
   const conversationMemory = buildConversationMemory(taskId, query, recentMessages);
+  const clarificationOption = detectClarificationOption(query);
+
+  if (clarificationOption && recentMessages.length > 0) {
+    const clarificationOptionResponse = buildClarificationOptionResponse(
+      clarificationOption,
+      recentMessages,
+      responseLanguage
+    );
+
+    if (clarificationOptionResponse) {
+      persistChatLogInBackground({
+        participant_id: participantId,
+        session_id: sessionId,
+        task_id: taskPackage.config.task_id,
+        condition_label: taskPackage.config.ai_condition,
+        selected_category: category,
+        raw_user_query: query,
+        policy_decision: "allowed",
+        status: "allowed",
+        retrieved_chunk_ids: [],
+        retrieved_chunk_metadata: [],
+        assistant_response: clarificationOptionResponse,
+        timestamp,
+        response_length: clarificationOptionResponse.length,
+        interaction_count: interactionCount,
+        session_duration_ms: sessionDurationMs,
+        query_type_label: "clarification_option",
+        source_types_used: [],
+        visual_assets_used: [],
+      });
+
+      return new Response(clarificationOptionResponse, {
+        status: 200,
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+      });
+    }
+  }
 
   if (isClarificationRequest(query) && recentMessages.length > 0) {
     const clarificationResponse = buildClarificationResponse(
