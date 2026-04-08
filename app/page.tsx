@@ -194,6 +194,21 @@ function hydrateTaskStates(raw: string | null): Record<TaskId, TaskChatState> {
   }
 }
 
+const GUIDE_COMPARE_ROWS = [
+  {
+    wrong: '"Write the ending."',
+    better: '"What are 2 possible endings?"',
+  },
+  {
+    wrong: '"Summarize the story."',
+    better: '"What problem does the character face?"',
+  },
+  {
+    wrong: '"Fix my paragraph."',
+    better: '"What word can I use instead of \'very tired\'?"',
+  },
+] as const;
+
 function GuideContent() {
   return (
     <div className="guide-copy">
@@ -282,16 +297,22 @@ function GuideContent() {
         <div className="guide-compare">
           <div className="guide-compare-head guide-compare-wrong">Wrong / {KO.wrongUse}</div>
           <div className="guide-compare-head guide-compare-right">Better / {KO.betterUse}</div>
-          <div className="guide-compare-cell">&quot;Write the ending.&quot;</div>
-          <div className="guide-compare-cell">&quot;What are 2 possible endings?&quot;</div>
-          <div className="guide-compare-cell">&quot;Summarize the story.&quot;</div>
-          <div className="guide-compare-cell">
-            &quot;What problem does the character face?&quot;
-          </div>
-          <div className="guide-compare-cell">&quot;Fix my paragraph.&quot;</div>
-          <div className="guide-compare-cell">
-            &quot;What word can I use instead of &apos;very tired&apos;?&quot;
-          </div>
+          {GUIDE_COMPARE_ROWS.map((row) => (
+            <div key={row.wrong} className="guide-compare-row">
+              <div
+                className="guide-compare-cell"
+                data-label={`Wrong / ${KO.wrongUse}`}
+              >
+                {row.wrong}
+              </div>
+              <div
+                className="guide-compare-cell"
+                data-label={`Better / ${KO.betterUse}`}
+              >
+                {row.better}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

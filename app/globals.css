@@ -248,6 +248,10 @@ body {
   background: #fff;
 }
 
+.guide-compare-row {
+  display: contents;
+}
+
 .guide-compare-head,
 .guide-compare-cell {
   padding: 12px 14px;
@@ -274,12 +278,17 @@ body {
   border-bottom: 1px solid rgba(216, 207, 193, 0.75);
 }
 
-.guide-compare-cell:nth-child(odd) {
+.guide-compare-row > .guide-compare-cell:first-child {
   border-right: 1px solid rgba(216, 207, 193, 0.75);
 }
 
-.guide-compare > :nth-last-child(-n + 2) {
+.guide-compare-row:last-child > .guide-compare-cell {
   border-bottom: 0;
+}
+
+.guide-compare-cell::before {
+  display: none;
+  content: attr(data-label);
 }
 
 .guide-check {
@@ -594,6 +603,18 @@ body {
   overflow-y: auto;
 }
 
+@media (max-width: 1024px) {
+  .guide-compare-head,
+  .guide-compare-cell {
+    padding: 11px 12px;
+    font-size: 0.97rem;
+  }
+
+  .modal-card {
+    width: min(920px, 100%);
+  }
+}
+
 @media (max-width: 768px) {
   .chat-shell {
     padding: 18px 12px;
@@ -657,19 +678,54 @@ body {
   }
 
   .guide-compare {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    border: 0;
+    background: transparent;
   }
 
-  .guide-compare-cell:nth-child(odd) {
+  .guide-compare-head {
+    display: none;
+  }
+
+  .guide-compare-row {
+    display: block;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    background: #fff;
+  }
+
+  .guide-compare-row > .guide-compare-cell:first-child {
     border-right: 0;
   }
 
-  .guide-compare > :nth-last-child(-n + 2) {
+  .guide-compare-row:last-child > .guide-compare-cell {
     border-bottom: 1px solid rgba(216, 207, 193, 0.75);
   }
 
-  .guide-compare > :last-child {
+  .guide-compare-row > .guide-compare-cell:last-child {
     border-bottom: 0;
+  }
+
+  .guide-compare-cell {
+    padding: 12px;
+  }
+
+  .guide-compare-cell::before {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.92rem;
+    font-weight: 700;
+  }
+
+  .guide-compare-row > .guide-compare-cell:first-child::before {
+    color: #7c3b22;
+  }
+
+  .guide-compare-row > .guide-compare-cell:last-child::before {
+    color: #21553a;
   }
 
   .modal-backdrop {
