@@ -727,13 +727,25 @@ function buildPlanningResponse(taskId: TaskId, query: string): string {
   ].join("\n");
 }
 
+function normalizeParticipantId(value: unknown): string {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  return value.trim().replace(/\s+/g, "-").toUpperCase();
+}
+
+function isValidParticipantId(value: string): boolean {
+  return /^[A-Z0-9_-]{2,40}$/.test(value);
+}
+
 export async function POST(request: NextRequest) {
   let query = "";
   let category = "Others";
   let taskId: TaskId = "task1";
   let condition: TaskCondition = "static";
-  let participantId = "anonymous";
   let sessionId = "unknown-session";
+  let participantId = "";
   let interactionCount = 1;
   let sessionStartedAt = Date.now();
   let recentMessages: Array<{ role: "user" | "assistant"; text: string }> = [];
@@ -744,10 +756,6 @@ export async function POST(request: NextRequest) {
     category = typeof body?.category === "string" ? body.category : category;
     taskId = body?.taskId === "task2" ? "task2" : "task1";
     condition = body?.condition === "dynamic" ? "dynamic" : "static";
-    participantId =
-      typeof body?.participantId === "string" && body.participantId.trim()
-        ? body.participantId.trim()
-        : participantId;
     recentMessages = Array.isArray(body?.recentMessages)
       ? (body.recentMessages as unknown[])
           .filter(
@@ -765,6 +773,7 @@ export async function POST(request: NextRequest) {
           .slice(-4)
       : [];
     sessionId = typeof body?.sessionId === "string" ? body.sessionId : sessionId;
+    participantId = normalizeParticipantId(body?.participantId);
     interactionCount =
       typeof body?.interactionCount === "number" ? body.interactionCount : interactionCount;
     sessionStartedAt =
@@ -786,6 +795,13 @@ export async function POST(request: NextRequest) {
 
   if (!query.trim()) {
     return new Response("Please enter a prompt.", {
+      status: 400,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
+  }
+
+  if (!isValidParticipantId(participantId)) {
+    return new Response("Participant ID is required before starting the chat.", {
       status: 400,
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });

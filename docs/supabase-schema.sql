@@ -46,3 +46,23 @@ create index if not exists session_transcripts_session_id_idx
 
 create index if not exists session_transcripts_participant_id_idx
   on public.session_transcripts (participant_id);
+
+alter table public.chat_events
+  add column if not exists participant_id text;
+
+alter table public.session_transcripts
+  add column if not exists participant_id text;
+
+update public.chat_events
+set participant_id = coalesce(nullif(participant_id, ''), 'UNKNOWN')
+where participant_id is null or participant_id = '';
+
+update public.session_transcripts
+set participant_id = coalesce(nullif(participant_id, ''), 'UNKNOWN')
+where participant_id is null or participant_id = '';
+
+alter table public.chat_events
+  alter column participant_id set not null;
+
+alter table public.session_transcripts
+  alter column participant_id set not null;

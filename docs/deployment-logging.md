@@ -9,6 +9,14 @@ Set these environment variables in local `.env.local` and in your deployment pla
 
 Run the SQL in `docs/supabase-schema.sql` inside the Supabase SQL editor.
 
+Participant tracking requirements:
+
+- every user must enter a participant ID before the chat starts
+- the app now stores `participant_id` in both `chat_events` and `session_transcripts`
+- if you are updating an existing Supabase project, run the same SQL file again so the new
+  column and indexes are added safely
+- older rows without a participant ID are backfilled to `UNKNOWN` by the migration script
+
 When Supabase variables are present, the app logs:
 
 - per-turn chat events to `chat_events`
