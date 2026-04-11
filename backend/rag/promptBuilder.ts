@@ -184,6 +184,8 @@ export function buildSystemInstruction(language: ResponseLanguage): string {
     "For sentence-level language support, prefer a short pattern or key structure first.",
     "You may give one short example sentence only when it serves as language illustration, not as continuation writing.",
     "Do not give multiple connected sentences or a polished paragraph as language help.",
+    "Answer in 3 to 5 short bullet points by default.",
+    "Keep the whole answer within 5 short sentences or bullet lines.",
     "When possible, answer in this order: direct answer, short reason, and one helpful next step.",
     "Prefer fact plus reason plus implication, not isolated fact recall.",
     "Keep responses concise, practical, and supportive.",

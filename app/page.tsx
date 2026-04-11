@@ -25,6 +25,12 @@ const TASK_IDS: TaskId[] = ["task1", "task2"];
 const STORAGE_KEY_PREFIX = "writing-assistant-task-state-v6";
 const GUIDE_KEY_PREFIX = "writing-assistant-guide-accepted-v5";
 const CURRENT_PARTICIPANT_KEY = "writing-assistant-current-participant-v4";
+const EXAMPLE_PROMPTS = [
+  "이 이야기 다음에 가능한 전개 2개 알려줘",
+  "이 장면의 감정을 영어로 표현하면?",
+  "내 글 구조를 간단히 정리해줘",
+  "이 단어 대신 쓸 수 있는 표현 3개만",
+] as const;
 
 const KO = {
   intro:
@@ -83,7 +89,7 @@ function buildWelcomeMessage(): ChatMessage {
     id: "welcome",
     role: "assistant",
     text:
-      "Hello. I can help you understand the story, think of next ideas, plan your writing, and find useful words, expressions, or language help. Ask one thing at a time, and we can work through it together.",
+      "이 챗봇은 다음을 도와줄 수 있습니다:\n\n* 이야기 이해하기\n* 다음 전개 아이디어 찾기\n* 글 구조 정리하기\n* 영어 표현/단어 찾기\n\n하지만 다음은 해주지 않습니다:\n\n* 문장이나 문단을 대신 작성\n* 전체 글 수정 또는 첨삭\n* 전체 내용 요약",
   };
 }
 
@@ -185,6 +191,14 @@ function hydrateTaskStates(raw: string | null): Record<TaskId, TaskChatState> {
 
       if (next[taskId].messages.length === 0) {
         next[taskId].messages = [buildWelcomeMessage()];
+        continue;
+      }
+
+      const firstMessage = next[taskId].messages[0];
+      if (firstMessage?.id === "welcome" && firstMessage.role === "assistant") {
+        next[taskId].messages[0] = buildWelcomeMessage();
+      } else {
+        next[taskId].messages = [buildWelcomeMessage(), ...next[taskId].messages];
       }
     }
 
@@ -688,7 +702,7 @@ export default function Home() {
     setInput("");
   };
 
-  const taskLabel = selectedTask === "task2" ? "Task 2" : "Task 1";
+  const displayTaskLabel = selectedTask === "task2" ? "EP2" : "EP1";
 
   const clearSavedLocalLogs = () => {
     if (adminResetCode !== "0784") {
@@ -774,7 +788,7 @@ export default function Home() {
                   }
                   onClick={() => setSelectedTask(taskId)}
                 >
-                  {taskId === "task2" ? "Task 2" : "Task 1"}
+                  {taskId === "task2" ? "EP2" : "EP1"}
                 </button>
               ))}
             </div>
@@ -833,7 +847,7 @@ export default function Home() {
         <section className="chat-card">
           <div className="chat-header">
             <div>
-              <div className="task-display-pill">{taskLabel}</div>
+              <div className="task-display-pill">{displayTaskLabel}</div>
               <h1>My Writing Assistant</h1>
               <p className="participant-caption">Participant ID: {participantId}</p>
             </div>
@@ -941,6 +955,22 @@ export default function Home() {
               <div ref={threadEndRef} />
             </div>
             <div className="composer-inline">
+              <div className="example-prompt-panel" aria-label="Question examples">
+                <p className="example-prompt-title">Question examples</p>
+                <div className="example-prompt-list">
+                  {EXAMPLE_PROMPTS.map((example) => (
+                    <button
+                      key={example}
+                      type="button"
+                      className="example-prompt-button"
+                      onClick={() => setInput(example)}
+                    >
+                      {example}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <textarea
                 id="chat-input"
                 value={input}

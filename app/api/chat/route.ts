@@ -23,11 +23,40 @@ import type { ChatLogEntry } from "@/backend/logs/logger";
 function sanitizeAssistantResponse(text: string): string {
   return text
     .replace(/\*\*/g, "")
-    .replace(/\*/g, "")
     .replace(/^#{1,6}\s*/gm, "")
     .replace(/^\s*\d+\.\s+/gm, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+}
+
+function limitAssistantResponse(text: string): string {
+  const normalized = sanitizeAssistantResponse(text);
+
+  if (!normalized) {
+    return normalized;
+  }
+
+  const bulletLines = normalized
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (bulletLines.length > 1) {
+    return bulletLines
+      .slice(0, 5)
+      .map((line) => (line.startsWith("*") || line.startsWith("-") ? line : `* ${line}`))
+      .join("\n");
+  }
+
+  const sentences = normalized.match(/[^.!?\n]+(?:[.!?]+|$)/g)?.map((part) => part.trim()) ?? [
+    normalized,
+  ];
+
+  return sentences
+    .filter(Boolean)
+    .slice(0, 5)
+    .map((sentence) => `* ${sentence}`)
+    .join("\n");
 }
 
 const CLARIFICATION_REQUEST_PATTERNS = [
@@ -553,7 +582,7 @@ export async function POST(request: NextRequest) {
     );
 
     clearTimeout(timeout);
-    const assistantResponse = sanitizeAssistantResponse(
+    const assistantResponse = limitAssistantResponse(
       response.output_text || "No response text returned."
     );
 
