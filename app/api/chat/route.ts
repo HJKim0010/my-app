@@ -313,6 +313,131 @@ function buildNoChunkResponse(mode: SupportMode, language: ResponseLanguage): st
     : "I am not sure which word, expression, or grammar point you want help with yet. If you share one expression or sentence, I can help within that range.";
 }
 
+function hasQuotedTarget(text: string): boolean {
+  return /["'“”‘’].+?["'“”‘’]/.test(text);
+}
+
+function compactLower(text: string): string {
+  return compactText(text).toLowerCase();
+}
+
+function isAmbiguousLanguageQuery(query: string, hasContextTarget: boolean): boolean {
+  const normalized = compactLower(query);
+
+  if (hasQuotedTarget(query)) {
+    return false;
+  }
+
+  if (
+    /(이|그|저)\s*(단어|표현|문장|문법|뜻)|\b(this|that)\s*(word|expression|sentence|grammar|meaning)\b/.test(
+      normalized
+    )
+  ) {
+    return !hasContextTarget;
+  }
+
+  if (
+    /(이|그|저)\s*장면.*감정|\b(this|that)\s*scene\b.*\b(feeling|emotion)\b/.test(normalized)
+  ) {
+    return !hasContextTarget;
+  }
+
+  return false;
+}
+
+function isAmbiguousOrganizationQuery(query: string, hasContextTarget: boolean): boolean {
+  const normalized = compactLower(query);
+
+  if (
+    /(내\s*글\s*구조|글\s*구조|이야기\s*구조|스토리\s*구조)|\b(my story structure|story structure|organize my story)\b/.test(
+      normalized
+    )
+  ) {
+    return !hasContextTarget;
+  }
+
+  return false;
+}
+
+function isAmbiguousIdeasQuery(query: string, hasContextTarget: boolean): boolean {
+  const normalized = compactLower(query);
+
+  if (
+    /(다음\s*(이야기|전개|장면)|가능한\s*전개)|\b(next event|what could happen next|possible next)\b/.test(
+      normalized
+    )
+  ) {
+    return !hasContextTarget;
+  }
+
+  return false;
+}
+
+function isAmbiguousComprehensionQuery(query: string, hasContextTarget: boolean): boolean {
+  const normalized = compactLower(query);
+
+  if (
+    /(이|그|저)\s*(장면|부분|대목|의미)|\b(this|that)\s*(scene|part|moment|meaning)\b/.test(
+      normalized
+    )
+  ) {
+    return !hasContextTarget;
+  }
+
+  return false;
+}
+
+function needsTargetClarification(
+  query: string,
+  mode: SupportMode,
+  memory: { activeScene: unknown; activeEntities: string[]; lastUserFocus: string }
+): boolean {
+  const hasContextTarget =
+    Boolean(memory.activeScene) ||
+    memory.activeEntities.length > 0 ||
+    Boolean(memory.lastUserFocus && compactText(memory.lastUserFocus) !== compactText(query));
+
+  if (mode === "language") {
+    return isAmbiguousLanguageQuery(query, hasContextTarget);
+  }
+
+  if (mode === "organization") {
+    return isAmbiguousOrganizationQuery(query, hasContextTarget);
+  }
+
+  if (mode === "ideas") {
+    return isAmbiguousIdeasQuery(query, hasContextTarget);
+  }
+
+  return isAmbiguousComprehensionQuery(query, hasContextTarget);
+}
+
+function buildTargetClarificationResponse(mode: SupportMode, language: ResponseLanguage): string {
+  const korean = language === "korean";
+
+  if (mode === "language") {
+    return korean
+      ? "어떤 장면, 단어, 표현을 말하는지 아직 분명하지 않아요. 한 장면이나 한 단어만 짚어 주면 그 범위에서 도와드릴게요.\n예: table 7 / note / hurry"
+      : "I am not sure which scene, word, or expression you mean yet. Please name one scene or one word, and I will help within that range.\nExample: table 7 / note / hurry";
+  }
+
+  if (mode === "organization") {
+    return korean
+      ? "어느 부분의 구조를 정리하고 싶은지 먼저 알려주세요. beginning, middle, end 중 하나나 현재 장면 하나를 말해주면 그 부분 중심으로 정리해드릴게요."
+      : "Please tell me which part you want to organize first. If you name the beginning, middle, end, or one current scene, I can help structure that part.";
+  }
+
+  if (mode === "ideas") {
+    return korean
+      ? "어느 장면에서 다음 전개를 생각하고 싶은지 먼저 알려주세요. 현재 장면이나 핵심 단서를 한 줄로 말해주면 그 범위에서 아이디어를 드릴게요."
+      : "Please tell me which scene you want next-step ideas for first. If you name the current scene or clue in one line, I can brainstorm within that part.";
+  }
+
+  return korean
+    ? "어느 장면이나 부분을 말하는지 먼저 알려주세요. 한 장면, 행동, 물건, 문장 중 하나만 짚어 주면 그 부분을 설명해드릴게요."
+    : "Please tell me which scene or part you mean first. If you point to one scene, action, object, or line, I can explain that part.";
+}
+
 function persistChatLogInBackground(entry: ChatLogEntry): void {
   void appendChatLog(entry).catch((error) => {
     console.error("Failed to persist chat log", error);
@@ -395,6 +520,11 @@ export async function POST(request: NextRequest) {
   const responseLanguage = detectResponseLanguage(query);
   const conversationMemory = buildConversationMemory(taskId, query, recentMessages);
   const clarificationOption = detectClarificationOption(query);
+  const targetClarificationNeeded = needsTargetClarification(
+    query,
+    supportMode,
+    conversationMemory
+  );
 
   if (clarificationOption && recentMessages.length > 0) {
     const clarificationOptionResponse = buildClarificationOptionResponse(
@@ -455,6 +585,39 @@ export async function POST(request: NextRequest) {
       interaction_count: interactionCount,
       session_duration_ms: sessionDurationMs,
       query_type_label: "clarification_request",
+      source_types_used: [],
+      visual_assets_used: [],
+    });
+
+    return new Response(clarificationResponse, {
+      status: 200,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
+  }
+
+  if (targetClarificationNeeded) {
+    const clarificationResponse = buildTargetClarificationResponse(
+      supportMode,
+      responseLanguage
+    );
+
+    persistChatLogInBackground({
+      participant_id: participantId,
+      session_id: sessionId,
+      task_id: taskPackage.config.task_id,
+      condition_label: taskPackage.config.ai_condition,
+      selected_category: category,
+      raw_user_query: query,
+      policy_decision: "allowed",
+      status: "allowed",
+      retrieved_chunk_ids: [],
+      retrieved_chunk_metadata: [],
+      assistant_response: clarificationResponse,
+      timestamp,
+      response_length: clarificationResponse.length,
+      interaction_count: interactionCount,
+      session_duration_ms: sessionDurationMs,
+      query_type_label: "needs_target_clarification",
       source_types_used: [],
       visual_assets_used: [],
     });

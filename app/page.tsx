@@ -34,6 +34,10 @@ const EXAMPLE_PROMPTS = [
 
 const CHAT_EXAMPLE_PROMPTS = [
   {
+    en: "Help me understand this scene",
+    ko: "\uC774 \uC7A5\uBA74\uC5D0\uC11C \uBB34\uC2A8 \uC77C\uC774 \uC77C\uC5B4\uB098\uB294\uC9C0 \uC124\uBA85\uD574\uC918",
+  },
+  {
     en: "Suggest 2 possible next events",
     ko: "\uC774 \uC774\uC57C\uAE30 \uB2E4\uC74C\uC5D0 \uAC00\uB2A5\uD55C \uC804\uAC1C 2\uAC1C \uC54C\uB824\uC918",
   },
@@ -42,8 +46,8 @@ const CHAT_EXAMPLE_PROMPTS = [
     ko: "\uC774 \uC7A5\uBA74\uC758 \uAC10\uC815\uC744 \uC601\uC5B4\uB85C \uD45C\uD604\uD558\uBA74?",
   },
   {
-    en: "Organize my story structure",
-    ko: "\uB0B4 \uAE00 \uAD6C\uC870\uB97C \uAC04\uB2E8\uD788 \uC815\uB9AC\uD574\uC918",
+    en: "What makes my structure clear?",
+    ko: "\uB0B4 \uAE00 \uAD6C\uC131\uC774 \uC798 \uB418\uC5C8\uB294\uC9C0 \uBCFC \uAE30\uC900 3\uAC00\uC9C0\uB9CC \uC54C\uB824\uC918",
   },
   {
     en: "Give me 3 similar expressions",
@@ -57,10 +61,10 @@ const COMPOSER_HELP_TITLE =
 const COMPOSER_HELP_TITLE_KO = "\uC9C8\uBB38 \uC608\uC2DC";
 
 const COMPOSER_HELP_TEXT =
-  "I can help you connect clues, explain feelings, plan the next event, and organize the flow of your story.";
+  "I can help you understand a scene, connect clues, explain feelings, plan the next event, and check what makes your structure clear.";
 
 const COMPOSER_HELP_TEXT_KO =
-  "\uB2E8\uC11C \uC815\uB9AC, \uAC10\uC815 \uD574\uC11D, \uB2E4\uC74C \uC804\uAC1C \uACC4\uD68D, \uAE00\uC758 \uD750\uB984 \uC815\uB9AC\uB97C \uB3C4\uC640\uB4DC\uB9B4\uAC8C\uC694.";
+  "\uC7A5\uBA74 \uC774\uD574, \uB2E8\uC11C \uC815\uB9AC, \uAC10\uC815 \uD574\uC11D, \uB2E4\uC74C \uC804\uAC1C \uACC4\uD68D, \uAD6C\uC131 \uC810\uAC80 \uAE30\uC900 \uC815\uB9AC\uB97C \uB3C4\uC640\uB4DC\uB9B4\uAC8C\uC694.";
 
 const CHAT_INPUT_PLACEHOLDER =
   "Example: What clue or hint would help me continue this story logically? / \uC608: \uB2E4\uC74C \uC774\uC57C\uAE30 \uC804\uAC1C\uB97C \uB17C\uB9AC\uC801\uC73C\uB85C \uC774\uC5B4\uAC00\uB824\uBA74 \uBB34\uC2A8 \uD78C\uD2B8\uAC00 \uD544\uC694\uD574?";
