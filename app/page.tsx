@@ -32,6 +32,39 @@ const EXAMPLE_PROMPTS = [
   "이 단어 대신 쓸 수 있는 표현 3개만",
 ] as const;
 
+const CHAT_EXAMPLE_PROMPTS = [
+  {
+    en: "Suggest 2 possible next events",
+    ko: "\uC774 \uC774\uC57C\uAE30 \uB2E4\uC74C\uC5D0 \uAC00\uB2A5\uD55C \uC804\uAC1C 2\uAC1C \uC54C\uB824\uC918",
+  },
+  {
+    en: "Describe this emotion in English",
+    ko: "\uC774 \uC7A5\uBA74\uC758 \uAC10\uC815\uC744 \uC601\uC5B4\uB85C \uD45C\uD604\uD558\uBA74?",
+  },
+  {
+    en: "Organize my story structure",
+    ko: "\uB0B4 \uAE00 \uAD6C\uC870\uB97C \uAC04\uB2E8\uD788 \uC815\uB9AC\uD574\uC918",
+  },
+  {
+    en: "Give me 3 similar expressions",
+    ko: "\uC774 \uB2E8\uC5B4 \uB300\uC2E0 \uC4F8 \uC218 \uC788\uB294 \uD45C\uD604 3\uAC1C\uB9CC",
+  },
+] as const;
+
+const COMPOSER_HELP_TITLE =
+  "Example Questions";
+
+const COMPOSER_HELP_TITLE_KO = "\uC9C8\uBB38 \uC608\uC2DC";
+
+const COMPOSER_HELP_TEXT =
+  "I can help you connect clues, explain feelings, plan the next event, and organize the flow of your story.";
+
+const COMPOSER_HELP_TEXT_KO =
+  "\uB2E8\uC11C \uC815\uB9AC, \uAC10\uC815 \uD574\uC11D, \uB2E4\uC74C \uC804\uAC1C \uACC4\uD68D, \uAE00\uC758 \uD750\uB984 \uC815\uB9AC\uB97C \uB3C4\uC640\uB4DC\uB9B4\uAC8C\uC694.";
+
+const CHAT_INPUT_PLACEHOLDER =
+  "Example: What clue or hint would help me continue this story logically? / \uC608: \uB2E4\uC74C \uC774\uC57C\uAE30 \uC804\uAC1C\uB97C \uB17C\uB9AC\uC801\uC73C\uB85C \uC774\uC5B4\uAC00\uB824\uBA74 \uBB34\uC2A8 \uD78C\uD2B8\uAC00 \uD544\uC694\uD574?";
+
 const KO = {
   intro:
     "\uC774 \uCC57\uBD07\uC740 \uAE00\uC744 \uB300\uC2E0 \uC368\uC8FC\uB294 \uB3C4\uAD6C\uAC00 \uC544\uB2D9\uB2C8\uB2E4. \uC774\uC57C\uAE30\uB97C \uC774\uD574\uD558\uACE0, \uC544\uC774\uB514\uC5B4\uB97C \uC0DD\uAC01\uD558\uACE0, \uAE00\uC744 \uACC4\uD68D\uD558\uACE0, \uC5B8\uC5B4 \uD45C\uD604\uC744 \uB3D5\uB294 \uB3C4\uAD6C\uC785\uB2C8\uB2E4.",
@@ -956,16 +989,24 @@ export default function Home() {
             </div>
             <div className="composer-inline">
               <div className="example-prompt-panel" aria-label="Question examples">
-                <p className="example-prompt-title">Question examples</p>
+                <p className="example-prompt-title">
+                  {COMPOSER_HELP_TITLE}
+                  <span className="example-prompt-title-ko">{COMPOSER_HELP_TITLE_KO}</span>
+                </p>
+                <p className="example-prompt-help">
+                  {COMPOSER_HELP_TEXT}
+                  <span className="example-prompt-help-ko">{COMPOSER_HELP_TEXT_KO}</span>
+                </p>
                 <div className="example-prompt-list">
-                  {EXAMPLE_PROMPTS.map((example) => (
+                  {CHAT_EXAMPLE_PROMPTS.map((example) => (
                     <button
-                      key={example}
+                      key={example.en}
                       type="button"
                       className="example-prompt-button"
-                      onClick={() => setInput(example)}
+                      onClick={() => setInput(example.ko)}
                     >
-                      {example}
+                      <span className="example-prompt-button-en">{example.en}</span>
+                      <span className="example-prompt-button-ko">{example.ko}</span>
                     </button>
                   ))}
                 </div>
@@ -983,12 +1024,12 @@ export default function Home() {
                 }}
                 rows={4}
                 className="chat-input"
-                placeholder="Ask what a clue means, why a character feels that way, what could happen next, how to organize your story, or what words fit the scene."
+                placeholder={CHAT_INPUT_PLACEHOLDER}
               />
 
               <div className="composer-footer">
                 <button onClick={send} disabled={isLoading} className="send-button">
-                  {isLoading ? "Sending..." : "Send"}
+                  {isLoading ? "Sending... | \uBCF4\uB0B4\uB294 \uC911..." : "Send | \uBCF4\uB0B4\uAE30"}
                 </button>
               </div>
             </div>
