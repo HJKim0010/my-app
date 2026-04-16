@@ -438,6 +438,35 @@ function buildTargetClarificationResponse(mode: SupportMode, language: ResponseL
     : "Please tell me which scene or part you mean first. If you point to one scene, action, object, or line, I can explain that part.";
 }
 
+function buildBetterTargetClarificationResponse(
+  mode: SupportMode,
+  language: ResponseLanguage
+): string {
+  const korean = language === "korean";
+
+  if (mode === "language") {
+    return korean
+      ? "\uC5B4\uB5A4 \uC7A5\uBA74, \uB2E8\uC5B4, \uD45C\uD604\uC744 \uB9D0\uD558\uB294\uC9C0 \uC544\uC9C1 \uBD84\uBA85\uD558\uC9C0 \uC54A\uC544\uC694. \uD55C \uC7A5\uBA74\uC774\uB098 \uD55C \uB2E8\uC5B4\uB9CC \uC9DA\uC5B4 \uC8FC\uBA74 \uADF8 \uBC94\uC704\uC5D0\uC11C \uB3C4\uC640\uB4DC\uB9B4\uAC8C\uC694.\n\uC608: table 7 / note / hurry"
+      : "I am not sure which scene, word, or expression you mean yet. Please name one scene or one word, and I will help within that range.\nExample: table 7 / note / hurry";
+  }
+
+  if (mode === "organization") {
+    return korean
+      ? "\uC5B4\uB5A4 \uAE00\uC778\uC9C0 \uB610\uB294 \uC5B4\uB290 \uBD80\uBD84\uC744 \uBCF4\uACE0 \uC2F6\uC740\uC9C0 \uBA3C\uC800 \uC54C\uB824\uC8FC\uC138\uC694. \uC9E7\uC740 \uAE00 \uC77C\uBD80\uB098 beginning, middle, end \uC911 \uD558\uB098\uB97C \uBCF4\uC5EC\uC8FC\uBA74 \uAD6C\uC131\uC744 \uBCFC \uAE30\uC900\uC73C\uB85C \uD568\uAED8 \uC810\uAC80\uD574\uB4DC\uB9B4\uAC8C\uC694."
+      : "Please show me which writing or part you mean first. If you share a short part or name the beginning, middle, or end, I can help you check the structure.";
+  }
+
+  if (mode === "ideas") {
+    return korean
+      ? "\uC5B4\uB290 \uC7A5\uBA74\uC5D0\uC11C \uB2E4\uC74C \uC804\uAC1C\uB97C \uC0DD\uAC01\uD558\uACE0 \uC2F6\uC740\uC9C0 \uBA3C\uC800 \uC54C\uB824\uC8FC\uC138\uC694. \uD604\uC7AC \uC7A5\uBA74\uC774\uB098 \uD575\uC2EC \uB2E8\uC11C\uB97C \uD55C \uC904\uB85C \uB9D0\uD574\uC8FC\uBA74 \uADF8 \uBC94\uC704\uC5D0\uC11C \uC544\uC774\uB514\uC5B4\uB97C \uB4DC\uB9B4\uAC8C\uC694."
+      : "Please tell me which scene you want next-step ideas for first. If you name the current scene or clue in one line, I can brainstorm within that part.";
+  }
+
+  return korean
+    ? "\uC5B4\uB290 \uC7A5\uBA74\uC774\uB098 \uBD80\uBD84\uC744 \uB9D0\uD558\uB294\uC9C0 \uBA3C\uC800 \uC54C\uB824\uC8FC\uC138\uC694. \uD55C \uC7A5\uBA74, \uD589\uB3D9, \uBB3C\uAC74, \uBB38\uC7A5 \uC911 \uD558\uB098\uB9CC \uC9DA\uC5B4 \uC8FC\uBA74 \uADF8 \uBD80\uBD84\uC744 \uC124\uBA85\uD574\uB4DC\uB9B4\uAC8C\uC694."
+    : "Please tell me which scene or part you mean first. If you point to one scene, action, object, or line, I can explain that part.";
+}
+
 function persistChatLogInBackground(entry: ChatLogEntry): void {
   void appendChatLog(entry).catch((error) => {
     console.error("Failed to persist chat log", error);
@@ -596,7 +625,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (targetClarificationNeeded) {
-    const clarificationResponse = buildTargetClarificationResponse(
+    const clarificationResponse = buildBetterTargetClarificationResponse(
       supportMode,
       responseLanguage
     );
