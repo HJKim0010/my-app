@@ -134,6 +134,13 @@ function includesAny(query: string, patterns: readonly string[]): boolean {
   return patterns.some((pattern) => query.includes(pattern));
 }
 
+function isStructureCriteriaHelp(query: string): boolean {
+  return (
+    /(structure|organization|flow|criterion|criteria|checklist)/.test(query) ||
+    /(\uAD6C\uC131|\uAD6C\uC870|\uD750\uB984|\uAE30\uC900|\uCCB4\uD06C\uB9AC\uC2A4\uD2B8)/.test(query)
+  );
+}
+
 export function detectRestrictionReason(query: string): RestrictionReason | null {
   const q = query.toLowerCase();
 
@@ -152,6 +159,10 @@ export function detectRestrictionReason(query: string): RestrictionReason | null
         q
       ))
   ) {
+    if (isStructureCriteriaHelp(q)) {
+      return null;
+    }
+
     return "draft_feedback";
   }
 
