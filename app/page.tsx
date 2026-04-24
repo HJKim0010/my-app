@@ -23,7 +23,7 @@ type TaskChatState = {
 
 const TASK_IDS: TaskId[] = ["task1", "task2"];
 const STORAGE_KEY_PREFIX = "writing-assistant-task-state-v6";
-const GUIDE_KEY_PREFIX = "writing-assistant-guide-accepted-v5";
+const GUIDE_KEY_PREFIX = "writing-assistant-guide-accepted-v6";
 const CURRENT_PARTICIPANT_KEY = "writing-assistant-current-participant-v4";
 const EXAMPLE_PROMPTS = [
   "이 이야기 다음에 가능한 전개 2개 알려줘",
@@ -87,13 +87,15 @@ const KO = {
   q4: "'very tired' \uB300\uC2E0 \uC4F8 \uC218 \uC788\uB294 \uB2E4\uB978 \uB2E8\uC5B4\uB294 \uBB34\uC5C7\uC778\uAC00\uC694?",
   r1: "\uB2E4\uC74C \uBB38\uB2E8\uC744 \uC368 \uC918.",
   r2: "\uB2F5\uC548\uC744 \uB2E4 \uC368 \uC918.",
-  r3: "\uC774 \uBB38\uC7A5\uC744 \uACE0\uCCD0 \uC918.",
+  r3: "\uC774 \uAE00 \uC804\uCCB4\uB97C \uACE0\uCCD0 \uC918.",
   r4: "\uC774\uC57C\uAE30 \uC804\uCCB4\uB97C \uC694\uC57D\uD574 \uC918.",
   r5: "\uB354 \uD765\uBBF8\uB86D\uAC8C \uB298\uB824 \uC918.",
   lang: "\uC9C8\uBB38\uC740 \uD55C\uAD6D\uC5B4, \uC601\uC5B4, \uB610\uB294 \uB458 \uB2E4 \uC0AC\uC6A9\uD574\uB3C4 \uB429\uB2C8\uB2E4.",
   one: "\uD55C \uBC88\uC5D0 \uD55C \uAC00\uC9C0\uC529 \uBD84\uBA85\uD558\uAC8C \uC9C8\uBB38\uD558\uC138\uC694.",
   refuse:
     "\uCC57\uBD07\uC774 \uAC70\uC808\uD55C \uC694\uCCAD\uC740 \uD45C\uD604\uB9CC \uBC14\uAFD4\uC11C \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC9C0 \uB9C8\uC138\uC694.",
+  shortReaction:
+    "\uC9E7\uC740 \uBC18\uC751\uBCF4\uB2E4\uB294 '\uB2E4\uC2DC \uC124\uBA85\uD574\uC918', '\uC5B4\uB290 \uBD80\uBD84\uC774\uC57C?', '\uD55C \uBC88 \uB354 \uC27D\uAC8C \uB9D0\uD574\uC918'\uCC98\uB7FC \uC694\uCCAD\uC744 \uD568\uAED8 \uB9D0\uD574\uC8FC\uBA74 \uB354 \uC790\uC5F0\uC2A4\uB7FD\uAC8C \uB3C4\uC640\uB4DC\uB9B4 \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
   read: "\uC548\uB0B4\uB97C \uC77D\uC5C8\uC2B5\uB2C8\uB2E4.",
   start: "\uC2DC\uC791\uD558\uAE30",
   participant: "\uCC38\uC5EC\uC790 ID",
@@ -130,13 +132,22 @@ function buildWelcomeMessage(): ChatMessage {
   };
 }
 
+function buildCurrentWelcomeMessage(): ChatMessage {
+  return {
+    id: "welcome",
+    role: "assistant",
+    text:
+      "이 챗봇은 이야기 이해, 다음 전개 아이디어, 글 구조 정리, 영어 표현 찾기, 그리고 짧은 흐름/표현 피드백을 도와줄 수 있어요.\n\n대신 문장이나 문단을 대신 써주거나, 전체 글을 고쳐주거나, 전체 내용을 요약해주지는 않아요.\n\n막히면 한 번에 한 가지씩 물어보세요. 예: \"이 부분이 왜 중요한지 설명해줘\" / \"다음 전개 2가지만 알려줘\" / \"어색한 부분 하나만 짚어줘\"",
+  };
+}
+
 function createTaskState(): TaskChatState {
   return {
     sessionId: crypto.randomUUID(),
     sessionStartedAt: Date.now(),
     interactionCount: 0,
     transcriptSaved: false,
-    messages: [buildWelcomeMessage()],
+    messages: [buildCurrentWelcomeMessage()],
   };
 }
 
@@ -227,15 +238,15 @@ function hydrateTaskStates(raw: string | null): Record<TaskId, TaskChatState> {
       };
 
       if (next[taskId].messages.length === 0) {
-        next[taskId].messages = [buildWelcomeMessage()];
+        next[taskId].messages = [buildCurrentWelcomeMessage()];
         continue;
       }
 
       const firstMessage = next[taskId].messages[0];
       if (firstMessage?.id === "welcome" && firstMessage.role === "assistant") {
-        next[taskId].messages[0] = buildWelcomeMessage();
+        next[taskId].messages[0] = buildCurrentWelcomeMessage();
       } else {
-        next[taskId].messages = [buildWelcomeMessage(), ...next[taskId].messages];
+        next[taskId].messages = [buildCurrentWelcomeMessage(), ...next[taskId].messages];
       }
     }
 
@@ -256,7 +267,11 @@ const GUIDE_COMPARE_ROWS = [
   },
   {
     wrong: '"Fix my paragraph."',
-    better: '"What word can I use instead of \'very tired\'?"',
+    better: '"Can you point out one awkward part in this paragraph?"',
+  },
+  {
+    wrong: '"응?"',
+    better: '"Explain the last point again more simply."',
   },
 ] as const;
 
@@ -309,6 +324,11 @@ function GuideContent() {
             <br />
             &quot;What word can I use instead of &apos;very tired&apos;?&quot; / &quot;{KO.q4}&quot;
           </li>
+          <li>
+            Get short local feedback on flow, logic, or awkward wording
+            <br />
+            &quot;Which part sounds awkward here?&quot; / &quot;이 부분에서 어색한 곳 하나만 짚어줄래?&quot;
+          </li>
         </ul>
       </div>
 
@@ -326,9 +346,9 @@ function GuideContent() {
             &quot;Give me a full answer.&quot; / &quot;{KO.r2}&quot;
           </li>
           <li>
-            Do not ask for correction or rewriting
+            Do not ask for full correction or rewriting
             <br />
-            &quot;Fix my sentences.&quot; / &quot;{KO.r3}&quot;
+            &quot;Rewrite my paragraph.&quot; / &quot;{KO.r3}&quot;
           </li>
           <li>
             Do not ask it to add more content for you
@@ -376,7 +396,70 @@ function GuideContent() {
             <br />
             {KO.refuse}
           </li>
+          <li>
+            If the reply feels unclear, ask it to explain one point again more simply.
+            <br />
+            {KO.shortReaction}
+          </li>
         </ul>
+      </div>
+    </div>
+  );
+}
+
+function CompactGuideNotice({ onOpenGuide }: { onOpenGuide: () => void }) {
+  return (
+    <div className="guidance-box compact-guidance">
+      <p>
+        This chatbot can help with story understanding, next-event ideas, structure,
+        expressions, and short local feedback.
+        <br />
+        이야기를 이해하고, 다음 전개를 떠올리고, 구성을 정리하고, 표현을 찾고,
+        짧은 피드백을 받는 데 사용할 수 있어요.
+      </p>
+      <p>
+        It does not write the answer for you, rewrite the whole draft, or summarize the
+        whole story.
+        <br />
+        대신 문단을 써주거나, 전체 글을 다시 써주거나, 전체 줄거리를 요약해주지는
+        않아요.
+      </p>
+      <div className="compact-guidance-actions">
+        <button type="button" className="secondary-button" onClick={onOpenGuide}>
+          Open Full Guide
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CompactGuideNoticeV2({ onOpenGuide }: { onOpenGuide: () => void }) {
+  return (
+    <div className="guidance-box compact-guidance">
+      <p>이 챗봇으로 할 수 있어요:</p>
+      <ul className="guide-list compact-guide-list">
+        <li>이야기 이해</li>
+        <li>다음 전개 아이디어</li>
+        <li>구조 정리</li>
+        <li>표현 찾기</li>
+        <li>짧은 피드백</li>
+      </ul>
+      <p>이건 안 돼요:</p>
+      <ul className="guide-list compact-guide-list">
+        <li>문단 대신 쓰기</li>
+        <li>전체 글 다시 쓰기</li>
+        <li>전체 줄거리 요약</li>
+      </ul>
+      <p>헷갈리면 이렇게 물어보세요:</p>
+      <ul className="guide-list compact-guide-list">
+        <li>"방금 말 다시 쉽게 설명해줘"</li>
+        <li>"이 부분만 다시 말해줘"</li>
+        <li>"어색한 곳 하나만 짚어줘"</li>
+      </ul>
+      <div className="compact-guidance-actions">
+        <button type="button" className="secondary-button" onClick={onOpenGuide}>
+          Open Full Guide
+        </button>
       </div>
     </div>
   );
@@ -721,6 +804,7 @@ export default function Home() {
       "writing-assistant-guide-accepted-v3:",
       "writing-assistant-guide-accepted-v4:",
       "writing-assistant-guide-accepted-v5:",
+      "writing-assistant-guide-accepted-v6:",
     ];
     const participantKeys = [
       "writing-assistant-current-participant-v1",
@@ -905,6 +989,7 @@ export default function Home() {
 
           <section className="thread-section">
             <p className="section-label">Conversation</p>
+            <CompactGuideNoticeV2 onOpenGuide={() => setShowGuide(true)} />
             <div className="message-thread">
               {activeTaskState.messages.map((message) => (
                 <div

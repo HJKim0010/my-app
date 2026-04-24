@@ -42,7 +42,7 @@ function limitAssistantResponse(text: string): string {
 
   if (lines.length > 1) {
     return lines
-      .slice(0, 6)
+      .slice(0, 8)
       .map((line) => (line.startsWith("*") || line.startsWith("-") ? line : `* ${line}`))
       .join("\n");
   }
@@ -53,7 +53,7 @@ function limitAssistantResponse(text: string): string {
 
   return sentences
     .filter(Boolean)
-    .slice(0, 6)
+    .slice(0, 8)
     .map((sentence) => `* ${sentence}`)
     .join("\n");
 }
@@ -62,11 +62,14 @@ function compactText(text: string): string {
   return text.replace(/\s+/g, " ").trim();
 }
 
+const KOREAN_ACKNOWLEDGMENT_PATTERN =
+  /^(?:\u3147\u3147|\u3147\u3147\??|\uc751|\uc751\??|\ub124|\ub137|\uc608|\uadf8\ub798|\uc88b\uc544|\uc88b\uc544\uc694|\uc54c\uaca0\uc5b4|\uc54c\uaca0\uc5b4\uc694|\uc624\ucf00\uc774|\uc624\ud0a4)$/i;
+const PURE_SHORT_PUNCTUATION_PATTERN = /^[?!.~,/\\]+$/;
+
 function isShortAcknowledgment(query: string): boolean {
   const normalized = compactText(query);
-  return /^(yes|yeah|yep|ok|okay|sure|right|got it|응|ㅇㅇ|네|맞아|그래|좋아|알겠어)$/i.test(
-    normalized
-  );
+  return /^(yes|yeah|yep|ok|okay|sure|right|got it)$/i.test(normalized)
+    || KOREAN_ACKNOWLEDGMENT_PATTERN.test(normalized);
 }
 
 function isAmbiguousShortReaction(query: string): boolean {
@@ -76,9 +79,8 @@ function isAmbiguousShortReaction(query: string): boolean {
     return false;
   }
 
-  return /^(응\?|ㅇㅇ\?|네\?|그래\?|맞아\?|어\?|어\.\.|엥\?|엥|뭐\?|뭐라고\?|what\?|huh\?|hm\?|hmm\?)$/i.test(
-    normalized
-  );
+  return /^(what\?|huh\?|hm\?|hmm\?)$/i.test(normalized)
+    || PURE_SHORT_PUNCTUATION_PATTERN.test(normalized);
 }
 
 function extractLastAssistantMessage(recentMessages: RecentMessage[]): string {

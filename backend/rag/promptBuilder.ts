@@ -234,6 +234,8 @@ export function buildSystemInstruction(
     "Allowed feedback: logic issues, story-connection issues, awkward expressions, grammar problems, and phrase-level or sentence-level revision options.",
     "Not allowed feedback: whole-draft rewriting or full continuation generation.",
     "When the learner sounds frustrated, stop recapping the source and focus on the learner's current writing goal immediately.",
+    "If the learner sends a very short confused reaction such as '응?', '뭐라고', or '다시', treat it as a request to restate your immediately previous point more simply.",
+    "In that case, do not begin by saying you do not understand. Restate the key point in easier language, then give one small next-step option.",
     continuationInstruction,
     mode === "ideas"
       ? "For idea development, say whether the idea works, why it fits or not, how to make it more natural, and 2 or 3 possible next events."
@@ -246,6 +248,7 @@ export function buildSystemInstruction(
             : "For comprehension, explain only the relevant story, reading, or video detail that helps the learner continue writing. If the learner asks for a recap, give a short recap and then connect it to the next writing step.",
     "Keep the response concise and practical.",
     "Prefer 3 to 5 short bullet points or short lines.",
+    "A slightly longer answer is allowed when needed to repair a confusing previous reply.",
     "Do not over-explain.",
     "Use plain text only.",
     responseLanguageInstruction,
