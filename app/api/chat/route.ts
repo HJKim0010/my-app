@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import OpenAI from "openai";
 import { classifyQuery, detectRestrictionReason } from "@/backend/policy/classifier";
 import { redirectResponse } from "@/backend/policy/redirect";
-import { appendChatLog } from "@/backend/logs/logger";
+import { appendChatLog, type ChatLogEntry } from "@/backend/logs/logger";
 import { resolveVisualInputs } from "@/backend/rag/assetResolver";
 import {
   buildConversationMemory,
@@ -18,7 +18,6 @@ import {
   type SupportMode,
 } from "@/backend/rag/promptBuilder";
 import { retrieveTaskChunks } from "@/backend/rag/retriever";
-import type { ChatLogEntry } from "@/backend/logs/logger";
 
 function sanitizeAssistantResponse(text: string): string {
   return text
@@ -36,14 +35,14 @@ function limitAssistantResponse(text: string): string {
     return normalized;
   }
 
-  const bulletLines = normalized
+  const lines = normalized
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
 
-  if (bulletLines.length > 1) {
-    return bulletLines
-      .slice(0, 5)
+  if (lines.length > 1) {
+    return lines
+      .slice(0, 6)
       .map((line) => (line.startsWith("*") || line.startsWith("-") ? line : `* ${line}`))
       .join("\n");
   }
@@ -54,417 +53,124 @@ function limitAssistantResponse(text: string): string {
 
   return sentences
     .filter(Boolean)
-    .slice(0, 5)
+    .slice(0, 6)
     .map((sentence) => `* ${sentence}`)
     .join("\n");
 }
-
-const CLARIFICATION_REQUEST_PATTERNS = [
-  /^what\??$/i,
-  /^what do you mean\??$/i,
-  /^huh\??$/i,
-  /^again\??$/i,
-  /^sorry\??$/i,
-  /^pardon\??$/i,
-  /^what was that\??$/i,
-  /^뭐라고\??$/i,
-  /^뭐라는 거야\??$/i,
-  /^무슨 말이야\??$/i,
-  /^무슨 뜻이야\??$/i,
-  /^다시\??$/i,
-  /^다시 말해줘\??$/i,
-  /^다시 설명해줘\??$/i,
-  /^쉽게 말해줘\??$/i,
-];
-
-type ClarificationOption = "shorter" | "simpler" | "which_part" | null;
 
 function compactText(text: string): string {
   return text.replace(/\s+/g, " ").trim();
 }
 
-function isClarificationRequest(query: string): boolean {
+function isShortAcknowledgment(query: string): boolean {
   const normalized = compactText(query);
-
-  if (!normalized || normalized.length > 24) {
-    return false;
-  }
-
-  return CLARIFICATION_REQUEST_PATTERNS.some((pattern) => pattern.test(normalized));
-}
-
-function detectClarificationOption(query: string): ClarificationOption {
-  const normalized = compactText(query).toLowerCase();
-
-  if (!normalized || normalized.length > 30) {
-    return null;
-  }
-
-  if (
-    ["1", "1)", "too long", "shorter", "brief", "짧게", "너무 길었어", "길었어"].includes(
-      normalized
-    )
-  ) {
-    return "shorter";
-  }
-
-  if (
-    [
-      "2",
-      "2)",
-      "simpler",
-      "easy",
-      "easier",
-      "쉽게",
-      "더 쉽게",
-      "어려운 표현",
-      "어려웠어",
-    ].includes(normalized)
-  ) {
-    return "simpler";
-  }
-
-  if (
-    [
-      "3",
-      "3)",
-      "which part",
-      "what part",
-      "어느 부분",
-      "어느 부분인지",
-      "부분",
-      "뭐를 말하는지",
-      "뭐가 뭔지",
-    ].includes(normalized)
-  ) {
-    return "which_part";
-  }
-
-  return null;
+  return /^(yes|yeah|yep|ok|okay|sure|right|got it|응|ㅇㅇ|네|맞아|그래|좋아|알겠어)$/i.test(
+    normalized
+  );
 }
 
 function extractLastAssistantMessage(recentMessages: RecentMessage[]): string {
   for (let index = recentMessages.length - 1; index >= 0; index -= 1) {
-    const message = recentMessages[index];
-    if (message.role === "assistant") {
-      return compactText(message.text);
+    if (recentMessages[index]?.role === "assistant") {
+      return compactText(recentMessages[index].text);
     }
   }
 
   return "";
 }
 
-function hasClarificationMenu(text: string): boolean {
-  const normalized = compactText(text).toLowerCase();
-  return (
-    normalized.includes("1)") &&
-    normalized.includes("2)") &&
-    normalized.includes("3)") &&
-    (normalized.includes("너무 길었어") ||
-      normalized.includes("it was too long") ||
-      normalized.includes("어려운 표현") ||
-      normalized.includes("difficult expression"))
-  );
-}
-
-function summarizeAssistantMessage(text: string, language: ResponseLanguage): string {
-  const normalized = compactText(
-    text
-      .replace(/^assistant\s*/i, "")
-      .replace(/^[-*]\s*/gm, "")
-      .replace(/\s+/g, " ")
-  );
-
-  if (!normalized) {
-    return language === "korean"
-      ? "방금 답을 더 짧고 쉽게 다시 설명할 수 있어요."
-      : "I can explain the last answer again in a shorter and simpler way.";
-  }
-
-  const firstSentence = normalized.split(/(?<=[.!?])\s+/)[0] || normalized;
-  const clipped =
-    firstSentence.length > 110 ? `${firstSentence.slice(0, 107).trim()}...` : firstSentence;
-
-  if (language === "korean") {
-    return `짧게 다시 말하면, ${clipped}`;
-  }
-
-  return `In short, ${clipped}`;
-}
-
-function buildClarificationResponse(
-  recentMessages: RecentMessage[],
-  language: ResponseLanguage
+function buildAcknowledgmentFollowUp(
+  language: ResponseLanguage,
+  mode: SupportMode,
+  workingContext: "source" | "user_continuation"
 ): string {
-  const summary = summarizeAssistantMessage(
-    extractLastAssistantMessage(recentMessages),
-    language
-  );
-
-  if (language === "korean") {
-    return [
-      summary,
-      "원하면 이렇게 말해줘도 괜찮아요.",
-      "1) 너무 길었어",
-      "2) 어려운 표현이 있었어",
-      "3) 어느 부분 말인지 모르겠어",
-      "번호나 짧은 말로 답하면 그 방식으로 다시 설명할게요.",
-    ].join("\n");
-  }
-
-  return [
-    summary,
-    "You can reply like this.",
-    "1) It was too long.",
-    "2) There was a difficult expression.",
-    "3) I am not sure which part you mean.",
-    "Reply with a number or a short phrase, and I will explain it that way.",
-  ].join("\n");
-}
-
-function buildClarificationOptionResponse(
-  option: ClarificationOption,
-  recentMessages: RecentMessage[],
-  language: ResponseLanguage
-): string | null {
-  if (!option) {
-    return null;
-  }
-
-  const lastAssistant = extractLastAssistantMessage(recentMessages);
-  if (!lastAssistant || !hasClarificationMenu(lastAssistant)) {
-    return null;
-  }
-
-  const summary = summarizeAssistantMessage(lastAssistant, language);
-
-  if (language === "korean") {
-    if (option === "shorter") {
-      return [
-        summary,
-        "핵심만 말하면 이 뜻이에요.",
-        "원하면 2) 더 쉽게, 3) 어느 부분인지 집어서 다시 설명할게요.",
-      ].join("\n");
+  if (language === "english") {
+    if (workingContext === "user_continuation") {
+      return "I understand. What would you like to work on next: plot, structure, expression, or feedback?";
     }
 
-    if (option === "simpler") {
-      return [
-        summary,
-        "쉽게 말하면, 방금 답의 핵심 하나만 잡으면 돼요.",
-        "헷갈린 단어가 있으면 그 단어만 말해줘도 돼요.",
-        "원하면 1) 더 짧게, 3) 어느 부분인지 집어서 다시 설명할게요.",
-      ].join("\n");
+    if (mode === "comprehension") {
+      return "I understand. What would you like next: one more story detail, the next event, the structure, or an expression?";
     }
 
-    return [
-      "좋아요. 그럼 헷갈린 부분만 집어서 다시 볼게요.",
-      "장면, 인물, 물건, 행동, 문장 중 하나를 짧게 말해줘.",
-      "예: table 7 / 쪽지 / Anna가 왜 멈췄는지",
-    ].join("\n");
+    return "I understand. What would you like next: idea development, structure, expression, or feedback?";
   }
 
-  if (option === "shorter") {
-    return [
-      summary,
-      "That is the main point.",
-      "If you want, I can also 2) make it simpler or 3) focus on one specific part.",
-    ].join("\n");
+  if (workingContext === "user_continuation") {
+    return "응으로 이해했어요. 다음은 전개, 구성, 표현, 피드백 중 뭐부터 볼까요?";
   }
-
-  if (option === "simpler") {
-    return [
-      summary,
-      "In easier words, focus on just one main idea from the last answer.",
-      "If one word is confusing, you can send just that word.",
-      "If you want, I can also 1) make it shorter or 3) focus on one specific part.",
-    ].join("\n");
-  }
-
-  return [
-    "Okay. Then tell me only the part that is confusing.",
-    "You can name one scene, person, object, action, or line.",
-    "Example: table 7 / the note / why Anna stopped",
-  ].join("\n");
-}
-
-function buildNoChunkResponse(mode: SupportMode, language: ResponseLanguage): string {
-  const korean = language === "korean";
 
   if (mode === "comprehension") {
-    return korean
-      ? "지금 질문만으로는 어느 장면이나 부분을 말하는지 확실하지 않아요. 이야기의 한 장면, 인물 행동, 물건, 또는 문장을 하나만 더 말해주면 그 부분을 같이 이해해볼게요."
-      : "I am not sure which scene or part you mean yet. If you mention one scene, action, object, or line, I can help you understand that part.";
+    return "응으로 이해했어요. 다음은 자료 확인, 전개, 구성, 표현 중 뭐부터 볼까요?";
   }
 
-  if (mode === "ideas") {
-    return korean
-      ? "지금 질문만으로는 어느 장면을 바탕으로 아이디어를 넓혀야 할지 확실하지 않아요. 특정 장면이나 현재 고민 중인 방향을 한 줄로 말해주면 그 안에서 아이디어를 같이 생각해볼게요."
-      : "I am not sure which scene you want to build ideas from yet. If you name the current scene or direction in one line, I can help brainstorm within that part.";
-  }
-
-  if (mode === "organization") {
-    return korean
-      ? "지금 질문만으로는 어떤 부분의 전개를 계획하고 싶은지 확실하지 않아요. beginning, middle, end 중 하나나 지금 쓰고 싶은 장면을 말해주면 구조를 같이 잡아볼게요."
-      : "I am not sure which part you want to organize yet. If you name the beginning, middle, end, or the current scene, I can help plan the structure.";
-  }
-
-  return korean
-    ? "지금 질문만으로는 어떤 단어·표현·문법을 돕고 싶은지 확실하지 않아요. 표현 하나나 문장 하나를 말해주면 그 범위 안에서 도와줄게요."
-    : "I am not sure which word, expression, or grammar point you want help with yet. If you share one expression or sentence, I can help within that range.";
+  return "응으로 이해했어요. 다음은 전개, 구성, 표현, 피드백 중 뭐부터 볼까요?";
 }
 
-function hasQuotedTarget(text: string): boolean {
-  return /["'“”‘’].+?["'“”‘’]/.test(text);
-}
+function shouldAskTargetClarification(
+  query: string,
+  mode: SupportMode,
+  hasChunks: boolean,
+  workingContext: "source" | "user_continuation"
+): boolean {
+  const normalized = compactText(query).toLowerCase();
 
-function compactLower(text: string): string {
-  return compactText(text).toLowerCase();
-}
-
-function isAmbiguousLanguageQuery(query: string, hasContextTarget: boolean): boolean {
-  const normalized = compactLower(query);
-
-  if (hasQuotedTarget(query)) {
+  if (workingContext === "user_continuation") {
     return false;
   }
 
-  if (
-    /(이|그|저)\s*(단어|표현|문장|문법|뜻)|\b(this|that)\s*(word|expression|sentence|grammar|meaning)\b/.test(
-      normalized
-    )
-  ) {
-    return !hasContextTarget;
+  if (hasChunks) {
+    return false;
   }
 
-  if (
-    /(이|그|저)\s*장면.*감정|\b(this|that)\s*scene\b.*\b(feeling|emotion)\b/.test(normalized)
-  ) {
-    return !hasContextTarget;
+  if (mode === "comprehension") {
+    return normalized.length < 20;
   }
 
   return false;
 }
 
-function isAmbiguousOrganizationQuery(query: string, hasContextTarget: boolean): boolean {
-  const normalized = compactLower(query);
-
-  if (
-    /(내\s*글\s*구조|글\s*구조|이야기\s*구조|스토리\s*구조)|\b(my story structure|story structure|organize my story)\b/.test(
-      normalized
-    )
-  ) {
-    return !hasContextTarget;
-  }
-
-  return false;
-}
-
-function isAmbiguousIdeasQuery(query: string, hasContextTarget: boolean): boolean {
-  const normalized = compactLower(query);
-
-  if (
-    /(다음\s*(이야기|전개|장면)|가능한\s*전개)|\b(next event|what could happen next|possible next)\b/.test(
-      normalized
-    )
-  ) {
-    return !hasContextTarget;
-  }
-
-  return false;
-}
-
-function isAmbiguousComprehensionQuery(query: string, hasContextTarget: boolean): boolean {
-  const normalized = compactLower(query);
-
-  if (
-    /(이|그|저)\s*(장면|부분|대목|의미)|\b(this|that)\s*(scene|part|moment|meaning)\b/.test(
-      normalized
-    )
-  ) {
-    return !hasContextTarget;
-  }
-
-  return false;
-}
-
-function needsTargetClarification(
-  query: string,
-  mode: SupportMode,
-  memory: { activeScene: unknown; activeEntities: string[]; lastUserFocus: string }
-): boolean {
-  const hasContextTarget =
-    Boolean(memory.activeScene) ||
-    memory.activeEntities.length > 0 ||
-    Boolean(memory.lastUserFocus && compactText(memory.lastUserFocus) !== compactText(query));
-
-  if (mode === "language") {
-    return isAmbiguousLanguageQuery(query, hasContextTarget);
-  }
-
-  if (mode === "organization") {
-    return isAmbiguousOrganizationQuery(query, hasContextTarget);
-  }
-
-  if (mode === "ideas") {
-    return isAmbiguousIdeasQuery(query, hasContextTarget);
-  }
-
-  return isAmbiguousComprehensionQuery(query, hasContextTarget);
-}
-
-function buildTargetClarificationResponse(mode: SupportMode, language: ResponseLanguage): string {
-  const korean = language === "korean";
-
-  if (mode === "language") {
-    return korean
-      ? "어떤 장면, 단어, 표현을 말하는지 아직 분명하지 않아요. 한 장면이나 한 단어만 짚어 주면 그 범위에서 도와드릴게요.\n예: table 7 / note / hurry"
-      : "I am not sure which scene, word, or expression you mean yet. Please name one scene or one word, and I will help within that range.\nExample: table 7 / note / hurry";
-  }
-
-  if (mode === "organization") {
-    return korean
-      ? "어느 부분의 구조를 정리하고 싶은지 먼저 알려주세요. beginning, middle, end 중 하나나 현재 장면 하나를 말해주면 그 부분 중심으로 정리해드릴게요."
-      : "Please tell me which part you want to organize first. If you name the beginning, middle, end, or one current scene, I can help structure that part.";
-  }
-
-  if (mode === "ideas") {
-    return korean
-      ? "어느 장면에서 다음 전개를 생각하고 싶은지 먼저 알려주세요. 현재 장면이나 핵심 단서를 한 줄로 말해주면 그 범위에서 아이디어를 드릴게요."
-      : "Please tell me which scene you want next-step ideas for first. If you name the current scene or clue in one line, I can brainstorm within that part.";
-  }
-
-  return korean
-    ? "어느 장면이나 부분을 말하는지 먼저 알려주세요. 한 장면, 행동, 물건, 문장 중 하나만 짚어 주면 그 부분을 설명해드릴게요."
-    : "Please tell me which scene or part you mean first. If you point to one scene, action, object, or line, I can explain that part.";
-}
-
-function buildBetterTargetClarificationResponse(
-  mode: SupportMode,
-  language: ResponseLanguage
+function buildTargetClarificationResponse(
+  language: ResponseLanguage,
+  mode: SupportMode
 ): string {
-  const korean = language === "korean";
+  if (language === "english") {
+    if (mode === "comprehension") {
+      return "Please name one scene, action, object, or line first, and I will explain that part.";
+    }
 
-  if (mode === "language") {
-    return korean
-      ? "\uC5B4\uB5A4 \uC7A5\uBA74, \uB2E8\uC5B4, \uD45C\uD604\uC744 \uB9D0\uD558\uB294\uC9C0 \uC544\uC9C1 \uBD84\uBA85\uD558\uC9C0 \uC54A\uC544\uC694. \uD55C \uC7A5\uBA74\uC774\uB098 \uD55C \uB2E8\uC5B4\uB9CC \uC9DA\uC5B4 \uC8FC\uBA74 \uADF8 \uBC94\uC704\uC5D0\uC11C \uB3C4\uC640\uB4DC\uB9B4\uAC8C\uC694.\n\uC608: table 7 / note / hurry"
-      : "I am not sure which scene, word, or expression you mean yet. Please name one scene or one word, and I will help within that range.\nExample: table 7 / note / hurry";
+    return "Please show me one short part of your idea or draft first, and I will help from there.";
   }
 
-  if (mode === "organization") {
-    return korean
-      ? "\uC5B4\uB5A4 \uAE00\uC778\uC9C0 \uB610\uB294 \uC5B4\uB290 \uBD80\uBD84\uC744 \uBCF4\uACE0 \uC2F6\uC740\uC9C0 \uBA3C\uC800 \uC54C\uB824\uC8FC\uC138\uC694. \uC9E7\uC740 \uAE00 \uC77C\uBD80\uB098 beginning, middle, end \uC911 \uD558\uB098\uB97C \uBCF4\uC5EC\uC8FC\uBA74 \uAD6C\uC131\uC744 \uBCFC \uAE30\uC900\uC73C\uB85C \uD568\uAED8 \uC810\uAC80\uD574\uB4DC\uB9B4\uAC8C\uC694."
-      : "Please show me which writing or part you mean first. If you share a short part or name the beginning, middle, or end, I can help you check the structure.";
+  if (mode === "comprehension") {
+    return "먼저 어느 장면, 행동, 물건, 문장을 말하는지 짚어 주세요. 그 부분만 짧게 설명해드릴게요.";
   }
 
-  if (mode === "ideas") {
-    return korean
-      ? "\uC5B4\uB290 \uC7A5\uBA74\uC5D0\uC11C \uB2E4\uC74C \uC804\uAC1C\uB97C \uC0DD\uAC01\uD558\uACE0 \uC2F6\uC740\uC9C0 \uBA3C\uC800 \uC54C\uB824\uC8FC\uC138\uC694. \uD604\uC7AC \uC7A5\uBA74\uC774\uB098 \uD575\uC2EC \uB2E8\uC11C\uB97C \uD55C \uC904\uB85C \uB9D0\uD574\uC8FC\uBA74 \uADF8 \uBC94\uC704\uC5D0\uC11C \uC544\uC774\uB514\uC5B4\uB97C \uB4DC\uB9B4\uAC8C\uC694."
-      : "Please tell me which scene you want next-step ideas for first. If you name the current scene or clue in one line, I can brainstorm within that part.";
+  return "먼저 네가 만든 내용이나 초안의 짧은 부분 하나만 보여 주세요. 그 기준으로 바로 도와드릴게요.";
+}
+
+function buildNoChunkResponse(
+  mode: SupportMode,
+  language: ResponseLanguage,
+  workingContext: "source" | "user_continuation"
+): string {
+  if (language === "english") {
+    if (workingContext === "user_continuation") {
+      return mode === "feedback"
+        ? "I need one short part of your continuation or draft to give feedback. Paste one part, and I will check the flow, language, or logic."
+        : "I need one short part of your continuation idea first. Share one scene or a few lines, and I can help with the next event, structure, or expression.";
+    }
+
+    return "I need one clearer target first. If you name one scene, clue, action, or line from the story, reading, or video, I can help from that point.";
   }
 
-  return korean
-    ? "\uC5B4\uB290 \uC7A5\uBA74\uC774\uB098 \uBD80\uBD84\uC744 \uB9D0\uD558\uB294\uC9C0 \uBA3C\uC800 \uC54C\uB824\uC8FC\uC138\uC694. \uD55C \uC7A5\uBA74, \uD589\uB3D9, \uBB3C\uAC74, \uBB38\uC7A5 \uC911 \uD558\uB098\uB9CC \uC9DA\uC5B4 \uC8FC\uBA74 \uADF8 \uBD80\uBD84\uC744 \uC124\uBA85\uD574\uB4DC\uB9B4\uAC8C\uC694."
-    : "Please tell me which scene or part you mean first. If you point to one scene, action, object, or line, I can explain that part.";
+  if (workingContext === "user_continuation") {
+    return mode === "feedback"
+      ? "피드백을 하려면 네가 만든 초안이나 전개 일부가 필요해요. 짧은 부분 하나를 보내주면 흐름, 표현, 문법, 논리를 봐드릴게요."
+      : "먼저 네가 만든 전개나 아이디어의 짧은 부분 하나가 필요해요. 한 장면이나 몇 줄만 보여주면 다음 전개, 구성, 표현을 도와드릴게요.";
+  }
+
+  return "먼저 어느 장면이나 단서를 말하는지 조금만 더 분명하게 알려 주세요. 한 장면, 행동, 물건, 문장 중 하나만 짚어 주면 그 기준으로 도와드릴게요.";
 }
 
 function persistChatLogInBackground(entry: ChatLogEntry): void {
@@ -510,17 +216,12 @@ export async function POST(request: NextRequest) {
       typeof body?.sessionStartedAt === "number" ? body.sessionStartedAt : sessionStartedAt;
     recentMessages = Array.isArray(body?.recentMessages)
       ? body.recentMessages.filter(
-          (message: unknown): message is RecentMessage => {
-            if (typeof message !== "object" || message === null) {
-              return false;
-            }
-
-            const candidate = message as Record<string, unknown>;
-            return (
-              (candidate.role === "user" || candidate.role === "assistant") &&
-              typeof candidate.text === "string"
-            );
-          }
+          (message: unknown): message is RecentMessage =>
+            typeof message === "object" &&
+            message !== null &&
+            typeof (message as Record<string, unknown>).text === "string" &&
+            (((message as Record<string, unknown>).role as string) === "user" ||
+              ((message as Record<string, unknown>).role as string) === "assistant")
         )
       : [];
   } catch {
@@ -534,100 +235,27 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const taskPackage = loadTaskPackage(taskId, condition);
-  const timestamp = new Date().toISOString();
-  const sessionDurationMs = Math.max(0, Date.now() - sessionStartedAt);
   if (!isValidParticipantId(participantId)) {
     return new Response("Participant ID is required before starting the chat.", {
       status: 400,
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
   }
+
+  const taskPackage = loadTaskPackage(taskId, condition);
+  const timestamp = new Date().toISOString();
+  const sessionDurationMs = Math.max(0, Date.now() - sessionStartedAt);
   const policyDecision = classifyQuery(query);
   const restrictionReason = detectRestrictionReason(query);
-  const supportMode = detectSupportMode(query, category);
-  const responseLanguage = detectResponseLanguage(query);
   const conversationMemory = buildConversationMemory(taskId, query, recentMessages);
-  const clarificationOption = detectClarificationOption(query);
-  const targetClarificationNeeded = needsTargetClarification(
-    query,
-    supportMode,
-    conversationMemory
-  );
+  const supportMode = detectSupportMode(query, category, conversationMemory);
+  const responseLanguage = detectResponseLanguage(query);
 
-  if (clarificationOption && recentMessages.length > 0) {
-    const clarificationOptionResponse = buildClarificationOptionResponse(
-      clarificationOption,
-      recentMessages,
-      responseLanguage
-    );
-
-    if (clarificationOptionResponse) {
-      persistChatLogInBackground({
-        participant_id: participantId,
-        session_id: sessionId,
-        task_id: taskPackage.config.task_id,
-        condition_label: taskPackage.config.ai_condition,
-        selected_category: category,
-        raw_user_query: query,
-        policy_decision: "allowed",
-        status: "allowed",
-        retrieved_chunk_ids: [],
-        retrieved_chunk_metadata: [],
-        assistant_response: clarificationOptionResponse,
-        timestamp,
-        response_length: clarificationOptionResponse.length,
-        interaction_count: interactionCount,
-        session_duration_ms: sessionDurationMs,
-        query_type_label: "clarification_option",
-        source_types_used: [],
-        visual_assets_used: [],
-      });
-
-      return new Response(clarificationOptionResponse, {
-        status: 200,
-        headers: { "Content-Type": "text/plain; charset=utf-8" },
-      });
-    }
-  }
-
-  if (isClarificationRequest(query) && recentMessages.length > 0) {
-    const clarificationResponse = buildClarificationResponse(
-      recentMessages,
-      responseLanguage
-    );
-
-    persistChatLogInBackground({
-      participant_id: participantId,
-      session_id: sessionId,
-      task_id: taskPackage.config.task_id,
-      condition_label: taskPackage.config.ai_condition,
-      selected_category: category,
-      raw_user_query: query,
-      policy_decision: "allowed",
-      status: "allowed",
-      retrieved_chunk_ids: [],
-      retrieved_chunk_metadata: [],
-      assistant_response: clarificationResponse,
-      timestamp,
-      response_length: clarificationResponse.length,
-      interaction_count: interactionCount,
-      session_duration_ms: sessionDurationMs,
-      query_type_label: "clarification_request",
-      source_types_used: [],
-      visual_assets_used: [],
-    });
-
-    return new Response(clarificationResponse, {
-      status: 200,
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
-  }
-
-  if (targetClarificationNeeded) {
-    const clarificationResponse = buildBetterTargetClarificationResponse(
+  if (isShortAcknowledgment(query)) {
+    const response = buildAcknowledgmentFollowUp(
+      responseLanguage,
       supportMode,
-      responseLanguage
+      conversationMemory.workingContext
     );
 
     persistChatLogInBackground({
@@ -641,17 +269,17 @@ export async function POST(request: NextRequest) {
       status: "allowed",
       retrieved_chunk_ids: [],
       retrieved_chunk_metadata: [],
-      assistant_response: clarificationResponse,
+      assistant_response: response,
       timestamp,
-      response_length: clarificationResponse.length,
+      response_length: response.length,
       interaction_count: interactionCount,
       session_duration_ms: sessionDurationMs,
-      query_type_label: "needs_target_clarification",
+      query_type_label: "acknowledgment",
       source_types_used: [],
       visual_assets_used: [],
     });
 
-    return new Response(clarificationResponse, {
+    return new Response(response, {
       status: 200,
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
@@ -676,7 +304,7 @@ export async function POST(request: NextRequest) {
       response_length: redirected.length,
       interaction_count: interactionCount,
       session_duration_ms: sessionDurationMs,
-      query_type_label: policyDecision,
+      query_type_label: "restricted",
       redirect_reason: restrictionReason ?? "sentence_generation",
       source_types_used: [],
       visual_assets_used: [],
@@ -693,12 +321,19 @@ export async function POST(request: NextRequest) {
     query,
     taskPackage,
     4,
-    supportMode !== "comprehension",
+    true,
     conversationMemory
   );
 
-  if (retrievedChunks.length === 0) {
-    const boundedResponse = buildNoChunkResponse(supportMode, responseLanguage);
+  if (
+    shouldAskTargetClarification(
+      query,
+      supportMode,
+      retrievedChunks.length > 0,
+      conversationMemory.workingContext
+    )
+  ) {
+    const clarification = buildTargetClarificationResponse(responseLanguage, supportMode);
 
     persistChatLogInBackground({
       participant_id: participantId,
@@ -707,7 +342,41 @@ export async function POST(request: NextRequest) {
       condition_label: taskPackage.config.ai_condition,
       selected_category: category,
       raw_user_query: query,
-      policy_decision: policyDecision,
+      policy_decision: "allowed",
+      status: "allowed",
+      retrieved_chunk_ids: [],
+      retrieved_chunk_metadata: [],
+      assistant_response: clarification,
+      timestamp,
+      response_length: clarification.length,
+      interaction_count: interactionCount,
+      session_duration_ms: sessionDurationMs,
+      query_type_label: "needs_target_clarification",
+      source_types_used: [],
+      visual_assets_used: [],
+    });
+
+    return new Response(clarification, {
+      status: 200,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
+  }
+
+  if (retrievedChunks.length === 0) {
+    const boundedResponse = buildNoChunkResponse(
+      supportMode,
+      responseLanguage,
+      conversationMemory.workingContext
+    );
+
+    persistChatLogInBackground({
+      participant_id: participantId,
+      session_id: sessionId,
+      task_id: taskPackage.config.task_id,
+      condition_label: taskPackage.config.ai_condition,
+      selected_category: category,
+      raw_user_query: query,
+      policy_decision: "allowed",
       status: "allowed",
       retrieved_chunk_ids: [],
       retrieved_chunk_metadata: [],
@@ -748,7 +417,11 @@ export async function POST(request: NextRequest) {
     const response = await client.responses.create(
       {
         model,
-        instructions: buildSystemInstruction(responseLanguage),
+        instructions: buildSystemInstruction(
+          responseLanguage,
+          supportMode,
+          conversationMemory.workingContext === "user_continuation"
+        ),
         input: [
           {
             role: "user",
@@ -775,7 +448,7 @@ export async function POST(request: NextRequest) {
 
     clearTimeout(timeout);
     const assistantResponse = limitAssistantResponse(
-      response.output_text || "No response text returned."
+      response.output_text || extractLastAssistantMessage(recentMessages) || "No response text returned."
     );
 
     persistChatLogInBackground({
@@ -785,7 +458,7 @@ export async function POST(request: NextRequest) {
       condition_label: taskPackage.config.ai_condition,
       selected_category: category,
       raw_user_query: query,
-      policy_decision: policyDecision,
+      policy_decision: "allowed",
       status: "allowed",
       retrieved_chunk_ids: retrievedChunks.map((chunk) => chunk.chunkId),
       retrieved_chunk_metadata: retrievedChunks.map((chunk) => ({
@@ -830,7 +503,7 @@ export async function POST(request: NextRequest) {
       condition_label: taskPackage.config.ai_condition,
       selected_category: category,
       raw_user_query: query,
-      policy_decision: policyDecision,
+      policy_decision: "allowed",
       status: "allowed",
       retrieved_chunk_ids: retrievedChunks.map((chunk) => chunk.chunkId),
       retrieved_chunk_metadata: retrievedChunks.map((chunk) => ({

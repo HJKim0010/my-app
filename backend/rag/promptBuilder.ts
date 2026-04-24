@@ -2,8 +2,21 @@ import type { TaskPackage } from "@/backend/rag/loader";
 import type { ConversationMemory } from "@/backend/rag/conversationMemory";
 import type { RetrievedChunk } from "@/backend/rag/retriever";
 
-export type SupportMode = "comprehension" | "ideas" | "organization" | "language";
+export type SupportMode =
+  | "comprehension"
+  | "ideas"
+  | "organization"
+  | "language"
+  | "feedback";
 export type ResponseLanguage = "korean" | "english";
+
+function episodeLabel(taskId: TaskPackage["taskId"]): string {
+  return taskId === "task2" ? "EP2 / Anna's story" : "EP1 / Jack's story";
+}
+
+function materialLabel(taskPackage: TaskPackage): string {
+  return taskPackage.condition === "dynamic" ? "video and scene materials" : "reading and story materials";
+}
 
 const SENTENCE_SUPPORT_TERMS = [
   "in english",
@@ -14,35 +27,36 @@ const SENTENCE_SUPPORT_TERMS = [
   "how can i say",
   "say it in english",
   "pattern",
-  "structure",
   "frame",
-  "clause",
   "sentence structure",
-  "영어로",
-  "한국어로",
-  "번역",
-  "문장 구조",
-  "문장 틀",
-  "구조",
-  "표현하면",
-];
+  "word",
+  "expression",
+  "vocabulary",
+  "grammar",
+  "phrase",
+] as const;
 
 const IDEA_TERMS = [
   "idea",
   "ideas",
   "brainstorm",
   "what could happen next",
+  "what happens next",
   "next idea",
   "next event",
-  "possible",
-  "direction",
-  "ending",
-  "반전",
-  "아이디어",
-  "다음 사건",
-  "다음 아이디어",
-  "전개 방향",
-];
+  "possible continuation",
+  "possible next",
+  "what comes next",
+  "my continuation",
+  "my idea",
+  "내가 만든 이야기",
+  "내가 만든 내용",
+  "내가 짠 전개",
+  "다음 전개",
+  "가능한 전개",
+  "뒷이야기",
+  "이어지",
+] as const;
 
 const ORGANIZATION_TERMS = [
   "outline",
@@ -53,30 +67,50 @@ const ORGANIZATION_TERMS = [
   "flow",
   "beginning middle end",
   "plot",
+  "sequence",
+  "scene order",
   "구성",
-  "전개",
-  "개요",
-  "문단 순서",
   "흐름",
-];
+  "순서",
+  "플롯",
+] as const;
 
-const LANGUAGE_TERMS = [
-  "word",
-  "words",
-  "expression",
-  "vocabulary",
-  "grammar",
-  "tense",
-  "natural",
-  "more natural",
-  "phrase",
-  "단어",
-  "표현",
-  "어휘",
+const FEEDBACK_TERMS = [
+  "is this logical",
+  "does this make sense",
+  "check my grammar",
+  "grammar check",
+  "is this okay",
+  "is my text good",
+  "feedback",
+  "diagnostic",
+  "check this flow",
+  "check the logic",
   "문법",
-  "시제",
-  "자연스럽",
-];
+  "어색",
+  "자연스러",
+  "논리",
+  "말이 돼",
+  "흐름 괜찮",
+  "피드백",
+] as const;
+
+const USER_CONTINUATION_TERMS = [
+  "내가 만든 이야기",
+  "이건 내가 상상한",
+  "내가 짠 전개",
+  "다음에 가능한 전개",
+  "이 아이디어 뒤에",
+  "source 말고",
+  "자료 얘기 그만해",
+  "이건 요약이 아니야",
+  "내가 만든 내용",
+  "그냥 내 전개 봐줘",
+  "my continuation",
+  "based on what i wrote",
+  "based on my idea",
+  "stop talking about the source",
+] as const;
 
 export function prefersKorean(text: string): boolean {
   return /[\uac00-\ud7a3]/.test(text);
@@ -89,50 +123,65 @@ function prefersEnglish(text: string): boolean {
 export function detectResponseLanguage(query: string): ResponseLanguage {
   const normalized = query.toLowerCase();
 
-  const wantsEnglish = [
-    "in english",
-    "english please",
-    "answer in english",
-    "say it in english",
-    "영어로",
-    "영어로 답",
-    "영어로 설명",
-  ].some((term) => normalized.includes(term));
-
-  if (wantsEnglish) {
+  if (
+    ["in english", "english please", "answer in english", "say it in english"].some((term) =>
+      normalized.includes(term)
+    )
+  ) {
     return "english";
   }
 
-  const wantsKorean = [
-    "in korean",
-    "korean please",
-    "answer in korean",
-    "한국어로",
-    "한글로",
-    "한국어로 답",
-    "한글로 답",
-    "한국어로 설명",
-    "한글로 설명",
-  ].some((term) => normalized.includes(term));
-
-  if (wantsKorean) {
+  if (
+    ["in korean", "korean please", "answer in korean"].some((term) =>
+      normalized.includes(term)
+    )
+  ) {
     return "korean";
   }
 
   return prefersEnglish(query) ? "english" : "korean";
 }
 
-export function detectSupportMode(query: string, category?: string): SupportMode {
+export function detectSentenceLevelSupport(query: string): boolean {
+  const normalized = query.toLowerCase();
+  return SENTENCE_SUPPORT_TERMS.some((term) => normalized.includes(term));
+}
+
+export function detectUserContinuationMode(query: string, memory?: ConversationMemory): boolean {
+  const normalized = query.toLowerCase();
+
+  if (USER_CONTINUATION_TERMS.some((term) => normalized.includes(term.toLowerCase()))) {
+    return true;
+  }
+
+  if (memory?.workingContext === "user_continuation") {
+    return true;
+  }
+
+  return false;
+}
+
+export function detectSupportMode(
+  query: string,
+  category?: string,
+  memory?: ConversationMemory
+): SupportMode {
   const normalized = query.toLowerCase();
   const loweredCategory = category?.toLowerCase() || "";
+  const continuationMode = detectUserContinuationMode(query, memory);
 
-  if (detectSentenceLevelSupport(query)) {
-    return "language";
+  if (
+    FEEDBACK_TERMS.some((term) => normalized.includes(term.toLowerCase())) ||
+    loweredCategory.includes("feedback") ||
+    loweredCategory.includes("check")
+  ) {
+    return "feedback";
   }
 
   if (
     IDEA_TERMS.some((term) => normalized.includes(term.toLowerCase())) ||
-    loweredCategory.includes("idea")
+    loweredCategory.includes("idea") ||
+    (continuationMode && /(next|뒤|다음|이어|전개)/.test(normalized))
   ) {
     return "ideas";
   }
@@ -140,97 +189,107 @@ export function detectSupportMode(query: string, category?: string): SupportMode
   if (
     ORGANIZATION_TERMS.some((term) => normalized.includes(term.toLowerCase())) ||
     loweredCategory.includes("organization") ||
-    loweredCategory.includes("planning")
+    loweredCategory.includes("planning") ||
+    (continuationMode && /(flow|structure|구성|흐름|순서)/.test(normalized))
   ) {
     return "organization";
   }
 
-  if (
-    LANGUAGE_TERMS.some((term) => normalized.includes(term.toLowerCase())) ||
-    loweredCategory.includes("language") ||
-    loweredCategory.includes("vocabulary")
-  ) {
+  if (detectSentenceLevelSupport(query) || loweredCategory.includes("language")) {
     return "language";
   }
 
   return "comprehension";
 }
 
-export function detectSentenceLevelSupport(query: string): boolean {
-  const normalized = query.toLowerCase();
-  return SENTENCE_SUPPORT_TERMS.some((term) => normalized.includes(term.toLowerCase()));
-}
-
-export function buildSystemInstruction(language: ResponseLanguage): string {
-  return [
-    "You are My Writing Assistant, a supportive and source-grounded chatbot for integrated writing.",
-    "You are a helper and thinking partner, not a scorer, rater, evaluator, or judge.",
-    "Your role is balanced across both task1 and task2.",
-    "You only support four kinds of help:",
-    "1) comprehension of the given multimodal source,",
-    "2) idea generation within the source,",
-    "3) organization and development planning,",
-    "4) lexical and expression-level language support.",
-    "Use AI to think, not to write.",
-    "Do not assign scores, levels, or band labels.",
-    "Do not write ready-to-submit sentences, paragraphs, or full answers for the learner.",
-    "Do not summarize the whole story or whole source.",
-    "Do not correct, rewrite, score, or evaluate the learner's draft.",
-    "Do not introduce outside knowledge, outside examples, or outside content beyond the provided task materials.",
-    "Do not guess the user's intended scene, word, feeling, or structure target when the question is underspecified.",
-    "If the user says things like this scene, this part, this word, or my structure without a clear target, ask one short follow-up question first.",
-    "For comprehension questions, explain only the relevant part of the provided materials.",
-    "For idea questions, give 2 or 3 short possibilities, not a finished continuation.",
-    "For organization questions, give a short structure, sequence, or planning frame.",
-    "For language questions, give short word, expression, or grammar help only.",
-    "For sentence-level language support, prefer a short pattern or key structure first.",
-    "You may give one short example sentence only when it serves as language illustration, not as continuation writing.",
-    "Do not give multiple connected sentences or a polished paragraph as language help.",
-    "Answer in 3 to 5 short bullet points by default.",
-    "Keep the whole answer within 5 short sentences or bullet lines.",
-    "When possible, answer in this order: direct answer, short reason, and one helpful next step.",
-    "Prefer fact plus reason plus implication, not isolated fact recall.",
-    "Keep responses concise, practical, and supportive.",
-    "Use plain text only.",
+export function buildSystemInstruction(
+  language: ResponseLanguage,
+  mode: SupportMode,
+  continuationMode: boolean
+): string {
+  const responseLanguageInstruction =
     language === "english"
       ? "Answer in English for this turn. Only switch languages if the user explicitly asks you to."
-      : "Answer mainly in Korean for this turn. Add short English words or phrases only when useful for learning.",
-    "If the retrieved materials are not enough to answer safely, say so briefly and ask the user to specify one scene, object, action, or line.",
+      : "Answer mainly in Korean for this turn. Add short English words or phrases only when useful for learning.";
+
+  const continuationInstruction = continuationMode
+    ? [
+        "User-continuation mode is active.",
+        "Treat the learner's own continuation, draft, or idea as the main working context for this turn.",
+        "Do not repeat the story recap unless the learner asks for it.",
+        "Only mention the original story, reading, or video when the learner's new event clearly contradicts a key fact.",
+      ].join("\n")
+    : "Use the story, reading, or video briefly when it helps the learner's current writing goal.";
+
+  return [
+    "You are My Writing Assistant, a bounded writing support assistant for continuation writing.",
+    "You help learners think, plan, and revise locally without writing the final answer for them.",
+    "You may support six goals: story or material comprehension, idea development, organization, local language help, limited diagnostic feedback, and soft redirection from prohibited full-writing requests.",
+    "A short recap is allowed when it helps the learner write faster or recover the context.",
+    "New events are allowed when they logically connect to the story situation, character, conflict, mood, or unresolved clue.",
+    "Do not reject an idea only because it is new.",
+    "Do not write the whole continuation, a full paragraph, a model answer, or a polished full rewrite.",
+    "Do not provide a final score, band, or rubric judgment.",
+    "If the learner asks for feedback, give limited diagnostic feedback instead of refusing.",
+    "Allowed feedback: logic issues, story-connection issues, awkward expressions, grammar problems, and phrase-level or sentence-level revision options.",
+    "Not allowed feedback: whole-draft rewriting or full continuation generation.",
+    "When the learner sounds frustrated, stop recapping the source and focus on the learner's current writing goal immediately.",
+    continuationInstruction,
+    mode === "ideas"
+      ? "For idea development, say whether the idea works, why it fits or not, how to make it more natural, and 2 or 3 possible next events."
+      : mode === "organization"
+        ? "For organization, give a short scene sequence or beginning-middle-end plan."
+        : mode === "language"
+          ? "For local language support, give the expression, a short explanation, and 1 or 2 short sentence patterns."
+          : mode === "feedback"
+            ? "For feedback, use this order when possible: overall flow, logic, language issues, local fixes, and next revision target."
+            : "For comprehension, explain only the relevant story, reading, or video detail that helps the learner continue writing. If the learner asks for a recap, give a short recap and then connect it to the next writing step.",
+    "Keep the response concise and practical.",
+    "Prefer 3 to 5 short bullet points or short lines.",
+    "Do not over-explain.",
+    "Use plain text only.",
+    responseLanguageInstruction,
   ].join("\n");
 }
 
 function buildModeInstruction(mode: SupportMode): string {
   if (mode === "ideas") {
     return [
-      "Support mode: idea generation.",
-      "Give only short next-step possibilities or directions.",
-      "Do not write the next paragraph or a finished continuation.",
+      "Support mode: idea development.",
+      "Judge whether the learner's idea is workable, explain why, and suggest 2 or 3 possible next events.",
+      "Do not draft a full continuation paragraph.",
     ].join("\n");
   }
 
   if (mode === "organization") {
     return [
-      "Support mode: organization and development planning.",
-      "Give a short outline, sequence, or paragraph-level plan.",
+      "Support mode: organization and planning.",
+      "Give a short sequence such as reaction, decision, consequence, and ending/realization.",
       "Do not draft the actual paragraph.",
     ].join("\n");
   }
 
   if (mode === "language") {
     return [
-      "Support mode: lexical and expression-level language support.",
-      "Focus on word choice, expressions, simple grammar, or nuance.",
-      "Do not rewrite the learner's draft for them.",
+      "Support mode: local language support.",
+      "Focus on local word choice, grammar, expressions, or sentence patterns.",
+      "Keep examples short and local.",
+    ].join("\n");
+  }
+
+  if (mode === "feedback") {
+    return [
+      "Support mode: limited diagnostic feedback.",
+      "Point out local logic, grammar, or expression issues without rewriting the whole draft.",
+      "Suggest phrase-level or sentence-level fixes only.",
     ].join("\n");
   }
 
   return [
-      "Support mode: source comprehension.",
-      "Answer only with the relevant scene, action, object, or meaning from the retrieved task materials.",
-      "Go beyond isolated facts when the source supports it: explain the likely reason, feeling, or story implication briefly.",
-      "If the exact scene or part is still unclear, ask the user to name that scene or part instead of inferring it.",
-      "Do not drift into whole-story summary.",
-    ].join("\n");
+    "Support mode: story or material comprehension.",
+    "Explain the story, reading, or video detail that is relevant to the learner's current question.",
+    "If the learner asks for a recap, give a short recap and then move back to writing support.",
+  ].join("\n");
 }
 
 function buildSentenceSupportInstruction(query: string): string {
@@ -240,10 +299,8 @@ function buildSentenceSupportInstruction(query: string): string {
 
   return [
     "Sentence-level support is appropriate for this request.",
-    "Treat this as language coaching, not answer generation.",
-    "Prefer this order: short pattern, one short example sentence if needed, then one small variation or learner option.",
-    "If the user gives one short Korean or English idea, you may help express it in one short sentence.",
-    "Do not turn it into multiple connected story sentences.",
+    "Prefer this order: expression or pattern, one short example, then one small variation.",
+    "Do not turn it into a full continuation paragraph.",
   ].join("\n");
 }
 
@@ -267,18 +324,19 @@ export function buildUserInput(
           .join("\n\n");
 
   return [
-    `Task ID: ${taskPackage.taskId}`,
+    `Episode: ${episodeLabel(taskPackage.taskId)}`,
     `Category: ${category}`,
     `Support mode: ${mode}`,
     `Response language: ${language}`,
+    `Working context: ${memory?.workingContext || "source"}`,
     "",
     buildModeInstruction(mode),
     buildSentenceSupportInstruction(query),
     "",
-    "Task prompt:",
+    "Story / task prompt:",
     taskPackage.prompt || "(No task prompt)",
     "",
-    "Task instruction:",
+    "Story / task instruction:",
     taskPackage.instruction || "(No task instruction)",
     "",
     "Recent conversation memory:",
@@ -288,13 +346,14 @@ export function buildUserInput(
     `Last user focus: ${memory?.lastUserFocus || "(Unknown)"}`,
     `Active entities: ${memory?.activeEntities.join(", ") || "(None)"}`,
     `Active scene: ${memory?.activeScene || "(Unknown)"}`,
+    `Continuation focus: ${memory?.continuationFocus || "(None)"}`,
     "",
-    "Retrieved task materials:",
+    `Retrieved ${materialLabel(taskPackage)}:`,
     chunksText,
     "",
     "User question:",
     query,
     "",
-    "Answer only within the current task materials and the allowed support role.",
+    "Answer within the bounded writing-support role.",
   ].join("\n");
 }

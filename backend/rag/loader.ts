@@ -51,7 +51,7 @@ function getTaskRoot(taskId: TaskId): string {
 }
 
 function taskTitle(taskId: TaskId): string {
-  return taskId === "task2" ? "Task 2" : "Task 1";
+  return taskId === "task2" ? "EP2 / Anna's story" : "EP1 / Jack's story";
 }
 
 function isPlaceholderText(text: string): boolean {

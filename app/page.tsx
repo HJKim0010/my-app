@@ -42,12 +42,12 @@ const CHAT_EXAMPLE_PROMPTS = [
     ko: "\uC774 \uC774\uC57C\uAE30 \uB2E4\uC74C\uC5D0 \uAC00\uB2A5\uD55C \uC804\uAC1C 2\uAC1C \uC54C\uB824\uC918",
   },
   {
-    en: "Describe this emotion in English",
-    ko: "\uC774 \uC7A5\uBA74\uC758 \uAC10\uC815\uC744 \uC601\uC5B4\uB85C \uD45C\uD604\uD558\uBA74?",
+    en: "Does my story flow make sense?",
+    ko: "\uB0B4 \uC804\uAC1C \uD750\uB984\uC774 \uC790\uC5F0\uC2A4\uB7EC\uC6B4\uC9C0 \uBD10\uC904\uB798?",
   },
   {
-    en: "What makes my structure clear?",
-    ko: "\uB0B4 \uAE00 \uAD6C\uC131\uC774 \uC798 \uB418\uC5C8\uB294\uC9C0 \uBCFC \uAE30\uC900 3\uAC00\uC9C0\uB9CC \uC54C\uB824\uC918",
+    en: "Give me a simple structure for my continuation",
+    ko: "\uB0B4 \uB4B7\uC774\uC57C\uAE30\uC5D0 \uB9DE\uB294 \uAC04\uB2E8\uD55C \uAD6C\uC131\uC744 \uC54C\uB824\uC918",
   },
   {
     en: "Give me 3 similar expressions",
@@ -61,7 +61,7 @@ const COMPOSER_HELP_TITLE =
 const COMPOSER_HELP_TITLE_KO = "\uC9C8\uBB38 \uC608\uC2DC";
 
 const COMPOSER_HELP_TEXT =
-  "I can help you understand a scene, connect clues, explain feelings, plan the next event, and check what makes your structure clear.";
+  "I can help you understand only the needed story, reading, or video detail, build next events, organize your continuation, check whether the flow makes sense, and improve local expressions.";
 
 const COMPOSER_HELP_TEXT_KO =
   "\uC7A5\uBA74 \uC774\uD574, \uB2E8\uC11C \uC815\uB9AC, \uAC10\uC815 \uD574\uC11D, \uB2E4\uC74C \uC804\uAC1C \uACC4\uD68D, \uAD6C\uC131 \uC810\uAC80 \uAE30\uC900 \uC815\uB9AC\uB97C \uB3C4\uC640\uB4DC\uB9B4\uAC8C\uC694.";
@@ -329,11 +329,6 @@ function GuideContent() {
             Do not ask for correction or rewriting
             <br />
             &quot;Fix my sentences.&quot; / &quot;{KO.r3}&quot;
-          </li>
-          <li>
-            Do not ask for a whole-source summary
-            <br />
-            &quot;Summarize the story.&quot; / &quot;{KO.r4}&quot;
           </li>
           <li>
             Do not ask it to add more content for you

@@ -2,22 +2,64 @@ export type QueryType = "allowed" | "restricted";
 
 export type RestrictionReason =
   | "sentence_generation"
-  | "draft_feedback"
-  | "whole_source_summary"
+  | "draft_rewrite"
   | "outside_content";
+
+const CONTINUATION_SUPPORT_SIGNALS = [
+  "what can happen next",
+  "what happens next",
+  "possible next",
+  "possible continuation",
+  "next event",
+  "next scene",
+  "next idea",
+  "story flow",
+  "plot flow",
+  "plot outline",
+  "does this flow make sense",
+  "is this logical",
+  "does this make sense",
+  "organize this story",
+  "organize my continuation",
+  "my continuation",
+  "my story",
+  "my idea",
+  "based on my idea",
+  "based on what i wrote",
+  "check this flow",
+  "check the logic",
+  "check my grammar",
+  "grammar check",
+  "source 말고",
+  "자료 얘기 그만해",
+  "내가 만든 이야기",
+  "내가 만든 내용",
+  "내가 짠 전개",
+  "내가 쓴 글",
+  "내 전개",
+  "다음에 가능한 전개",
+  "다음 전개",
+  "뒤에 뭐가",
+  "어떻게 이어",
+  "흐름이",
+  "말이 돼",
+  "이렇게 가면",
+  "문법적으로",
+  "어색한 부분",
+  "표현이 자연",
+] as const;
 
 const sentenceGenerationPatterns = [
   "write the next",
   "write next",
-  "continue the story",
-  "continue this story",
+  "continue the story for me",
+  "continue it for me",
   "finish the story",
   "give me a paragraph",
   "write a paragraph",
   "write the paragraph",
   "write a sentence",
   "give me a sentence",
-  "make a sentence",
   "complete the sentence",
   "complete this for me",
   "do it for me",
@@ -29,90 +71,29 @@ const sentenceGenerationPatterns = [
   "sample answer",
   "example answer",
   "full answer",
-  "next part",
-  "next paragraph",
-  "next sentence",
   "write the continuation",
-  "continue it for me",
-  "make it for me",
   "write my answer",
-  "give me a continuation",
   "write based on this",
   "write from this",
   "write using this",
-  "다음 문단",
-  "다음 문장",
-  "이어 써",
-  "이어써",
-  "계속 써",
-  "결말 써",
-  "끝을 써",
-  "답안을 써",
-  "답안 써",
-  "정답 써",
-  "대신 써",
 ] as const;
 
-const draftFeedbackPatterns = [
-  "correct my draft",
-  "fix my draft",
-  "improve my draft",
+const draftRewritePatterns = [
   "rewrite my draft",
-  "edit my draft",
-  "check my draft",
-  "evaluate my draft",
-  "grade my draft",
-  "score my draft",
-  "is my draft good",
-  "is this sentence okay",
-  "is this paragraph okay",
-  "check my writing",
-  "fix my writing",
-  "improve my writing",
-  "rewrite this sentence",
-  "rewrite this paragraph",
-  "correct this sentence",
-  "correct this paragraph",
-  "고쳐 줘",
-  "고쳐줘",
-  "수정해 줘",
-  "수정해줘",
-  "첨삭",
-  "교정",
-  "문법 체크",
-  "내 글",
-  "내 문장",
-  "내 문단",
-] as const;
-
-const wholeSourceSummaryPatterns = [
-  "summarize",
-  "summary",
-  "sum up",
-  "overview",
-  "overall meaning",
-  "main idea of the story",
-  "what is this story about",
-  "what's this story about",
-  "tell me the whole story",
-  "explain the whole story",
-  "organize the whole story",
-  "gist",
-  "tell me what happened",
-  "what happened in the story",
-  "explain the story",
-  "give me the content",
-  "give me the summary",
-  "summary of the story",
-  "summary of the source",
-  "summarize the text",
-  "summarize the video",
-  "summarize the audio",
-  "요약",
-  "정리",
-  "줄거리",
-  "전체 내용",
-  "전체 이야기",
+  "rewrite my writing",
+  "rewrite the whole draft",
+  "rewrite the whole thing",
+  "polish my draft",
+  "revise my whole draft",
+  "edit my whole draft",
+  "fix the whole draft",
+  "rewrite this whole paragraph",
+  "rewrite this paragraph for me",
+  "rewrite this essay",
+  "improve my whole draft",
+  "correct everything",
+  "translate this paragraph into english",
+  "translate this into english writing",
 ] as const;
 
 const outsideContentPatterns = [
@@ -124,52 +105,48 @@ const outsideContentPatterns = [
   "what would people normally do",
   "cultural background",
   "extra background knowledge",
-  "바깥 정보",
-  "외부 정보",
-  "배경지식",
-  "실제로는",
 ] as const;
 
 function includesAny(query: string, patterns: readonly string[]): boolean {
   return patterns.some((pattern) => query.includes(pattern));
 }
 
-function isStructureCriteriaHelp(query: string): boolean {
-  return (
-    /(structure|organization|flow|criterion|criteria|checklist)/.test(query) ||
-    /(\uAD6C\uC131|\uAD6C\uC870|\uD750\uB984|\uAE30\uC900|\uCCB4\uD06C\uB9AC\uC2A4\uD2B8)/.test(query)
+function hasContinuationSupportSignal(query: string): boolean {
+  return includesAny(query, CONTINUATION_SUPPORT_SIGNALS);
+}
+
+function mentionsFeedbackStyleHelp(query: string): boolean {
+  return /(grammar|logic|flow|make sense|natural|unclear|awkward|문법|논리|흐름|어색|자연)/.test(
+    query
+  );
+}
+
+function mentionsPlanningHelp(query: string): boolean {
+  return /(idea|ideas|outline|structure|flow|plan|possible|organization|plot|구성|전개|흐름|아이디어|가능한)/.test(
+    query
   );
 }
 
 export function detectRestrictionReason(query: string): RestrictionReason | null {
   const q = query.toLowerCase();
+  const continuationSupport = hasContinuationSupportSignal(q);
 
   if (
-    includesAny(q, wholeSourceSummaryPatterns) ||
-    (/(story|source|text|video|audio|이야기|본문|글|영상)/.test(q) &&
-      /(summar|summary|overall|main idea|gist|요약|정리|줄거리)/.test(q))
+    (includesAny(q, draftRewritePatterns) ||
+      (/(my draft|my writing|this essay|whole paragraph|whole draft)/.test(q) &&
+        /(rewrite|polish|edit|improve|correct|translate)/.test(q))) &&
+    !continuationSupport &&
+    !mentionsFeedbackStyleHelp(q)
   ) {
-    return "whole_source_summary";
+    return "draft_rewrite";
   }
 
   if (
-    includesAny(q, draftFeedbackPatterns) ||
-    (/(my draft|my writing|this sentence|this paragraph|내 글|내 문장|내 문단)/.test(q) &&
-      /(fix|correct|improve|rewrite|edit|check|evaluate|grade|score|고쳐|수정|교정|첨삭)/.test(
-        q
-      ))
-  ) {
-    if (isStructureCriteriaHelp(q)) {
-      return null;
-    }
-
-    return "draft_feedback";
-  }
-
-  if (
-    includesAny(q, sentenceGenerationPatterns) ||
-    (/(write|continue|generate|make|give|써|작성)/.test(q) &&
-      /(sentence|paragraph|essay|answer|continuation|next part|문장|문단|답안|결말)/.test(q))
+    (includesAny(q, sentenceGenerationPatterns) ||
+      (/(write|continue|generate|make|give)/.test(q) &&
+        /(sentence|paragraph|essay|answer|continuation|next part)/.test(q))) &&
+    !continuationSupport &&
+    !mentionsPlanningHelp(q)
   ) {
     return "sentence_generation";
   }
