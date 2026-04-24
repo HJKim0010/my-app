@@ -282,31 +282,37 @@ const GUIDE_COMPARE_ROWS = [
 
 const GUIDE_REQUEST_ROWS = [
   {
+    category: "comprehension",
     allowed: "Understand the story",
     avoid: '"Summarize the whole story."',
     better: '"What problem does the character face here?"',
   },
   {
+    category: "ideation",
     allowed: "Get ideas",
     avoid: '"Write the next paragraph."',
     better: '"What are 2 possible next events?"',
   },
   {
+    category: "organization",
     allowed: "Plan your story",
     avoid: '"Write the ending for me."',
     better: '"How can I organize the beginning, middle, and end?"',
   },
   {
+    category: "language",
     allowed: "Get language help",
     avoid: '"Fix my paragraph."',
     better: '"What word can I use instead of \'very tired\'?"',
   },
   {
+    category: "language",
     allowed: "Get short local feedback",
     avoid: '"Rewrite my paragraph."',
     better: '"Can you point out one awkward part in this paragraph?"',
   },
   {
+    category: "comprehension",
     allowed: "Ask for a clearer explanation",
     avoid: '"??"',
     better: '"Explain the last point again more simply."',
@@ -532,18 +538,21 @@ function GuideContentV2() {
       <div className="guide-subsection">
         <p className="guide-subtitle">2. How to Ask / 질문 방법</p>
         <div className="guide-request-table">
-          <div className="guide-request-head guide-request-allowed">You Can Ask</div>
-          <div className="guide-request-head guide-request-avoid">Avoid This</div>
-          <div className="guide-request-head guide-request-better">Better Example</div>
+          <div className="guide-request-head">O Ask</div>
+          <div className="guide-request-head">X Avoid</div>
+          <div className="guide-request-head">Better</div>
           {GUIDE_REQUEST_ROWS.map((row) => (
             <div key={`${row.allowed}-${row.avoid}`} className="guide-request-row">
-              <div className="guide-request-cell" data-label="You Can Ask">
+              <div
+                className={`guide-request-cell guide-request-cell-${row.category}`}
+                data-label="O Ask"
+              >
                 {row.allowed}
               </div>
-              <div className="guide-request-cell" data-label="Avoid This">
+              <div className="guide-request-cell" data-label="X Avoid">
                 {row.avoid}
               </div>
-              <div className="guide-request-cell" data-label="Better Example">
+              <div className="guide-request-cell" data-label="Better">
                 {row.better}
               </div>
             </div>

@@ -276,21 +276,8 @@ body {
 .guide-request-head {
   font-weight: 700;
   border-bottom: 1px solid var(--border);
-}
-
-.guide-request-allowed {
-  background: #edf5ff;
-  color: #1d4f85;
-}
-
-.guide-request-avoid {
-  background: #fbede7;
-  color: #7c3b22;
-}
-
-.guide-request-better {
-  background: #e8f3ec;
-  color: #21553a;
+  background: #faf6ef;
+  color: #31424b;
 }
 
 .guide-request-cell {
@@ -309,6 +296,30 @@ body {
 .guide-request-cell::before {
   display: none;
   content: attr(data-label);
+}
+
+.guide-request-cell-comprehension {
+  background: #edf5ff;
+  color: #1d4f85;
+  font-weight: 700;
+}
+
+.guide-request-cell-ideation {
+  background: #fff4df;
+  color: #81541c;
+  font-weight: 700;
+}
+
+.guide-request-cell-organization {
+  background: #f1efff;
+  color: #52479a;
+  font-weight: 700;
+}
+
+.guide-request-cell-language {
+  background: #eef7f2;
+  color: #1f5c4a;
+  font-weight: 700;
 }
 
 .guide-compare {
