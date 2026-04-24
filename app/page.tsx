@@ -34,24 +34,29 @@ const EXAMPLE_PROMPTS = [
 
 const CHAT_EXAMPLE_PROMPTS = [
   {
+    category: "Comprehension",
     en: "Help me understand this scene",
     ko: "\uC774 \uC7A5\uBA74\uC5D0\uC11C \uBB34\uC2A8 \uC77C\uC774 \uC77C\uC5B4\uB098\uB294\uC9C0 \uC124\uBA85\uD574\uC918",
   },
   {
+    category: "Ideation",
     en: "Suggest 2 possible next events",
     ko: "\uC774 \uC774\uC57C\uAE30 \uB2E4\uC74C\uC5D0 \uAC00\uB2A5\uD55C \uC804\uAC1C 2\uAC1C \uC54C\uB824\uC918",
   },
   {
-    en: "Does my story flow make sense?",
-    ko: "\uB0B4 \uC804\uAC1C \uD750\uB984\uC774 \uC790\uC5F0\uC2A4\uB7EC\uC6B4\uC9C0 \uBD10\uC904\uB798?",
+    category: "Organization",
+    en: "Help me organize my continuation",
+    ko: "\uB0B4 \uB4B7\uC774\uC57C\uAE30 \uAD6C\uC131\uC744 \uAC04\uB2E8\uD558\uAC8C \uC815\uB9AC\uD574\uC918",
   },
   {
-    en: "Give me a simple structure for my continuation",
-    ko: "\uB0B4 \uB4B7\uC774\uC57C\uAE30\uC5D0 \uB9DE\uB294 \uAC04\uB2E8\uD55C \uAD6C\uC131\uC744 \uC54C\uB824\uC918",
+    category: "Language",
+    en: "Give me 3 similar words",
+    ko: "\uC774 \uB2E8\uC5B4 \uB300\uC2E0 \uC4F8 \uC218 \uC788\uB294 \uB2E4\uB978 \uB2E8\uC5B4 3\uAC1C\uB9CC",
   },
   {
-    en: "Give me 3 similar expressions",
-    ko: "\uC774 \uB2E8\uC5B4 \uB300\uC2E0 \uC4F8 \uC218 \uC788\uB294 \uD45C\uD604 3\uAC1C\uB9CC",
+    category: "Language",
+    en: "Help me say this more naturally",
+    ko: "\uC774 \uB9D0\uC744 \uB354 \uC790\uC5F0\uC2A4\uB7FD\uAC8C \uD45C\uD604\uD558\uB824\uBA74?",
   },
 ] as const;
 
@@ -61,10 +66,10 @@ const COMPOSER_HELP_TITLE =
 const COMPOSER_HELP_TITLE_KO = "\uC9C8\uBB38 \uC608\uC2DC";
 
 const COMPOSER_HELP_TEXT =
-  "I can help you understand only the needed story, reading, or video detail, build next events, organize your continuation, check whether the flow makes sense, and improve local expressions.";
+  "Pick one question by category: comprehension, ideation, organization, or language help.";
 
 const COMPOSER_HELP_TEXT_KO =
-  "\uC7A5\uBA74 \uC774\uD574, \uB2E8\uC11C \uC815\uB9AC, \uAC10\uC815 \uD574\uC11D, \uB2E4\uC74C \uC804\uAC1C \uACC4\uD68D, \uAD6C\uC131 \uC810\uAC80 \uAE30\uC900 \uC815\uB9AC\uB97C \uB3C4\uC640\uB4DC\uB9B4\uAC8C\uC694.";
+  "\uC774\uD574, \uC544\uC774\uB514\uC5B4, \uAD6C\uC131, \uC5B8\uC5B4 \uBC94\uC8FC\uC5D0\uC11C \uD558\uB098\uC529 \uACE8\uB77C \uC9C8\uBB38\uD558\uBA74 \uAC00\uB3C5\uC131 \uC88B\uAC8C \uB3C4\uC640\uB4DC\uB9B4\uAC8C\uC694.";
 
 const CHAT_INPUT_PLACEHOLDER =
   "Example: What clue or hint would help me continue this story logically? / \uC608: \uB2E4\uC74C \uC774\uC57C\uAE30 \uC804\uAC1C\uB97C \uB17C\uB9AC\uC801\uC73C\uB85C \uC774\uC5B4\uAC00\uB824\uBA74 \uBB34\uC2A8 \uD78C\uD2B8\uAC00 \uD544\uC694\uD574?";
@@ -275,6 +280,39 @@ const GUIDE_COMPARE_ROWS = [
   },
 ] as const;
 
+const GUIDE_REQUEST_ROWS = [
+  {
+    allowed: "Understand the story",
+    avoid: '"Summarize the whole story."',
+    better: '"What problem does the character face here?"',
+  },
+  {
+    allowed: "Get ideas",
+    avoid: '"Write the next paragraph."',
+    better: '"What are 2 possible next events?"',
+  },
+  {
+    allowed: "Plan your story",
+    avoid: '"Write the ending for me."',
+    better: '"How can I organize the beginning, middle, and end?"',
+  },
+  {
+    allowed: "Get language help",
+    avoid: '"Fix my paragraph."',
+    better: '"What word can I use instead of \'very tired\'?"',
+  },
+  {
+    allowed: "Get short local feedback",
+    avoid: '"Rewrite my paragraph."',
+    better: '"Can you point out one awkward part in this paragraph?"',
+  },
+  {
+    allowed: "Ask for a clearer explanation",
+    avoid: '"??"',
+    better: '"Explain the last point again more simply."',
+  },
+] as const;
+
 function GuideContent() {
   return (
     <div className="guide-copy">
@@ -460,6 +498,79 @@ function CompactGuideNoticeV2({ onOpenGuide }: { onOpenGuide: () => void }) {
         <button type="button" className="secondary-button" onClick={onOpenGuide}>
           Open Full Guide
         </button>
+      </div>
+    </div>
+  );
+}
+
+function GuideContentV2() {
+  return (
+    <div className="guide-copy">
+      <p>
+        This chatbot is not a tool that writes for you. It helps you understand the
+        story, think of ideas, plan your writing, and get language help.
+        <br />
+        {KO.intro}
+      </p>
+      <p>
+        AI supports your thinking, but you must write the continuation yourself.
+        <br />
+        {KO.support}
+      </p>
+
+      <div className="guide-subsection">
+        <p className="guide-subtitle">1. Languages / {KO.languageTitle}</p>
+        <ul className="guide-list">
+          <li>
+            You may ask in Korean, English, or both.
+            <br />
+            {KO.lang}
+          </li>
+        </ul>
+      </div>
+
+      <div className="guide-subsection">
+        <p className="guide-subtitle">2. How to Ask / 질문 방법</p>
+        <div className="guide-request-table">
+          <div className="guide-request-head guide-request-allowed">You Can Ask</div>
+          <div className="guide-request-head guide-request-avoid">Avoid This</div>
+          <div className="guide-request-head guide-request-better">Better Example</div>
+          {GUIDE_REQUEST_ROWS.map((row) => (
+            <div key={`${row.allowed}-${row.avoid}`} className="guide-request-row">
+              <div className="guide-request-cell" data-label="You Can Ask">
+                {row.allowed}
+              </div>
+              <div className="guide-request-cell" data-label="Avoid This">
+                {row.avoid}
+              </div>
+              <div className="guide-request-cell" data-label="Better Example">
+                {row.better}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="guide-subsection">
+        <p className="guide-subtitle">3. Important Rules / {KO.rulesTitle}</p>
+        <ul className="guide-list">
+          <li>
+            Ask one clear question at a time.
+            <br />
+            {KO.one}
+          </li>
+          <li>
+            If the chatbot refuses a request, do not keep trying to get the same kind of
+            answer in another way.
+            <br />
+            {KO.refuse}
+          </li>
+          <li>
+            If the reply feels unclear, ask it to explain one point again more simply.
+            <br />
+            {KO.shortReaction}
+          </li>
+        </ul>
       </div>
     </div>
   );
@@ -892,7 +1003,7 @@ export default function Home() {
           </div>
 
           <div className="guide-panel">
-            <GuideContent />
+            <GuideContentV2 />
           </div>
 
           <label className="guide-check">
@@ -989,7 +1100,6 @@ export default function Home() {
 
           <section className="thread-section">
             <p className="section-label">Conversation</p>
-            <CompactGuideNoticeV2 onOpenGuide={() => setShowGuide(true)} />
             <div className="message-thread">
               {activeTaskState.messages.map((message) => (
                 <div
@@ -1039,9 +1149,12 @@ export default function Home() {
                     <button
                       key={example.en}
                       type="button"
-                      className="example-prompt-button"
+                      className={`example-prompt-button example-prompt-button-${example.category.toLowerCase()}`}
                       onClick={() => setInput(example.ko)}
                     >
+                      <span className={`example-prompt-chip example-prompt-chip-${example.category.toLowerCase()}`}>
+                        {example.category}
+                      </span>
                       <span className="example-prompt-button-en">{example.en}</span>
                       <span className="example-prompt-button-ko">{example.ko}</span>
                     </button>
@@ -1091,7 +1204,7 @@ export default function Home() {
             </div>
 
             <div className="guide-panel modal-guide-panel">
-              <GuideContent />
+              <GuideContentV2 />
             </div>
           </section>
         </div>
