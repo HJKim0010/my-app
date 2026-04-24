@@ -69,6 +69,18 @@ function isShortAcknowledgment(query: string): boolean {
   );
 }
 
+function isAmbiguousShortReaction(query: string): boolean {
+  const normalized = compactText(query);
+
+  if (!normalized || normalized.length > 12) {
+    return false;
+  }
+
+  return /^(응\?|ㅇㅇ\?|네\?|그래\?|맞아\?|어\?|어\.\.|엥\?|엥|뭐\?|뭐라고\?|what\?|huh\?|hm\?|hmm\?)$/i.test(
+    normalized
+  );
+}
+
 function extractLastAssistantMessage(recentMessages: RecentMessage[]): string {
   for (let index = recentMessages.length - 1; index >= 0; index -= 1) {
     if (recentMessages[index]?.role === "assistant") {
@@ -77,6 +89,14 @@ function extractLastAssistantMessage(recentMessages: RecentMessage[]): string {
   }
 
   return "";
+}
+
+function buildAmbiguousReactionResponse(language: ResponseLanguage): string {
+  if (language === "english") {
+    return "I am not fully sure what you mean yet. If you mean a reaction to my last answer, tell me what felt odd, or choose one: plot, structure, expression, or feedback.";
+  }
+
+  return "무슨 뜻인지 아직 정확히 모르겠어요. 방금 제 답변에 대한 반응이라면 어느 부분이 이상했는지 말해주거나, 전개 / 구성 / 표현 / 피드백 중 하나를 골라 주세요.";
 }
 
 function buildAcknowledgmentFollowUp(
@@ -250,6 +270,36 @@ export async function POST(request: NextRequest) {
   const conversationMemory = buildConversationMemory(taskId, query, recentMessages);
   const supportMode = detectSupportMode(query, category, conversationMemory);
   const responseLanguage = detectResponseLanguage(query);
+
+  if (isAmbiguousShortReaction(query)) {
+    const response = buildAmbiguousReactionResponse(responseLanguage);
+
+    persistChatLogInBackground({
+      participant_id: participantId,
+      session_id: sessionId,
+      task_id: taskPackage.config.task_id,
+      condition_label: taskPackage.config.ai_condition,
+      selected_category: category,
+      raw_user_query: query,
+      policy_decision: "allowed",
+      status: "allowed",
+      retrieved_chunk_ids: [],
+      retrieved_chunk_metadata: [],
+      assistant_response: response,
+      timestamp,
+      response_length: response.length,
+      interaction_count: interactionCount,
+      session_duration_ms: sessionDurationMs,
+      query_type_label: "ambiguous_short_reaction",
+      source_types_used: [],
+      visual_assets_used: [],
+    });
+
+    return new Response(response, {
+      status: 200,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
+  }
 
   if (isShortAcknowledgment(query)) {
     const response = buildAcknowledgmentFollowUp(

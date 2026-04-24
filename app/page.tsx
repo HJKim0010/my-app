@@ -395,8 +395,6 @@ export default function Home() {
   const [guideAccepted, setGuideAccepted] = useState(false);
   const [guideChecked, setGuideChecked] = useState(false);
   const [showGuide, setShowGuide] = useState(true);
-  const [typingMessageId, setTypingMessageId] = useState<string | null>(null);
-  const [typingText, setTypingText] = useState("");
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [adminResetCode, setAdminResetCode] = useState("");
   const [adminResetMessage, setAdminResetMessage] = useState("");
@@ -432,37 +430,9 @@ export default function Home() {
     }
 
     const lastMessage = activeTaskState.messages[activeTaskState.messages.length - 1];
-
-    if (!lastMessage || lastMessage.role !== "assistant") {
-      setTypingMessageId(null);
-      setTypingText("");
-      return;
+    if (lastMessage?.role === "assistant") {
+      revealedAssistantIdsRef.current.add(lastMessage.id);
     }
-
-    if (revealedAssistantIdsRef.current.has(lastMessage.id)) {
-      setTypingMessageId(null);
-      setTypingText("");
-      return;
-    }
-
-    setTypingMessageId(lastMessage.id);
-    setTypingText("");
-
-    const fullText = lastMessage.text;
-    let index = 0;
-    const step = fullText.length > 220 ? 3 : fullText.length > 120 ? 2 : 1;
-    const timer = window.setInterval(() => {
-      index = Math.min(index + step, fullText.length);
-      setTypingText(fullText.slice(0, index));
-
-      if (index >= fullText.length) {
-        window.clearInterval(timer);
-        revealedAssistantIdsRef.current.add(lastMessage.id);
-        setTypingMessageId(null);
-      }
-    }, 16);
-
-    return () => window.clearInterval(timer);
   }, [activeTaskState.messages, guideAccepted]);
 
   useEffect(() => {
@@ -479,8 +449,6 @@ export default function Home() {
     setGuideAccepted(false);
     setGuideChecked(false);
     setShowGuide(true);
-    setTypingMessageId(null);
-    setTypingText("");
 
     if (isTaskId(taskParam)) {
       setSelectedTask(taskParam);
@@ -721,16 +689,12 @@ export default function Home() {
     setGuideAccepted(true);
     setShowGuide(false);
     setGuideChecked(false);
-    setTypingMessageId(null);
-    setTypingText("");
   };
 
   const returnToHomeScreen = () => {
     setGuideAccepted(false);
     setGuideChecked(false);
     setShowGuide(true);
-    setTypingMessageId(null);
-    setTypingText("");
     setInput("");
   };
 
@@ -790,8 +754,6 @@ export default function Home() {
     setGuideAccepted(false);
     setGuideChecked(false);
     setShowGuide(true);
-    setTypingMessageId(null);
-    setTypingText("");
     setInput("");
     setSelectedTask("task1");
     setAdminResetCode("");
@@ -963,16 +925,7 @@ export default function Home() {
                     <div className="message-role">
                       {message.role === "user" ? "You" : "Assistant"}
                     </div>
-                    <div className="message-text">
-                      {message.role === "assistant" && typingMessageId === message.id ? (
-                        <>
-                          {typingText}
-                          <span className="typing-caret" aria-hidden="true" />
-                        </>
-                      ) : (
-                        message.text
-                      )}
-                    </div>
+                    <div className="message-text">{message.text}</div>
                   </div>
                 </div>
               ))}

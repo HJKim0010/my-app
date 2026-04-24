@@ -451,21 +451,23 @@ body {
 }
 
 .example-prompt-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  align-items: stretch;
 }
 
 .example-prompt-button {
   display: flex;
-  flex: 0 0 calc((100% - 16px) / 3);
   flex-direction: column;
+  justify-content: center;
   align-items: flex-start;
+  width: 100%;
   min-width: 0;
-  max-width: calc((100% - 16px) / 3);
-  padding: 10px 12px;
+  min-height: 116px;
+  padding: 14px 16px;
   border: 1px solid rgba(125, 169, 151, 0.7);
-  border-radius: 999px;
+  border-radius: 28px;
   background: #eef7f2;
   color: #184433;
   font: inherit;
@@ -594,15 +596,6 @@ body {
   opacity: 0.88;
 }
 
-.typing-caret {
-  display: inline-block;
-  width: 0.6ch;
-  margin-left: 1px;
-  border-right: 2px solid currentColor;
-  animation: caret-blink 900ms step-end infinite;
-  vertical-align: -0.06em;
-}
-
 @keyframes bubble-rise {
   0% {
     opacity: 0;
@@ -612,18 +605,6 @@ body {
   100% {
     opacity: 1;
     transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes caret-blink {
-  0%,
-  45% {
-    opacity: 1;
-  }
-
-  46%,
-  100% {
-    opacity: 0;
   }
 }
 
@@ -675,6 +656,10 @@ body {
 
   .modal-card {
     width: min(920px, 100%);
+  }
+
+  .example-prompt-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -741,12 +726,13 @@ body {
   }
 
   .example-prompt-list {
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
 
   .example-prompt-button {
     width: 100%;
     text-align: left;
+    min-height: 0;
   }
 
   .guide-compare {
