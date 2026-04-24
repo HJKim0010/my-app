@@ -538,22 +538,22 @@ function GuideContentV2() {
       <div className="guide-subsection">
         <p className="guide-subtitle">2. How to Ask / 질문 방법</p>
         <div className="guide-request-table">
-          <div className="guide-request-head">O Ask</div>
-          <div className="guide-request-head">X Avoid</div>
-          <div className="guide-request-head">Better</div>
+          <div className="guide-request-head">Categories</div>
+          <div className="guide-request-head">⭕ Better</div>
+          <div className="guide-request-head">Avoid</div>
           {GUIDE_REQUEST_ROWS.map((row) => (
             <div key={`${row.allowed}-${row.avoid}`} className="guide-request-row">
               <div
                 className={`guide-request-cell guide-request-cell-${row.category}`}
-                data-label="O Ask"
+                data-label="Categories"
               >
                 {row.allowed}
               </div>
-              <div className="guide-request-cell" data-label="X Avoid">
-                {row.avoid}
-              </div>
-              <div className="guide-request-cell" data-label="Better">
+              <div className="guide-request-cell" data-label="⭕ Better">
                 {row.better}
+              </div>
+              <div className="guide-request-cell" data-label="Avoid">
+                {row.avoid}
               </div>
             </div>
           ))}
