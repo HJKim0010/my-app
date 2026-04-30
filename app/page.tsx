@@ -34,24 +34,24 @@ const EXAMPLE_PROMPTS = [
 
 const CHAT_EXAMPLE_PROMPTS = [
   {
-    category: "Comprehension",
-    en: "Help me understand this scene",
-    ko: "\uC774 \uC7A5\uBA74\uC5D0\uC11C \uBB34\uC2A8 \uC77C\uC774 \uC77C\uC5B4\uB098\uB294\uC9C0 \uC124\uBA85\uD574\uC918",
-  },
-  {
     category: "Ideation",
-    en: "Suggest 2 possible next events",
-    ko: "\uC774 \uC774\uC57C\uAE30 \uB2E4\uC74C\uC5D0 \uAC00\uB2A5\uD55C \uC804\uAC1C 2\uAC1C \uC54C\uB824\uC918",
+    en: "Suggest 2 next events that use the clue",
+    ko: "주어진 단서를 활용한 다음 전개 2개만 알려줘",
   },
   {
     category: "Organization",
-    en: "Help me organize my continuation",
-    ko: "\uB0B4 \uB4B7\uC774\uC57C\uAE30 \uAD6C\uC131\uC744 \uAC04\uB2E8\uD558\uAC8C \uC815\uB9AC\uD574\uC918",
+    en: "Help me organize clue-thought-action",
+    ko: "단서-생각-행동 순서로 내 뒷이야기 구성을 정리해줘",
   },
   {
-    category: "Language",
-    en: "Give me 3 similar words",
-    ko: "\uC774 \uB2E8\uC5B4 \uB300\uC2E0 \uC4F8 \uC218 \uC788\uB294 \uB2E4\uB978 \uB2E8\uC5B4 3\uAC1C\uB9CC",
+    category: "Comprehension",
+    en: "Which clue matters for the next part?",
+    ko: "다음 전개에 꼭 써야 할 단서가 뭐야?",
+  },
+  {
+    category: "Organization",
+    en: "Check if this flow makes sense",
+    ko: "이 전개가 문제 해결 흐름으로 자연스러운지 봐줘",
   },
   {
     category: "Language",
@@ -66,10 +66,10 @@ const COMPOSER_HELP_TITLE =
 const COMPOSER_HELP_TITLE_KO = "\uC9C8\uBB38 \uC608\uC2DC";
 
 const COMPOSER_HELP_TEXT =
-  "Pick one question by category: comprehension, ideation, organization, or language help.";
+  "Ask for writing support: clue use, next events, organization, language, or local feedback.";
 
 const COMPOSER_HELP_TEXT_KO =
-  "\uC774\uD574, \uC544\uC774\uB514\uC5B4, \uAD6C\uC131, \uC5B8\uC5B4 \uBC94\uC8FC\uC5D0\uC11C \uD558\uB098\uC529 \uACE8\uB77C \uC9C8\uBB38\uD558\uBA74 \uAC00\uB3C5\uC131 \uC88B\uAC8C \uB3C4\uC640\uB4DC\uB9B4\uAC8C\uC694.";
+  "단서 활용, 다음 전개, 구성, 표현, 짧은 피드백처럼 글을 이어 쓰는 데 필요한 도움을 물어보세요.";
 
 const CHAT_INPUT_PLACEHOLDER =
   "Example: What clue or hint would help me continue this story logically? / \uC608: \uB2E4\uC74C \uC774\uC57C\uAE30 \uC804\uAC1C\uB97C \uB17C\uB9AC\uC801\uC73C\uB85C \uC774\uC5B4\uAC00\uB824\uBA74 \uBB34\uC2A8 \uD78C\uD2B8\uAC00 \uD544\uC694\uD574?";
@@ -282,22 +282,22 @@ const GUIDE_COMPARE_ROWS = [
 
 const GUIDE_REQUEST_ROWS = [
   {
-    category: "comprehension",
-    allowed: "Understand the story",
-    avoid: '"Summarize the whole story."',
-    better: '"What problem does the character face here?"',
-  },
-  {
     category: "ideation",
-    allowed: "Get ideas",
+    allowed: "Use the given clue",
     avoid: '"Write the next paragraph."',
-    better: '"What are 2 possible next events?"',
+    better: '"What are 2 next events that use the clue?"',
   },
   {
     category: "organization",
-    allowed: "Plan your story",
+    allowed: "Plan clue-thought-action",
     avoid: '"Write the ending for me."',
-    better: '"How can I organize the beginning, middle, and end?"',
+    better: '"How can I organize clue, thought, action, and result?"',
+  },
+  {
+    category: "organization",
+    allowed: "Check story flow",
+    avoid: '"Make it more interesting for me."',
+    better: '"Does this flow solve the problem naturally?"',
   },
   {
     category: "language",
@@ -313,9 +313,9 @@ const GUIDE_REQUEST_ROWS = [
   },
   {
     category: "comprehension",
-    allowed: "Ask for a clearer explanation",
-    avoid: '"??"',
-    better: '"Explain the last point again more simply."',
+    allowed: "Understand only the needed clue",
+    avoid: '"Summarize the whole story."',
+    better: '"Which clue matters for the next part?"',
   },
 ] as const;
 
@@ -496,9 +496,9 @@ function CompactGuideNoticeV2({ onOpenGuide }: { onOpenGuide: () => void }) {
       </ul>
       <p>헷갈리면 이렇게 물어보세요:</p>
       <ul className="guide-list compact-guide-list">
-        <li>"방금 말 다시 쉽게 설명해줘"</li>
-        <li>"이 부분만 다시 말해줘"</li>
-        <li>"어색한 곳 하나만 짚어줘"</li>
+        <li>&quot;방금 말 다시 쉽게 설명해줘&quot;</li>
+        <li>&quot;이 부분만 다시 말해줘&quot;</li>
+        <li>&quot;어색한 곳 하나만 짚어줘&quot;</li>
       </ul>
       <div className="compact-guidance-actions">
         <button type="button" className="secondary-button" onClick={onOpenGuide}>

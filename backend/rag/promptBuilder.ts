@@ -56,6 +56,18 @@ const IDEA_TERMS = [
   "가능한 전개",
   "뒷이야기",
   "이어지",
+  "clue",
+  "hint",
+  "use the clue",
+  "given clue",
+  "problem solving",
+  "solve the problem",
+  "story makes sense",
+  "단서",
+  "힌트",
+  "문제 해결",
+  "해결",
+  "자연스러운 전개",
 ] as const;
 
 const ORGANIZATION_TERMS = [
@@ -73,6 +85,16 @@ const ORGANIZATION_TERMS = [
   "흐름",
   "순서",
   "플롯",
+  "think before acting",
+  "thought before acting",
+  "before acting",
+  "cause and effect",
+  "자연스러운 흐름",
+  "행동 전에",
+  "생각하고",
+  "이유가",
+  "원인",
+  "결과",
 ] as const;
 
 const FEEDBACK_TERMS = [
@@ -110,7 +132,64 @@ const USER_CONTINUATION_TERMS = [
   "based on what i wrote",
   "based on my idea",
   "stop talking about the source",
+  "continuation writing",
+  "writing task",
+  "이어쓰기",
+  "쓰기 과제",
+  "글쓰기 과제",
+  "전개를 도와",
+  "어떻게 이어",
 ] as const;
+
+const CONTINUATION_WRITING_TASK_TERMS = [
+  "continuation writing",
+  "writing task",
+  "continue this story",
+  "continue the story",
+  "what should happen next",
+  "what could happen next",
+  "next part",
+  "next event",
+  "next scene",
+  "ending",
+  "clue",
+  "hint",
+  "use the clue",
+  "given clue",
+  "think before acting",
+  "thought before acting",
+  "story makes sense",
+  "natural flow",
+  "problem solving",
+  "resolve the problem",
+  "이어쓰기",
+  "쓰기 과제",
+  "글쓰기 과제",
+  "다음 전개",
+  "다음 장면",
+  "뒷이야기",
+  "결말",
+  "단서",
+  "힌트",
+  "단서 활용",
+  "행동 전에",
+  "생각하고",
+  "자연스러운 흐름",
+  "문제 해결",
+  "말이 되",
+] as const;
+
+function detectContinuationWritingTask(query: string, category?: string): boolean {
+  const normalized = query.toLowerCase();
+  const loweredCategory = category?.toLowerCase() || "";
+
+  return (
+    loweredCategory.includes("idea") ||
+    loweredCategory.includes("organization") ||
+    loweredCategory.includes("planning") ||
+    CONTINUATION_WRITING_TASK_TERMS.some((term) => normalized.includes(term.toLowerCase()))
+  );
+}
 
 export function prefersKorean(text: string): boolean {
   return /[\uac00-\ud7a3]/.test(text);
@@ -169,6 +248,7 @@ export function detectSupportMode(
   const normalized = query.toLowerCase();
   const loweredCategory = category?.toLowerCase() || "";
   const continuationMode = detectUserContinuationMode(query, memory);
+  const writingTaskMode = detectContinuationWritingTask(query, category);
 
   if (
     FEEDBACK_TERMS.some((term) => normalized.includes(term.toLowerCase())) ||
@@ -199,6 +279,10 @@ export function detectSupportMode(
     return "language";
   }
 
+  if (writingTaskMode) {
+    return "organization";
+  }
+
   return "comprehension";
 }
 
@@ -225,6 +309,9 @@ export function buildSystemInstruction(
     "You are My Writing Assistant, a bounded writing support assistant for continuation writing.",
     "You help learners think, plan, and revise locally without writing the final answer for them.",
     "You may support six goals: story or material comprehension, idea development, organization, local language help, limited diagnostic feedback, and soft redirection from prohibited full-writing requests.",
+    "Default to writing support whenever the learner is working on a continuation writing task; do not turn it into a comprehension quiz or a long source explanation.",
+    "For continuation writing, help the learner make the next part use the given clue, show thinking before action, keep cause-and-effect clear, resolve or develop the problem naturally, and preserve a sensible story flow.",
+    "When using source information, translate it into a writing move such as clue to use, character reaction, decision, action, consequence, or ending realization.",
     "A short recap is allowed when it helps the learner write faster or recover the context.",
     "New events are allowed when they logically connect to the story situation, character, conflict, mood, or unresolved clue.",
     "Do not reject an idea only because it is new.",
@@ -238,9 +325,9 @@ export function buildSystemInstruction(
     "In that case, do not begin by saying you do not understand. Restate the key point in easier language, then give one small next-step option.",
     continuationInstruction,
     mode === "ideas"
-      ? "For idea development, say whether the idea works, why it fits or not, how to make it more natural, and 2 or 3 possible next events."
+      ? "For idea development, say whether the idea works, why it fits or not, how to make it more natural, and 2 or 3 possible next events that use clues and cause-effect."
       : mode === "organization"
-        ? "For organization, give a short scene sequence or beginning-middle-end plan."
+        ? "For organization, give a short scene sequence or beginning-middle-end plan built around clue, thought, action, consequence, and resolution."
         : mode === "language"
           ? "For local language support, give the expression, a short explanation, and 1 or 2 short sentence patterns."
           : mode === "feedback"
@@ -260,6 +347,7 @@ function buildModeInstruction(mode: SupportMode): string {
     return [
       "Support mode: idea development.",
       "Judge whether the learner's idea is workable, explain why, and suggest 2 or 3 possible next events.",
+      "Prefer next events that use a given clue, give the character a reason to act, and move toward a natural problem-solving flow.",
       "Do not draft a full continuation paragraph.",
     ].join("\n");
   }
@@ -268,6 +356,7 @@ function buildModeInstruction(mode: SupportMode): string {
     return [
       "Support mode: organization and planning.",
       "Give a short sequence such as reaction, decision, consequence, and ending/realization.",
+      "Check that the plan uses the clue, includes thinking before action, and makes the story outcome sensible.",
       "Do not draft the actual paragraph.",
     ].join("\n");
   }
@@ -292,6 +381,7 @@ function buildModeInstruction(mode: SupportMode): string {
     "Support mode: story or material comprehension.",
     "Explain the story, reading, or video detail that is relevant to the learner's current question.",
     "If the learner asks for a recap, give a short recap and then move back to writing support.",
+    "End with one writing-focused next step when possible.",
   ].join("\n");
 }
 

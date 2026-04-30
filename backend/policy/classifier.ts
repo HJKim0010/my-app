@@ -16,6 +16,15 @@ const CONTINUATION_SUPPORT_SIGNALS = [
   "story flow",
   "plot flow",
   "plot outline",
+  "clue",
+  "hint",
+  "use the clue",
+  "given clue",
+  "think before acting",
+  "thought before acting",
+  "natural flow",
+  "problem solving",
+  "resolve the problem",
   "does this flow make sense",
   "is this logical",
   "does this make sense",
@@ -37,8 +46,20 @@ const CONTINUATION_SUPPORT_SIGNALS = [
   "내가 짠 전개",
   "내가 쓴 글",
   "내 전개",
+  "이어쓰기",
+  "쓰기 과제",
+  "글쓰기 과제",
   "다음에 가능한 전개",
   "다음 전개",
+  "다음 장면",
+  "뒷이야기",
+  "단서",
+  "힌트",
+  "단서 활용",
+  "행동 전에",
+  "생각하고",
+  "자연스러운 흐름",
+  "문제 해결",
   "뒤에 뭐가",
   "어떻게 이어",
   "흐름이",
@@ -116,13 +137,13 @@ function hasContinuationSupportSignal(query: string): boolean {
 }
 
 function mentionsFeedbackStyleHelp(query: string): boolean {
-  return /(grammar|logic|flow|make sense|natural|unclear|awkward|문법|논리|흐름|어색|자연)/.test(
+  return /(grammar|logic|flow|make sense|natural|unclear|awkward|clue|hint|문법|논리|흐름|어색|자연|단서|힌트|말이 되)/.test(
     query
   );
 }
 
 function mentionsPlanningHelp(query: string): boolean {
-  return /(idea|ideas|outline|structure|flow|plan|possible|organization|plot|구성|전개|흐름|아이디어|가능한)/.test(
+  return /(idea|ideas|outline|structure|flow|plan|possible|organization|plot|clue|hint|next event|next scene|problem solving|구성|전개|흐름|아이디어|가능한|단서|힌트|다음 장면|문제 해결|이어쓰기)/.test(
     query
   );
 }
