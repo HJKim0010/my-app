@@ -38,17 +38,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
-  const isFinal = body?.isFinal === true;
   const taskId: TaskId = body?.taskId === "task2" ? "task2" : "task1";
   const condition = body?.condition === "dynamic" ? "dynamic" : "static";
   const taskPackage = loadTaskPackage(taskId, condition as TaskCondition);
   const participantId = normalizeParticipantId(body?.participantId);
   const sessionStartedAt =
     typeof body?.sessionStartedAt === "number" ? body.sessionStartedAt : Date.now();
-
-  if (!isFinal) {
-    return Response.json({ ok: true, skipped: true });
-  }
 
   if (!isValidParticipantId(participantId)) {
     return new Response("Participant ID is required before saving the transcript.", {

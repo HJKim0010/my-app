@@ -85,16 +85,32 @@ function appendLocalLog(filePath: string, entry: object): void {
   fs.appendFileSync(filePath, `${JSON.stringify(entry)}\n`, "utf8");
 }
 
+function appendLocalFallback(filePath: string, entry: object, error: unknown): void {
+  try {
+    appendLocalLog(filePath, {
+      ...entry,
+      supabase_error: error instanceof Error ? error.message : String(error),
+    });
+  } catch (fallbackError) {
+    console.error("Failed to write local fallback log", fallbackError);
+  }
+}
+
 export async function appendChatLog(entry: ChatLogEntry): Promise<void> {
   if (hasSupabaseConfig()) {
-    await insertIntoSupabase(CHAT_EVENTS_TABLE, {
-      ...entry,
-      retrieved_chunk_ids: entry.retrieved_chunk_ids,
-      retrieved_chunk_metadata: entry.retrieved_chunk_metadata,
-      source_types_used: entry.source_types_used || [],
-      visual_assets_used: entry.visual_assets_used || [],
-    });
-    return;
+    try {
+      await insertIntoSupabase(CHAT_EVENTS_TABLE, {
+        ...entry,
+        retrieved_chunk_ids: entry.retrieved_chunk_ids,
+        retrieved_chunk_metadata: entry.retrieved_chunk_metadata,
+        source_types_used: entry.source_types_used || [],
+        visual_assets_used: entry.visual_assets_used || [],
+      });
+      return;
+    } catch (error) {
+      appendLocalFallback(LOG_FILE, entry, error);
+      return;
+    }
   }
 
   appendLocalLog(LOG_FILE, entry);
@@ -104,8 +120,13 @@ export async function appendSessionTranscript(
   entry: SessionTranscriptEntry
 ): Promise<void> {
   if (hasSupabaseConfig()) {
-    await insertIntoSupabase(SESSION_TRANSCRIPTS_TABLE, entry);
-    return;
+    try {
+      await insertIntoSupabase(SESSION_TRANSCRIPTS_TABLE, entry);
+      return;
+    } catch (error) {
+      appendLocalFallback(SESSION_TRANSCRIPT_FILE, entry, error);
+      return;
+    }
   }
 
   appendLocalLog(SESSION_TRANSCRIPT_FILE, entry);

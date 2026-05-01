@@ -833,14 +833,24 @@ export default function Home() {
         role: "assistant",
         text,
       };
+      const messagesWithResponse = [...currentState.messages, userMessage, assistantMessage];
+      const nextState: TaskChatState = {
+        ...currentState,
+        interactionCount: nextInteractionCount,
+        transcriptSaved: false,
+        messages: messagesWithResponse,
+      };
 
       setTaskStates((current) => ({
         ...current,
         [selectedTask]: {
           ...current[selectedTask],
+          transcriptSaved: false,
           messages: [...current[selectedTask].messages, assistantMessage],
         },
       }));
+
+      void persistTranscript(selectedTask, nextState, false);
     } catch (error) {
       console.error(error);
       const message =
