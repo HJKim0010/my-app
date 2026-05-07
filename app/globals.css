@@ -566,6 +566,12 @@ body {
   margin-bottom: 12px;
 }
 
+.example-prompt-panel-thread {
+  width: min(760px, 100%);
+  margin: 2px 0 4px;
+  padding: 2px 0 4px;
+}
+
 .example-prompt-title {
   margin: 0 0 10px;
   color: #31424b;
@@ -733,6 +739,39 @@ body {
   margin-top: 8px;
   font-size: 0.84rem;
   line-height: 1.5;
+}
+
+.example-prompt-panel-thread .example-prompt-list {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.example-prompt-panel-thread .example-prompt-button,
+.example-prompt-panel-thread .example-prompt-button:nth-child(1),
+.example-prompt-panel-thread .example-prompt-button:nth-child(2),
+.example-prompt-panel-thread .example-prompt-button:nth-child(3),
+.example-prompt-panel-thread .example-prompt-button:nth-child(4),
+.example-prompt-panel-thread .example-prompt-button:nth-child(5) {
+  grid-column: auto;
+  min-height: 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+.example-prompt-panel-thread .example-prompt-chip {
+  margin-bottom: 7px;
+  padding: 3px 8px;
+  font-size: 0.68rem;
+}
+
+.example-prompt-panel-thread .example-prompt-button-en {
+  font-size: 0.88rem;
+}
+
+.example-prompt-panel-thread .example-prompt-button-ko {
+  margin-top: 5px;
+  font-size: 0.78rem;
 }
 
 .composer-footer {

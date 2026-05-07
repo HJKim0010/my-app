@@ -25,14 +25,12 @@ const TASK_IDS: TaskId[] = ["task1", "task2"];
 const STORAGE_KEY_PREFIX = "writing-assistant-task-state-v6";
 const GUIDE_KEY_PREFIX = "writing-assistant-guide-accepted-v6";
 const CURRENT_PARTICIPANT_KEY = "writing-assistant-current-participant-v4";
-const EXAMPLE_PROMPTS = [
-  "다음에 일어날 수 있는 사건을 2가지 생각해 볼 수 있나요?",
-  "이 단서가 왜 중요한지 설명해 주세요.",
-  "단서-생각-행동-결과 순서로 정리하고 싶어요.",
-  "이 표현을 더 자연스럽게 바꾸려면 어떻게 말하면 좋을까요?",
-] as const;
-
 const CHAT_EXAMPLE_PROMPTS = [
+  {
+    category: "Comprehension",
+    en: "What does this part mean?",
+    ko: "이 부분은 무슨 뜻인가요?",
+  },
   {
     category: "Ideation",
     en: "Suggest 2 next events that use the clue",
@@ -44,32 +42,15 @@ const CHAT_EXAMPLE_PROMPTS = [
     ko: "단서-생각-행동-결과 순서로 글의 흐름을 정리하도록 도와주세요.",
   },
   {
-    category: "Comprehension",
-    en: "Which clue matters for the next part?",
-    ko: "다음 부분을 이어 쓰는 데 중요한 단서는 무엇인가요?",
-  },
-  {
-    category: "Organization",
-    en: "Check if this flow makes sense",
-    ko: "이 이야기 흐름이 자연스럽고 논리적인지 확인해 주세요.",
-  },
-  {
     category: "Language",
     en: "Help me say this more naturally",
     ko: "\uC774 \uB9D0\uC744 \uB354 \uC790\uC5F0\uC2A4\uB7FD\uAC8C \uD45C\uD604\uD558\uB824\uBA74?",
   },
 ] as const;
 
-const COMPOSER_HELP_TITLE =
-  "Example Questions";
-
-const COMPOSER_HELP_TITLE_KO = "\uC9C8\uBB38 \uC608\uC2DC";
-
-const COMPOSER_HELP_TEXT =
-  "Ask for writing support: clue use, next events, organization, language, or local feedback.";
-
-const COMPOSER_HELP_TEXT_KO =
-  "단서 사용, 다음 사건, 글 구성, 표현, 짧은 부분 피드백처럼 글쓰기 과정을 돕는 질문을 해 보세요.";
+function isExamplePromptText(value: string): boolean {
+  return CHAT_EXAMPLE_PROMPTS.some((example) => example.ko === value);
+}
 
 const CHAT_INPUT_PLACEHOLDER =
   "Example: What clue or hint would help me continue this story logically? / \uC608: \uB2E4\uC74C \uC774\uC57C\uAE30 \uC804\uAC1C\uB97C \uB17C\uB9AC\uC801\uC73C\uB85C \uC774\uC5B4\uAC00\uB824\uBA74 \uBB34\uC2A8 \uD78C\uD2B8\uAC00 \uD544\uC694\uD574?";
@@ -132,8 +113,7 @@ function buildWelcomeMessage(): ChatMessage {
   return {
     id: "welcome",
     role: "assistant",
-    text:
-      "안녕하세요. 저는 글을 대신 써주는 도구가 아니라, 글쓰기 과정을 돕는 챗봇입니다.\n\n도와드릴 수 있는 것:\n\n* 이야기 이해하기\n* 다음 사건 아이디어 생각하기\n* 글의 흐름 정리하기\n* 단어와 표현 찾기\n\n할 수 없는 것:\n\n* 다음 문단이나 결말 대신 쓰기\n* 전체 글 고쳐쓰기\n* 이야기 전체 요약하기",
+    text: "Hello. I can help with writing.",
   };
 }
 
@@ -141,8 +121,7 @@ function buildCurrentWelcomeMessage(): ChatMessage {
   return {
     id: "welcome",
     role: "assistant",
-    text:
-      "안녕하세요. 저는 이야기 이해, 다음 사건 아이디어, 글의 흐름 정리, 단어와 표현 선택, 짧은 부분 피드백을 도와주는 챗봇입니다.\n\n다만 다음 문단이나 결말을 대신 쓰거나, 전체 글을 고쳐 쓰거나, 이야기 전체를 요약해 주지는 않습니다.\n\n예시 질문: \"이 단서가 왜 중요한가요?\" / \"다음 사건 2가지를 생각해 볼 수 있나요?\" / \"이 흐름이 자연스러운지 확인해 주세요.\"",
+    text: "Hello. I can help with writing.",
   };
 }
 
@@ -505,7 +484,7 @@ function GuideContentV2() {
             </span>
             <br />
             <span className="guide-feature-example guide-feature-example-comprehension">
-              &quot;Which clue matters for the next part?&quot; / &quot;다음 부분을 위해 중요한 단서는 무엇인가요?&quot;
+              &quot;What does this part mean?&quot; / &quot;이 부분은 무슨 뜻인가요?&quot;
             </span>
           </li>
           <li>
@@ -594,6 +573,7 @@ export default function Home() {
   const revealedAssistantIdsRef = useRef<Set<string>>(collectAssistantIds(taskStates));
   const inFlightRequestRef = useRef<AbortController | null>(null);
   const loadingTimeoutRef = useRef<number | null>(null);
+  const inputUndoStackRef = useRef<string[]>([]);
 
   const activeTaskState = useMemo(() => taskStates[selectedTask], [selectedTask, taskStates]);
   const normalizedParticipantInput = useMemo(
@@ -601,6 +581,14 @@ export default function Home() {
     [participantInput]
   );
   const isParticipantReady = isValidParticipantId(normalizedParticipantInput);
+
+  const handleExamplePrompt = (prompt: string) => {
+    if (input.trim()) {
+      inputUndoStackRef.current.push(input);
+    }
+
+    setInput(prompt);
+  };
 
   useEffect(() => {
     taskStatesRef.current = taskStates;
@@ -765,6 +753,7 @@ export default function Home() {
     }
 
     const userText = input.trim();
+    inputUndoStackRef.current.push(userText);
     const currentState = taskStatesRef.current[selectedTask];
     const nextInteractionCount = currentState.interactionCount + 1;
     const userMessage: ChatMessage = {
@@ -1052,14 +1041,14 @@ export default function Home() {
                 className="secondary-button"
                 onClick={returnToHomeScreen}
               >
-                Go to Home / 처음으로
+                Go to Home
               </button>
               <button
                 type="button"
                 className="secondary-button"
                 onClick={() => setShowGuide(true)}
               >
-                Read Guide Again / 안내 다시 보기
+                Read Guide Again
               </button>
               <button
                 type="button"
@@ -1129,6 +1118,24 @@ export default function Home() {
                   </div>
                 </div>
               ))}
+              <div className="example-prompt-panel example-prompt-panel-thread" aria-label="Question examples">
+                <div className="example-prompt-list">
+                  {CHAT_EXAMPLE_PROMPTS.map((example) => (
+                    <button
+                      key={example.en}
+                      type="button"
+                      className={`example-prompt-button example-prompt-button-${example.category.toLowerCase()}`}
+                      onClick={() => handleExamplePrompt(example.ko)}
+                    >
+                      <span className={`example-prompt-chip example-prompt-chip-${example.category.toLowerCase()}`}>
+                        {example.category}
+                      </span>
+                      <span className="example-prompt-button-en">{example.en}</span>
+                      <span className="example-prompt-button-ko">{example.ko}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
               {isLoading ? (
                 <div className="message-row message-row-assistant message-row-enter">
                   <div className="message-bubble message-bubble-assistant">
@@ -1140,38 +1147,24 @@ export default function Home() {
               <div ref={threadEndRef} />
             </div>
             <div className="composer-inline">
-              <div className="example-prompt-panel" aria-label="Question examples">
-                <p className="example-prompt-title">
-                  {COMPOSER_HELP_TITLE}
-                  <span className="example-prompt-title-ko">{COMPOSER_HELP_TITLE_KO}</span>
-                </p>
-                <p className="example-prompt-help">
-                  {COMPOSER_HELP_TEXT}
-                  <span className="example-prompt-help-ko">{COMPOSER_HELP_TEXT_KO}</span>
-                </p>
-                <div className="example-prompt-list">
-                  {CHAT_EXAMPLE_PROMPTS.map((example) => (
-                    <button
-                      key={example.en}
-                      type="button"
-                      className={`example-prompt-button example-prompt-button-${example.category.toLowerCase()}`}
-                      onClick={() => setInput(example.ko)}
-                    >
-                      <span className={`example-prompt-chip example-prompt-chip-${example.category.toLowerCase()}`}>
-                        {example.category}
-                      </span>
-                      <span className="example-prompt-button-en">{example.en}</span>
-                      <span className="example-prompt-button-ko">{example.ko}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               <textarea
                 id="chat-input"
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 onKeyDown={(event) => {
+                  if (
+                    (event.ctrlKey || event.metaKey) &&
+                    event.key.toLowerCase() === "z" &&
+                    (!input || isExamplePromptText(input))
+                  ) {
+                    const previousInput = inputUndoStackRef.current.pop();
+                    if (previousInput) {
+                      event.preventDefault();
+                      setInput(previousInput);
+                    }
+                    return;
+                  }
+
                   if (event.key === "Enter" && !event.shiftKey) {
                     event.preventDefault();
                     void send();
