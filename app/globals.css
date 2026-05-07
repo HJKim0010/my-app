@@ -286,6 +286,26 @@ body {
   color: #1f5c4a;
 }
 
+.guide-feature-example {
+  font-weight: 600;
+}
+
+.guide-feature-example-ideation {
+  color: #81541c;
+}
+
+.guide-feature-example-organization {
+  color: #52479a;
+}
+
+.guide-feature-example-comprehension {
+  color: #0b4f91;
+}
+
+.guide-feature-example-language {
+  color: #1f5c4a;
+}
+
 .guide-list-numbered {
   list-style: decimal;
   padding-left: 24px;

@@ -504,28 +504,36 @@ function GuideContentV2() {
               COMPREHENSION / 이야기 이해
             </span>
             <br />
-            &quot;Which clue matters for the next part?&quot; / &quot;다음 부분을 위해 중요한 단서는 무엇인가요?&quot;
+            <span className="guide-feature-example guide-feature-example-comprehension">
+              &quot;Which clue matters for the next part?&quot; / &quot;다음 부분을 위해 중요한 단서는 무엇인가요?&quot;
+            </span>
           </li>
           <li>
             <span className="guide-feature-label guide-feature-label-ideation">
               IDEATION / 아이디어 얻기
             </span>
             <br />
-            &quot;What are 2 next events that use the clue?&quot; / &quot;그 단서를 사용한 다음 사건 2가지를 생각해 볼 수 있나요?&quot;
+            <span className="guide-feature-example guide-feature-example-ideation">
+              &quot;What are 2 next events that use the clue?&quot; / &quot;그 단서를 사용한 다음 사건 2가지를 생각해 볼 수 있나요?&quot;
+            </span>
           </li>
           <li>
             <span className="guide-feature-label guide-feature-label-organization">
               ORGANIZATION / 구성 도움
             </span>
             <br />
-            &quot;How can I organize clue, thought, action, and result?&quot; / &quot;단서, 생각, 행동, 결과를 어떤 순서로 정리하면 좋을까요?&quot;
+            <span className="guide-feature-example guide-feature-example-organization">
+              &quot;How can I organize clue, thought, action, and result?&quot; / &quot;단서, 생각, 행동, 결과를 어떤 순서로 정리하면 좋을까요?&quot;
+            </span>
           </li>
           <li>
             <span className="guide-feature-label guide-feature-label-language">
               LANGUAGE / 표현 도움
             </span>
             <br />
-            &quot;What pattern can I use for this idea?&quot; / &quot;이 생각을 표현할 때 쓸 수 있는 문장 패턴은 무엇인가요?&quot;
+            <span className="guide-feature-example guide-feature-example-language">
+              &quot;What pattern can I use for this idea?&quot; / &quot;이 생각을 표현할 때 쓸 수 있는 문장 패턴은 무엇인가요?&quot;
+            </span>
           </li>
         </ul>
       </div>
@@ -1025,9 +1033,7 @@ export default function Home() {
             </button>
           </div>
 
-          {!participantInput.trim() ? (
-            <p className="guide-warning">{KO.participantNeed}</p>
-          ) : !isParticipantReady ? (
+          {participantInput.trim() && !isParticipantReady ? (
             <p className="guide-warning">{KO.participantFormat}</p>
           ) : null}
         </section>
