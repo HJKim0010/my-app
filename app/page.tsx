@@ -1030,9 +1030,7 @@ export default function Home() {
         <section className="chat-card">
           <div className="chat-header">
             <div>
-              <div className="task-display-pill">{displayTaskLabel}</div>
               <h1>My Writing Assistant</h1>
-              <p className="participant-caption">Participant ID: {participantId}</p>
             </div>
 
             <div className="chat-header-actions">
@@ -1062,6 +1060,11 @@ export default function Home() {
               </button>
             </div>
           </div>
+
+          <section className="chat-hero" aria-label="Chat introduction">
+            <p className="participant-caption">{displayTaskLabel} · Participant ID: {participantId}</p>
+            <h2>How can I help with your writing?</h2>
+          </section>
 
           {showAdminPanel ? (
             <section className="admin-reset-panel admin-reset-panel-inline">
@@ -1093,7 +1096,6 @@ export default function Home() {
           ) : null}
 
           <section className="thread-section">
-            <p className="section-label">Conversation / 대화</p>
             <div className="message-thread">
               {activeTaskState.messages.map((message) => (
                 <div
@@ -1118,24 +1120,6 @@ export default function Home() {
                   </div>
                 </div>
               ))}
-              <div className="example-prompt-panel example-prompt-panel-thread" aria-label="Question examples">
-                <div className="example-prompt-list">
-                  {CHAT_EXAMPLE_PROMPTS.map((example) => (
-                    <button
-                      key={example.en}
-                      type="button"
-                      className={`example-prompt-button example-prompt-button-${example.category.toLowerCase()}`}
-                      onClick={() => handleExamplePrompt(example.ko)}
-                    >
-                      <span className={`example-prompt-chip example-prompt-chip-${example.category.toLowerCase()}`}>
-                        {example.category}
-                      </span>
-                      <span className="example-prompt-button-en">{example.en}</span>
-                      <span className="example-prompt-button-ko">{example.ko}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
               {isLoading ? (
                 <div className="message-row message-row-assistant message-row-enter">
                   <div className="message-bubble message-bubble-assistant">
@@ -1174,6 +1158,23 @@ export default function Home() {
                 className="chat-input"
                 placeholder={CHAT_INPUT_PLACEHOLDER}
               />
+
+              <div className="example-prompt-panel example-prompt-panel-thread" aria-label="Question examples">
+                <div className="example-prompt-list">
+                  {CHAT_EXAMPLE_PROMPTS.map((example) => (
+                    <button
+                      key={example.en}
+                      type="button"
+                      className={`example-prompt-button example-prompt-button-${example.category.toLowerCase()}`}
+                      onClick={() => handleExamplePrompt(example.ko)}
+                    >
+                      <span className={`example-prompt-chip example-prompt-chip-${example.category.toLowerCase()}`}>
+                        {example.category}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               <div className="composer-footer">
                 <button onClick={send} disabled={isLoading} className="send-button">
