@@ -102,9 +102,23 @@ export async function appendChatLog(entry: ChatLogEntry): Promise<void> {
   if (hasSupabaseConfig()) {
     try {
       await insertIntoSupabase(CHAT_EVENTS_TABLE, {
-        ...entry,
+        participant_id: entry.participant_id,
+        session_id: entry.session_id,
+        task_id: entry.task_id,
+        condition_label: entry.condition_label,
+        selected_category: entry.selected_category,
+        raw_user_query: entry.raw_user_query,
+        policy_decision: entry.policy_decision,
+        status: entry.status,
         retrieved_chunk_ids: entry.retrieved_chunk_ids,
         retrieved_chunk_metadata: entry.retrieved_chunk_metadata,
+        assistant_response: entry.assistant_response,
+        timestamp: entry.timestamp,
+        response_length: entry.response_length,
+        interaction_count: entry.interaction_count,
+        session_duration_ms: entry.session_duration_ms,
+        query_type_label: entry.query_type_label,
+        redirect_reason: entry.redirect_reason,
         source_types_used: entry.source_types_used || [],
         visual_assets_used: entry.visual_assets_used || [],
       });
