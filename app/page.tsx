@@ -802,7 +802,7 @@ export default function Home() {
     inFlightRequestRef.current = controller;
     loadingTimeoutRef.current = window.setTimeout(() => {
       controller.abort();
-    }, 15000);
+    }, 60000);
 
     try {
       const res = await fetch("/api/chat", {

@@ -27,6 +27,8 @@ export type ChatLogEntry = {
   redirect_reason?: string;
   source_types_used?: string[];
   visual_assets_used?: string[];
+  response_status?: string;
+  incomplete_reason?: string;
 };
 
 export type SessionTranscriptEntry = {

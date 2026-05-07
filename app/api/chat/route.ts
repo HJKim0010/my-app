@@ -19,43 +19,16 @@ import {
 } from "@/backend/rag/promptBuilder";
 import { retrieveTaskChunks } from "@/backend/rag/retriever";
 
+export const maxDuration = 60;
+
 function sanitizeAssistantResponse(text: string): string {
   return text
     .replace(/\*\*/g, "")
     .replace(/^#{1,6}\s*/gm, "")
     .replace(/^\s*\d+\.\s+/gm, "")
     .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]+\n/g, "\n")
     .trim();
-}
-
-function limitAssistantResponse(text: string): string {
-  const normalized = sanitizeAssistantResponse(text);
-
-  if (!normalized) {
-    return normalized;
-  }
-
-  const lines = normalized
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  if (lines.length > 1) {
-    return lines
-      .slice(0, 8)
-      .map((line) => (line.startsWith("*") || line.startsWith("-") ? line : `* ${line}`))
-      .join("\n");
-  }
-
-  const sentences = normalized.match(/[^.!?\n]+(?:[.!?]+|$)/g)?.map((part) => part.trim()) ?? [
-    normalized,
-  ];
-
-  return sentences
-    .filter(Boolean)
-    .slice(0, 8)
-    .map((sentence) => `* ${sentence}`)
-    .join("\n");
 }
 
 function compactText(text: string): string {
@@ -460,7 +433,7 @@ export async function POST(request: NextRequest) {
   const visualInputs = resolveVisualInputs(taskId, query, condition);
   const client = new OpenAI({ apiKey });
   const model = process.env.OPENAI_MODEL || "gpt-5.4-mini";
-  const timeoutMs = Number(process.env.OPENAI_TIMEOUT_MS || 30000);
+  const timeoutMs = Number(process.env.OPENAI_TIMEOUT_MS || 60000);
 
   try {
     const controller = new AbortController();
@@ -474,6 +447,7 @@ export async function POST(request: NextRequest) {
           supportMode,
           conversationMemory.workingContext === "user_continuation"
         ),
+        max_output_tokens: Number(process.env.OPENAI_MAX_OUTPUT_TOKENS || 1200),
         input: [
           {
             role: "user",
@@ -499,7 +473,10 @@ export async function POST(request: NextRequest) {
     );
 
     clearTimeout(timeout);
-    const assistantResponse = limitAssistantResponse(
+
+    const incompleteReason =
+      response.status === "incomplete" ? response.incomplete_details?.reason : undefined;
+    const assistantResponse = sanitizeAssistantResponse(
       response.output_text || extractLastAssistantMessage(recentMessages) || "No response text returned."
     );
 
@@ -530,6 +507,8 @@ export async function POST(request: NextRequest) {
       visual_assets_used: taskPackage.visualAssets
         .slice(0, visualInputs.length)
         .map((asset) => asset.id),
+      response_status: response.status,
+      incomplete_reason: incompleteReason,
     });
 
     return new Response(assistantResponse, {
