@@ -248,6 +248,44 @@ body {
   margin-top: 8px;
 }
 
+.guide-feature-list li + li {
+  margin-top: 14px;
+}
+
+.guide-feature-label {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  margin-bottom: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.1;
+}
+
+.guide-feature-label-ideation {
+  background: rgba(129, 84, 28, 0.1);
+  color: #81541c;
+}
+
+.guide-feature-label-organization {
+  background: rgba(82, 71, 154, 0.1);
+  color: #52479a;
+}
+
+.guide-feature-label-comprehension {
+  background: rgba(19, 83, 139, 0.1);
+  color: #0b4f91;
+}
+
+.guide-feature-label-language {
+  background: rgba(31, 92, 74, 0.1);
+  color: #1f5c4a;
+}
+
 .guide-list-numbered {
   list-style: decimal;
   padding-left: 24px;

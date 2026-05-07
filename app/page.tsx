@@ -498,24 +498,32 @@ function GuideContentV2() {
 
       <div className="guide-subsection">
         <p className="guide-subtitle">2. Ask Like This / 이렇게 물어보세요</p>
-        <ul className="guide-list">
+        <ul className="guide-list guide-feature-list">
           <li>
-            Story understanding / 이야기 이해
+            <span className="guide-feature-label guide-feature-label-comprehension">
+              COMPREHENSION / 이야기 이해
+            </span>
             <br />
             &quot;Which clue matters for the next part?&quot; / &quot;다음 부분을 위해 중요한 단서는 무엇인가요?&quot;
           </li>
           <li>
-            Ideas / 아이디어 얻기
+            <span className="guide-feature-label guide-feature-label-ideation">
+              IDEATION / 아이디어 얻기
+            </span>
             <br />
             &quot;What are 2 next events that use the clue?&quot; / &quot;그 단서를 사용한 다음 사건 2가지를 생각해 볼 수 있나요?&quot;
           </li>
           <li>
-            Organization / 구성 도움
+            <span className="guide-feature-label guide-feature-label-organization">
+              ORGANIZATION / 구성 도움
+            </span>
             <br />
             &quot;How can I organize clue, thought, action, and result?&quot; / &quot;단서, 생각, 행동, 결과를 어떤 순서로 정리하면 좋을까요?&quot;
           </li>
           <li>
-            Expression patterns / 표현 도움
+            <span className="guide-feature-label guide-feature-label-language">
+              LANGUAGE / 표현 도움
+            </span>
             <br />
             &quot;What pattern can I use for this idea?&quot; / &quot;이 생각을 표현할 때 쓸 수 있는 문장 패턴은 무엇인가요?&quot;
           </li>

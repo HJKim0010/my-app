@@ -250,6 +250,10 @@ export function detectSupportMode(
   const continuationMode = detectUserContinuationMode(query, memory);
   const writingTaskMode = detectContinuationWritingTask(query, category);
 
+  if (memory?.activeSupportContext === "sentence_translation" && memory.isContextualFollowUp) {
+    return "language";
+  }
+
   if (
     FEEDBACK_TERMS.some((term) => normalized.includes(term.toLowerCase())) ||
     loweredCategory.includes("feedback") ||
@@ -400,6 +404,19 @@ function buildSentenceSupportInstruction(query: string): string {
   ].join("\n");
 }
 
+function buildContextFollowUpInstruction(memory?: ConversationMemory): string {
+  if (memory?.activeSupportContext !== "sentence_translation" || !memory.isContextualFollowUp) {
+    return "";
+  }
+
+  return [
+    "The current user question is a short follow-up to the previous sentence-translation request.",
+    "Continue the previous language-support context instead of switching to story clues or general story ideas.",
+    "Use the previous Korean sentence as the target, but do not provide a complete English translation.",
+    "Give a small hint: identify the subject, suggest the verb pattern, or offer 1 to 3 key words with blanks.",
+  ].join("\n");
+}
+
 export function buildUserInput(
   query: string,
   category: string,
@@ -425,9 +442,12 @@ export function buildUserInput(
     `Support mode: ${mode}`,
     `Response language: ${language}`,
     `Working context: ${memory?.workingContext || "source"}`,
+    `Active support context: ${memory?.activeSupportContext || "(None)"}`,
+    `Contextual follow-up: ${memory?.isContextualFollowUp ? "yes" : "no"}`,
     "",
     buildModeInstruction(mode),
     buildSentenceSupportInstruction(query),
+    buildContextFollowUpInstruction(memory),
     "",
     "Story / task prompt:",
     taskPackage.prompt || "(No task prompt)",

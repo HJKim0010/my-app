@@ -12,6 +12,7 @@ export type RecentMessage = {
 };
 
 export type WorkingContext = "source" | "user_continuation";
+export type ActiveSupportContext = "sentence_translation" | null;
 
 export type ConversationMemory = {
   recentSummary: string;
@@ -20,6 +21,8 @@ export type ConversationMemory = {
   lastUserFocus: string;
   workingContext: WorkingContext;
   continuationFocus: string;
+  activeSupportContext: ActiveSupportContext;
+  isContextualFollowUp: boolean;
 };
 
 const MAX_MESSAGES = 5;
@@ -77,6 +80,39 @@ function looksLikeUserContinuation(text: string): boolean {
   return false;
 }
 
+function asksForDirectTranslation(text: string): boolean {
+  return /(in english|translate|translation|\uc601\uc5b4\ub85c|\ubc88\uc5ed)/i.test(text);
+}
+
+function looksLikeKoreanSentence(text: string): boolean {
+  const koreanChars = text.match(/[\uac00-\ud7a3]/g)?.length ?? 0;
+  return koreanChars >= 6 && /[\s.!?。]|(\ub2e4|\ub2e4\.|\uc694|\uc5b4|\ud574|\ud588\ub2e4|\ud588\uc5b4|\ud588\uc694)/.test(text);
+}
+
+function looksLikeSentenceTranslationRequest(text: string): boolean {
+  return asksForDirectTranslation(text) && looksLikeKoreanSentence(text);
+}
+
+function looksLikeTranslationRedirect(text: string): boolean {
+  return (
+    text.includes("Pattern: [Subject]") ||
+    /full Korean sentence|direct full-sentence translation|ready-to-use English sentence/i.test(text) ||
+    /문장 전체|핵심 패턴|영어로 바꿔주지/.test(text)
+  );
+}
+
+function looksLikeLanguageFollowUp(text: string): boolean {
+  const normalized = compactText(text);
+
+  if (!normalized || normalized.length > 40) {
+    return false;
+  }
+
+  return /(hint|hints|clue|help|example|pattern|more|좀|힌트|도움|예시|패턴|조금|더|어떻게|알려줘|알려주세요)/i.test(
+    normalized
+  );
+}
+
 function buildRecentSummary(recentMessages: RecentMessage[]): string {
   return recentMessages
     .slice(-MAX_MESSAGES)
@@ -110,10 +146,20 @@ export function buildConversationMemory(
   const normalizedQuery = normalizeLexiconText(query);
   const summary = buildRecentSummary(recentMessages);
   const recentUserMessages = recentMessages.filter((message) => message.role === "user");
+  const recentAssistantMessages = recentMessages.filter((message) => message.role === "assistant");
   const lastUserText = compactText(recentUserMessages[recentUserMessages.length - 1]?.text || "");
   const previousUserText = compactText(
     recentUserMessages[recentUserMessages.length - 2]?.text || ""
   );
+  const lastAssistantText = compactText(
+    recentAssistantMessages[recentAssistantMessages.length - 1]?.text || ""
+  );
+  const activeSupportContext: ActiveSupportContext =
+    looksLikeSentenceTranslationRequest(lastUserText) || looksLikeTranslationRedirect(lastAssistantText)
+      ? "sentence_translation"
+      : null;
+  const isContextualFollowUp =
+    activeSupportContext === "sentence_translation" && looksLikeLanguageFollowUp(query);
 
   const entitySourceText =
     looksLikeVagueFollowUp(query) && previousUserText
@@ -134,7 +180,9 @@ export function buildConversationMemory(
     null;
 
   const lastUserFocus =
-    looksLikeAcknowledgment(query)
+    isContextualFollowUp
+      ? lastUserText || previousUserText || compactText(query)
+      : looksLikeAcknowledgment(query)
       ? previousUserText || lastUserText || compactText(query)
       : normalizedQuery && !looksLikeVagueFollowUp(query)
         ? compactText(query)
@@ -150,5 +198,7 @@ export function buildConversationMemory(
     lastUserFocus: lastUserFocus || compactText(query),
     workingContext,
     continuationFocus,
+    activeSupportContext,
+    isContextualFollowUp,
   };
 }
