@@ -12,7 +12,14 @@ export type RecentMessage = {
 };
 
 export type WorkingContext = "source" | "user_continuation";
-export type ActiveSupportContext = "sentence_translation" | null;
+export type ActiveSupportContext =
+  | "comprehension"
+  | "ideas"
+  | "organization"
+  | "language"
+  | "feedback"
+  | "sentence_translation"
+  | null;
 
 export type ConversationMemory = {
   recentSummary: string;
@@ -101,16 +108,123 @@ function looksLikeTranslationRedirect(text: string): boolean {
   );
 }
 
-function looksLikeLanguageFollowUp(text: string): boolean {
+function looksLikeShortContextualFollowUp(text: string): boolean {
   const normalized = compactText(text);
 
-  if (!normalized || normalized.length > 40) {
+  if (!normalized || normalized.length > 60) {
     return false;
   }
 
-  return /(hint|hints|clue|help|example|pattern|more|좀|힌트|도움|예시|패턴|조금|더|어떻게|알려줘|알려주세요)/i.test(
+  return /(hint|hints|clue|help|example|pattern|more|why|how|what about|then|next|again|check|좀|힌트|도움|예시|패턴|조금|더|왜|어떻게|그럼|그러면|다음|다시|확인|괜찮|알려줘|알려주세요)/i.test(
     normalized
   );
+}
+
+function inferSupportContext(text: string): ActiveSupportContext {
+  const normalized = compactText(text).toLowerCase();
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (looksLikeSentenceTranslationRequest(text) || looksLikeTranslationRedirect(text)) {
+    return "sentence_translation";
+  }
+
+  if (
+    /(feedback|check|grammar|awkward|logical|logic|natural|revise|문법|어색|논리|자연|피드백|확인|괜찮)/i.test(
+      normalized
+    )
+  ) {
+    return "feedback";
+  }
+
+  if (
+    /(translate|in english|how do i say|pattern|sentence structure|word|expression|vocabulary|phrase|영어로|번역|표현|단어|패턴|문장 구조)/i.test(
+      normalized
+    )
+  ) {
+    return "language";
+  }
+
+  if (
+    /(organize|organization|structure|outline|flow|sequence|order|beginning|middle|end|구성|구조|흐름|순서|정리|처음|중간|끝)/i.test(
+      normalized
+    )
+  ) {
+    return "organization";
+  }
+
+  if (
+    /(idea|ideas|next event|possible|what could happen|brainstorm|clue|hint|아이디어|다음 사건|다음 전개|가능한|단서|힌트)/i.test(
+      normalized
+    )
+  ) {
+    return "ideas";
+  }
+
+  if (
+    /(understand|meaning|what does|which part|scene|story detail|이해|무슨 뜻|어느 부분|장면|내용|단서가 뭐)/i.test(
+      normalized
+    )
+  ) {
+    return "comprehension";
+  }
+
+  return null;
+}
+
+function inferExplicitSupportShift(text: string): ActiveSupportContext {
+  const normalized = compactText(text).toLowerCase();
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (looksLikeSentenceTranslationRequest(text)) {
+    return "sentence_translation";
+  }
+
+  if (/(translate|in english|how do i say|pattern|sentence structure|word|expression|vocabulary|phrase|영어로|번역|표현|단어|패턴|문장 구조)/i.test(normalized)) {
+    return "language";
+  }
+
+  if (/(feedback|check|grammar|awkward|logical|logic|natural|문법|어색|논리|자연|피드백|확인해)/i.test(normalized)) {
+    return "feedback";
+  }
+
+  if (/(organize|organization|structure|outline|flow|sequence|order|구성|구조|흐름|순서|정리)/i.test(normalized)) {
+    return "organization";
+  }
+
+  if (/(idea|ideas|next event|possible|what could happen|brainstorm|아이디어|다음 사건|다음 전개|가능한 전개)/i.test(normalized)) {
+    return "ideas";
+  }
+
+  if (/(understand|meaning|what does|which part|scene|story detail|이해|무슨 뜻|어느 부분|장면|내용)/i.test(normalized)) {
+    return "comprehension";
+  }
+
+  return null;
+}
+
+function shouldKeepPreviousContext(
+  activeSupportContext: ActiveSupportContext,
+  explicitShift: ActiveSupportContext
+): boolean {
+  if (!activeSupportContext) {
+    return false;
+  }
+
+  if (!explicitShift) {
+    return true;
+  }
+
+  if (activeSupportContext === explicitShift) {
+    return true;
+  }
+
+  return activeSupportContext === "sentence_translation" && explicitShift === "language";
 }
 
 function buildRecentSummary(recentMessages: RecentMessage[]): string {
@@ -155,14 +269,14 @@ export function buildConversationMemory(
     recentAssistantMessages[recentAssistantMessages.length - 1]?.text || ""
   );
   const activeSupportContext: ActiveSupportContext =
-    looksLikeSentenceTranslationRequest(lastUserText) || looksLikeTranslationRedirect(lastAssistantText)
-      ? "sentence_translation"
-      : null;
+    inferSupportContext(lastUserText) || inferSupportContext(lastAssistantText);
+  const explicitShift = inferExplicitSupportShift(query);
   const isContextualFollowUp =
-    activeSupportContext === "sentence_translation" && looksLikeLanguageFollowUp(query);
+    looksLikeShortContextualFollowUp(query) &&
+    shouldKeepPreviousContext(activeSupportContext, explicitShift);
 
   const entitySourceText =
-    looksLikeVagueFollowUp(query) && previousUserText
+    (looksLikeVagueFollowUp(query) || isContextualFollowUp) && previousUserText
       ? `${previousUserText}\n${lastUserText}\n${query}`
       : `${lastUserText}\n${query}`;
 

@@ -250,8 +250,12 @@ export function detectSupportMode(
   const continuationMode = detectUserContinuationMode(query, memory);
   const writingTaskMode = detectContinuationWritingTask(query, category);
 
-  if (memory?.activeSupportContext === "sentence_translation" && memory.isContextualFollowUp) {
-    return "language";
+  if (memory?.activeSupportContext && memory.isContextualFollowUp) {
+    if (memory.activeSupportContext === "sentence_translation") {
+      return "language";
+    }
+
+    return memory.activeSupportContext;
   }
 
   if (
@@ -405,15 +409,24 @@ function buildSentenceSupportInstruction(query: string): string {
 }
 
 function buildContextFollowUpInstruction(memory?: ConversationMemory): string {
-  if (memory?.activeSupportContext !== "sentence_translation" || !memory.isContextualFollowUp) {
+  if (!memory?.activeSupportContext || !memory.isContextualFollowUp) {
     return "";
   }
 
+  if (memory.activeSupportContext === "sentence_translation") {
+    return [
+      "The current user question is a short follow-up to the previous sentence-translation request.",
+      "Continue the previous language-support context instead of switching to story clues or general story ideas.",
+      "Use the previous Korean sentence as the target, but do not provide a complete English translation.",
+      "Give a small hint: identify the subject, suggest the verb pattern, or offer 1 to 3 key words with blanks.",
+    ].join("\n");
+  }
+
   return [
-    "The current user question is a short follow-up to the previous sentence-translation request.",
-    "Continue the previous language-support context instead of switching to story clues or general story ideas.",
-    "Use the previous Korean sentence as the target, but do not provide a complete English translation.",
-    "Give a small hint: identify the subject, suggest the verb pattern, or offer 1 to 3 key words with blanks.",
+    `The current user question is a short follow-up to the previous ${memory.activeSupportContext} support context.`,
+    "Resolve pronouns, short words, and vague requests from the recent conversation before answering.",
+    "Do not switch to a new topic just because the current message is short.",
+    "Answer the follow-up within the previous task focus and give one small next step.",
   ].join("\n");
 }
 
