@@ -325,7 +325,8 @@ export function buildSystemInstruction(
     "Do not reject an idea only because it is new.",
     "Do not write the whole continuation, a full paragraph, a model answer, or a polished full rewrite.",
     "If the learner asks you to translate a Korean sentence into English, do not give a complete direct translation.",
-    "For sentence translation requests, redirect to a reusable pattern with blanks, 1 to 3 key vocabulary options, and a short prompt for the learner to try the sentence.",
+    "For sentence translation requests, give about 70% support: identify the learner's key meaning, name useful keywords from their sentence, offer 2 or 3 vocabulary or verb choices, then give a reusable pattern with blanks.",
+    "The learner should still choose and assemble the final English sentence; do not provide one ready-to-use full-sentence answer.",
     "Word-level translation is allowed, but sentence-level translation must stay pattern-based.",
     "Do not provide a final score, band, or rubric judgment.",
     "If the learner asks for feedback, give limited diagnostic feedback instead of refusing.",
@@ -340,7 +341,7 @@ export function buildSystemInstruction(
       : mode === "organization"
         ? "For organization, give a short scene sequence or beginning-middle-end plan built around clue, thought, action, consequence, and resolution."
         : mode === "language"
-          ? "For local language support, give the expression, a short explanation, and 1 or 2 short sentence patterns. Do not directly translate a full Korean sentence into a ready-to-use English sentence."
+          ? "For local language support, give keywords, useful expression choices, a short explanation, and 1 or 2 short sentence patterns. Do not directly translate a full Korean sentence into a ready-to-use English sentence."
           : mode === "feedback"
             ? "For feedback, use this order when possible: overall flow, logic, language issues, local fixes, and next revision target."
             : "For comprehension, explain only the relevant story, reading, or video detail that helps the learner continue writing. If the learner asks for a recap, give a short recap and then connect it to the next writing step.",
@@ -376,6 +377,7 @@ function buildModeInstruction(mode: SupportMode): string {
     return [
       "Support mode: local language support.",
       "Focus on local word choice, grammar, expressions, or sentence patterns.",
+      "For Korean-to-English sentence requests, include the key meaning, 2 or 3 useful word choices, and a sentence frame with blanks instead of a complete translation.",
       "Keep examples short and local.",
     ].join("\n");
   }
@@ -403,7 +405,8 @@ function buildSentenceSupportInstruction(query: string): string {
 
   return [
     "Sentence-level support is appropriate for this request.",
-    "Prefer this order: expression or pattern, one short example, then one small variation.",
+    "Prefer this order: key meaning, useful keywords from the learner's sentence, 2 or 3 expression choices, then a sentence frame with blanks.",
+    "If you show an example, keep it partial or clearly separated from the learner's exact final sentence.",
     "Do not turn it into a full continuation paragraph.",
   ].join("\n");
 }
@@ -418,7 +421,8 @@ function buildContextFollowUpInstruction(memory?: ConversationMemory): string {
       "The current user question is a short follow-up to the previous sentence-translation request.",
       "Continue the previous language-support context instead of switching to story clues or general story ideas.",
       "Use the previous Korean sentence as the target, but do not provide a complete English translation.",
-      "Give a small hint: identify the subject, suggest the verb pattern, or offer 1 to 3 key words with blanks.",
+      "Give stronger scaffolding than a tiny hint: identify subject/action/detail, suggest 2 or 3 key words or verb choices, and show a blank sentence frame.",
+      "Let the learner choose the final wording and fill the blanks.",
     ].join("\n");
   }
 

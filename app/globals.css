@@ -601,9 +601,9 @@ body {
 }
 
 .example-prompt-panel-thread {
-  width: 100%;
-  margin: 4px 0 0;
-  padding: 0 4px;
+  width: min(760px, 100%);
+  margin: 24px auto 0;
+  padding: 0;
 }
 
 .example-prompt-title {
@@ -778,7 +778,8 @@ body {
 .example-prompt-panel-thread .example-prompt-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  justify-content: center;
+  gap: 10px;
 }
 
 .example-prompt-panel-thread .example-prompt-button,
@@ -790,33 +791,35 @@ body {
   grid-column: auto;
   min-height: 0;
   width: auto;
-  padding: 0;
-  border: 0;
+  min-width: 0;
+  padding: 12px 16px;
+  border: 1px solid rgba(216, 207, 193, 0.86);
   border-radius: 999px;
-  background: transparent;
-  box-shadow: none;
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 8px 18px rgba(31, 41, 51, 0.06);
 }
 
 .example-prompt-panel-thread .example-prompt-button:hover {
   transform: translateY(-1px);
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(185, 175, 160, 0.96);
+  box-shadow: 0 12px 24px rgba(31, 41, 51, 0.09);
 }
 
 .example-prompt-panel-thread .example-prompt-chip {
-  margin: 0;
-  padding: 7px 11px;
+  margin: 0 0 6px;
+  padding: 4px 9px;
   font-size: 0.72rem;
   letter-spacing: 0;
 }
 
 .example-prompt-panel-thread .example-prompt-button-en {
   font-size: 0.88rem;
+  line-height: 1.2;
 }
 
 .example-prompt-panel-thread .example-prompt-button-ko {
-  margin-top: 5px;
+  margin-top: 3px;
   font-size: 0.78rem;
 }
 

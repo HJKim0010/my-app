@@ -28,28 +28,40 @@ const CURRENT_PARTICIPANT_KEY = "writing-assistant-current-participant-v4";
 const CHAT_EXAMPLE_PROMPTS = [
   {
     category: "Comprehension",
+    label: "Understand meaning",
+    labelKo: "\uC774\uC57C\uAE30 \uC774\uD574",
     en: "What does this part mean?",
+    promptKo: "\uC774 \uBD80\uBD84\uC740 \uBB34\uC2A8 \uB73B\uC778\uAC00\uC694?",
     ko: "이 부분은 무슨 뜻인가요?",
   },
   {
     category: "Ideation",
+    label: "Find next ideas",
+    labelKo: "\uC544\uC774\uB514\uC5B4 \uC5BB\uAE30",
     en: "Suggest 2 next events that use the clue",
+    promptKo: "\uC8FC\uC5B4\uC9C4 \uB2E8\uC11C\uB97C \uC0AC\uC6A9\uD574 \uB2E4\uC74C \uC0AC\uAC74 2\uAC00\uC9C0\uB97C \uC0DD\uAC01\uD574 \uBCFC \uC218 \uC788\uB098\uC694?",
     ko: "주어진 단서를 사용해서 다음 사건 2가지를 생각해 볼 수 있나요?",
   },
   {
     category: "Organization",
+    label: "Plan the flow",
+    labelKo: "\uAD6C\uC131 \uB3C4\uC6C0",
     en: "Help me organize clue-thought-action",
+    promptKo: "\uB2E8\uC11C, \uC0DD\uAC01, \uD589\uB3D9, \uACB0\uACFC\uB97C \uC5B4\uB5A4 \uC21C\uC11C\uB85C \uC815\uB9AC\uD558\uBA74 \uC88B\uC744\uAE4C\uC694?",
     ko: "단서-생각-행동-결과 순서로 글의 흐름을 정리하도록 도와주세요.",
   },
   {
     category: "Language",
+    label: "Find a phrase",
+    labelKo: "\uD45C\uD604 \uB3C4\uC6C0",
     en: "Help me say this more naturally",
+    promptKo: "\uC774 \uB9D0\uC744 \uB354 \uC790\uC5F0\uC2A4\uB7FD\uAC8C \uD45C\uD604\uD558\uB824\uBA74?",
     ko: "\uC774 \uB9D0\uC744 \uB354 \uC790\uC5F0\uC2A4\uB7FD\uAC8C \uD45C\uD604\uD558\uB824\uBA74?",
   },
 ] as const;
 
 function isExamplePromptText(value: string): boolean {
-  return CHAT_EXAMPLE_PROMPTS.some((example) => example.ko === value);
+  return CHAT_EXAMPLE_PROMPTS.some((example) => example.promptKo === value);
 }
 
 const CHAT_INPUT_PLACEHOLDER =
@@ -1159,27 +1171,28 @@ export default function Home() {
                 placeholder={CHAT_INPUT_PLACEHOLDER}
               />
 
-              <div className="example-prompt-panel example-prompt-panel-thread" aria-label="Question examples">
-                <div className="example-prompt-list">
-                  {CHAT_EXAMPLE_PROMPTS.map((example) => (
-                    <button
-                      key={example.en}
-                      type="button"
-                      className={`example-prompt-button example-prompt-button-${example.category.toLowerCase()}`}
-                      onClick={() => handleExamplePrompt(example.ko)}
-                    >
-                      <span className={`example-prompt-chip example-prompt-chip-${example.category.toLowerCase()}`}>
-                        {example.category}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               <div className="composer-footer">
                 <button onClick={send} disabled={isLoading} className="send-button">
                   {isLoading ? "Sending... | \uBCF4\uB0B4\uB294 \uC911..." : "Send | \uBCF4\uB0B4\uAE30"}
                 </button>
+              </div>
+            </div>
+            <div className="example-prompt-panel example-prompt-panel-thread" aria-label="Question examples">
+              <div className="example-prompt-list">
+                {CHAT_EXAMPLE_PROMPTS.map((example) => (
+                  <button
+                    key={example.en}
+                    type="button"
+                    className={`example-prompt-button example-prompt-button-${example.category.toLowerCase()}`}
+                    onClick={() => handleExamplePrompt(example.promptKo)}
+                  >
+                    <span className={`example-prompt-chip example-prompt-chip-${example.category.toLowerCase()}`}>
+                      {example.category}
+                    </span>
+                    <span className="example-prompt-button-en">{example.label}</span>
+                    <span className="example-prompt-button-ko">{example.labelKo}</span>
+                  </button>
+                ))}
               </div>
             </div>
           </section>
