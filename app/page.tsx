@@ -26,32 +26,32 @@ const STORAGE_KEY_PREFIX = "writing-assistant-task-state-v6";
 const GUIDE_KEY_PREFIX = "writing-assistant-guide-accepted-v6";
 const CURRENT_PARTICIPANT_KEY = "writing-assistant-current-participant-v4";
 const EXAMPLE_PROMPTS = [
-  "이 이야기 다음에 가능한 전개 2개 알려줘",
-  "이 장면의 감정을 영어로 표현하면?",
-  "내 글 구조를 간단히 정리해줘",
-  "이 단어 대신 쓸 수 있는 표현 3개만",
+  "다음에 일어날 수 있는 사건을 2가지 생각해 볼 수 있나요?",
+  "이 단서가 왜 중요한지 설명해 주세요.",
+  "단서-생각-행동-결과 순서로 정리하고 싶어요.",
+  "이 표현을 더 자연스럽게 바꾸려면 어떻게 말하면 좋을까요?",
 ] as const;
 
 const CHAT_EXAMPLE_PROMPTS = [
   {
     category: "Ideation",
     en: "Suggest 2 next events that use the clue",
-    ko: "주어진 단서를 활용한 다음 전개 2개만 알려줘",
+    ko: "주어진 단서를 사용해서 다음 사건 2가지를 생각해 볼 수 있나요?",
   },
   {
     category: "Organization",
     en: "Help me organize clue-thought-action",
-    ko: "단서-생각-행동 순서로 내 뒷이야기 구성을 정리해줘",
+    ko: "단서-생각-행동-결과 순서로 글의 흐름을 정리하도록 도와주세요.",
   },
   {
     category: "Comprehension",
     en: "Which clue matters for the next part?",
-    ko: "다음 전개에 꼭 써야 할 단서가 뭐야?",
+    ko: "다음 부분을 이어 쓰는 데 중요한 단서는 무엇인가요?",
   },
   {
     category: "Organization",
     en: "Check if this flow makes sense",
-    ko: "이 전개가 문제 해결 흐름으로 자연스러운지 봐줘",
+    ko: "이 이야기 흐름이 자연스럽고 논리적인지 확인해 주세요.",
   },
   {
     category: "Language",
@@ -69,7 +69,7 @@ const COMPOSER_HELP_TEXT =
   "Ask for writing support: clue use, next events, organization, language, or local feedback.";
 
 const COMPOSER_HELP_TEXT_KO =
-  "단서 활용, 다음 전개, 구성, 표현, 짧은 피드백처럼 글을 이어 쓰는 데 필요한 도움을 물어보세요.";
+  "단서 사용, 다음 사건, 글 구성, 표현, 짧은 부분 피드백처럼 글쓰기 과정을 돕는 질문을 해 보세요.";
 
 const CHAT_INPUT_PLACEHOLDER =
   "Example: What clue or hint would help me continue this story logically? / \uC608: \uB2E4\uC74C \uC774\uC57C\uAE30 \uC804\uAC1C\uB97C \uB17C\uB9AC\uC801\uC73C\uB85C \uC774\uC5B4\uAC00\uB824\uBA74 \uBB34\uC2A8 \uD78C\uD2B8\uAC00 \uD544\uC694\uD574?";
@@ -133,7 +133,7 @@ function buildWelcomeMessage(): ChatMessage {
     id: "welcome",
     role: "assistant",
     text:
-      "이 챗봇은 다음을 도와줄 수 있습니다:\n\n* 이야기 이해하기\n* 다음 전개 아이디어 찾기\n* 글 구조 정리하기\n* 영어 표현/단어 찾기\n\n하지만 다음은 해주지 않습니다:\n\n* 문장이나 문단을 대신 작성\n* 전체 글 수정 또는 첨삭\n* 전체 내용 요약",
+      "안녕하세요. 저는 글을 대신 써주는 도구가 아니라, 글쓰기 과정을 돕는 챗봇입니다.\n\n도와드릴 수 있는 것:\n\n* 이야기 이해하기\n* 다음 사건 아이디어 생각하기\n* 글의 흐름 정리하기\n* 단어와 표현 찾기\n\n할 수 없는 것:\n\n* 다음 문단이나 결말 대신 쓰기\n* 전체 글 고쳐쓰기\n* 이야기 전체 요약하기",
   };
 }
 
@@ -142,7 +142,7 @@ function buildCurrentWelcomeMessage(): ChatMessage {
     id: "welcome",
     role: "assistant",
     text:
-      "이 챗봇은 이야기 이해, 다음 전개 아이디어, 글 구조 정리, 영어 표현 찾기, 그리고 짧은 흐름/표현 피드백을 도와줄 수 있어요.\n\n대신 문장이나 문단을 대신 써주거나, 전체 글을 고쳐주거나, 전체 내용을 요약해주지는 않아요.\n\n막히면 한 번에 한 가지씩 물어보세요. 예: \"이 부분이 왜 중요한지 설명해줘\" / \"다음 전개 2가지만 알려줘\" / \"어색한 부분 하나만 짚어줘\"",
+      "안녕하세요. 저는 이야기 이해, 다음 사건 아이디어, 글의 흐름 정리, 단어와 표현 선택, 짧은 부분 피드백을 도와주는 챗봇입니다.\n\n다만 다음 문단이나 결말을 대신 쓰거나, 전체 글을 고쳐 쓰거나, 이야기 전체를 요약해 주지는 않습니다.\n\n예시 질문: \"이 단서가 왜 중요한가요?\" / \"다음 사건 2가지를 생각해 볼 수 있나요?\" / \"이 흐름이 자연스러운지 확인해 주세요.\"",
   };
 }
 
@@ -284,38 +284,56 @@ const GUIDE_REQUEST_ROWS = [
   {
     category: "ideation",
     allowed: "Use the given clue",
+    allowedKo: "주어진 단서 사용하기",
     avoid: '"Write the next paragraph."',
+    avoidKo: '"다음 문단을 써 줘."',
     better: '"What are 2 next events that use the clue?"',
+    betterKo: '"그 단서를 사용한 다음 사건 2가지를 생각해 볼 수 있나요?"',
   },
   {
     category: "organization",
     allowed: "Plan clue-thought-action",
+    allowedKo: "단서-생각-행동 흐름 계획하기",
     avoid: '"Write the ending for me."',
+    avoidKo: '"결말을 대신 써 줘."',
     better: '"How can I organize clue, thought, action, and result?"',
+    betterKo: '"단서, 생각, 행동, 결과를 어떤 순서로 정리하면 좋을까요?"',
   },
   {
     category: "organization",
     allowed: "Check story flow",
+    allowedKo: "이야기 흐름 확인하기",
     avoid: '"Make it more interesting for me."',
+    avoidKo: '"더 흥미롭게 늘려 줘."',
     better: '"Does this flow solve the problem naturally?"',
+    betterKo: '"이 흐름이 문제를 자연스럽게 해결하나요?"',
   },
   {
     category: "language",
     allowed: "Get language help",
+    allowedKo: "단어와 표현 도움 받기",
     avoid: '"Fix my paragraph."',
+    avoidKo: '"내 문단을 고쳐 줘."',
     better: '"What word can I use instead of \'very tired\'?"',
+    betterKo: '"very tired 대신 어떤 표현을 쓸 수 있나요?"',
   },
   {
     category: "language",
     allowed: "Get short local feedback",
+    allowedKo: "짧은 부분 피드백 받기",
     avoid: '"Rewrite my paragraph."',
+    avoidKo: '"내 문단을 다시 써 줘."',
     better: '"Can you point out one awkward part in this paragraph?"',
+    betterKo: '"이 문단에서 어색한 부분 하나만 짚어 줄 수 있나요?"',
   },
   {
     category: "comprehension",
     allowed: "Understand only the needed clue",
+    allowedKo: "필요한 단서만 이해하기",
     avoid: '"Summarize the whole story."',
+    avoidKo: '"이야기 전체를 요약해 줘."',
     better: '"Which clue matters for the next part?"',
+    betterKo: '"다음 부분을 위해 중요한 단서는 무엇인가요?"',
   },
 ] as const;
 
@@ -538,22 +556,28 @@ function GuideContentV2() {
       <div className="guide-subsection">
         <p className="guide-subtitle">2. How to Ask / 질문 방법</p>
         <div className="guide-request-table">
-          <div className="guide-request-head">Categories</div>
-          <div className="guide-request-head">⭕ Better</div>
-          <div className="guide-request-head">Avoid</div>
+          <div className="guide-request-head">Categories / 질문 유형</div>
+          <div className="guide-request-head">Better / 좋은 질문</div>
+          <div className="guide-request-head">Avoid / 피할 질문</div>
           {GUIDE_REQUEST_ROWS.map((row) => (
             <div key={`${row.allowed}-${row.avoid}`} className="guide-request-row">
               <div
                 className={`guide-request-cell guide-request-cell-${row.category}`}
-                data-label="Categories"
+                data-label="Categories / 질문 유형"
               >
                 {row.allowed}
+                <br />
+                {row.allowedKo}
               </div>
-              <div className="guide-request-cell" data-label="⭕ Better">
+              <div className="guide-request-cell" data-label="Better / 좋은 질문">
                 {row.better}
+                <br />
+                {row.betterKo}
               </div>
-              <div className="guide-request-cell" data-label="Avoid">
+              <div className="guide-request-cell" data-label="Avoid / 피할 질문">
                 {row.avoid}
+                <br />
+                {row.avoidKo}
               </div>
             </div>
           ))}
@@ -981,11 +1005,11 @@ export default function Home() {
         <section className="guide-gate-card">
           <div className="guide-gate-header">
             <h1>My Writing Assistant</h1>
-            <p>Please read the guide before you begin.</p>
+            <p>Please read the guide before you begin. / 시작하기 전에 안내를 읽어 주세요.</p>
           </div>
 
           <div className="guide-task-panel">
-            <p className="section-label">Choose your task</p>
+            <p className="section-label">Choose your task / 과제 선택</p>
             <div className="guide-task-switcher" role="tablist" aria-label="Task selection">
               {TASK_IDS.map((taskId) => (
                 <button
@@ -1066,14 +1090,14 @@ export default function Home() {
                 className="secondary-button"
                 onClick={returnToHomeScreen}
               >
-                Go to Home
+                Go to Home / 처음으로
               </button>
               <button
                 type="button"
                 className="secondary-button"
                 onClick={() => setShowGuide(true)}
               >
-                Read Guide Again
+                Read Guide Again / 안내 다시 보기
               </button>
               <button
                 type="button"
@@ -1118,7 +1142,7 @@ export default function Home() {
           ) : null}
 
           <section className="thread-section">
-            <p className="section-label">Conversation</p>
+            <p className="section-label">Conversation / 대화</p>
             <div className="message-thread">
               {activeTaskState.messages.map((message) => (
                 <div
@@ -1211,14 +1235,14 @@ export default function Home() {
           <section className="modal-card" role="dialog" aria-modal="true" aria-label="Guide">
             <div className="modal-header">
               <div>
-                <h2>Quick Guide</h2>
+                <h2>Quick Guide / 빠른 안내</h2>
               </div>
               <button
                 type="button"
                 className="secondary-button"
                 onClick={() => setShowGuide(false)}
               >
-                Close
+                Close / 닫기
               </button>
             </div>
 
