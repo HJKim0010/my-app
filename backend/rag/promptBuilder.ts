@@ -316,6 +316,9 @@ export function buildSystemInstruction(
     "New events are allowed when they logically connect to the story situation, character, conflict, mood, or unresolved clue.",
     "Do not reject an idea only because it is new.",
     "Do not write the whole continuation, a full paragraph, a model answer, or a polished full rewrite.",
+    "If the learner asks you to translate a Korean sentence into English, do not give a complete direct translation.",
+    "For sentence translation requests, redirect to a reusable pattern with blanks, 1 to 3 key vocabulary options, and a short prompt for the learner to try the sentence.",
+    "Word-level translation is allowed, but sentence-level translation must stay pattern-based.",
     "Do not provide a final score, band, or rubric judgment.",
     "If the learner asks for feedback, give limited diagnostic feedback instead of refusing.",
     "Allowed feedback: logic issues, story-connection issues, awkward expressions, grammar problems, and phrase-level or sentence-level revision options.",
@@ -329,7 +332,7 @@ export function buildSystemInstruction(
       : mode === "organization"
         ? "For organization, give a short scene sequence or beginning-middle-end plan built around clue, thought, action, consequence, and resolution."
         : mode === "language"
-          ? "For local language support, give the expression, a short explanation, and 1 or 2 short sentence patterns."
+          ? "For local language support, give the expression, a short explanation, and 1 or 2 short sentence patterns. Do not directly translate a full Korean sentence into a ready-to-use English sentence."
           : mode === "feedback"
             ? "For feedback, use this order when possible: overall flow, logic, language issues, local fixes, and next revision target."
             : "For comprehension, explain only the relevant story, reading, or video detail that helps the learner continue writing. If the learner asks for a recap, give a short recap and then connect it to the next writing step.",

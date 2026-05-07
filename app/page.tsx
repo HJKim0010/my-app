@@ -280,63 +280,6 @@ const GUIDE_COMPARE_ROWS = [
   },
 ] as const;
 
-const GUIDE_REQUEST_ROWS = [
-  {
-    category: "ideation",
-    allowed: "Use the given clue",
-    allowedKo: "주어진 단서 사용하기",
-    avoid: '"Write the next paragraph."',
-    avoidKo: '"다음 문단을 써 줘."',
-    better: '"What are 2 next events that use the clue?"',
-    betterKo: '"그 단서를 사용한 다음 사건 2가지를 생각해 볼 수 있나요?"',
-  },
-  {
-    category: "organization",
-    allowed: "Plan clue-thought-action",
-    allowedKo: "단서-생각-행동 흐름 계획하기",
-    avoid: '"Write the ending for me."',
-    avoidKo: '"결말을 대신 써 줘."',
-    better: '"How can I organize clue, thought, action, and result?"',
-    betterKo: '"단서, 생각, 행동, 결과를 어떤 순서로 정리하면 좋을까요?"',
-  },
-  {
-    category: "organization",
-    allowed: "Check story flow",
-    allowedKo: "이야기 흐름 확인하기",
-    avoid: '"Make it more interesting for me."',
-    avoidKo: '"더 흥미롭게 늘려 줘."',
-    better: '"Does this flow solve the problem naturally?"',
-    betterKo: '"이 흐름이 문제를 자연스럽게 해결하나요?"',
-  },
-  {
-    category: "language",
-    allowed: "Get language help",
-    allowedKo: "단어와 표현 도움 받기",
-    avoid: '"Fix my paragraph."',
-    avoidKo: '"내 문단을 고쳐 줘."',
-    better: '"What word can I use instead of \'very tired\'?"',
-    betterKo: '"very tired 대신 어떤 표현을 쓸 수 있나요?"',
-  },
-  {
-    category: "language",
-    allowed: "Get short local feedback",
-    allowedKo: "짧은 부분 피드백 받기",
-    avoid: '"Rewrite my paragraph."',
-    avoidKo: '"내 문단을 다시 써 줘."',
-    better: '"Can you point out one awkward part in this paragraph?"',
-    betterKo: '"이 문단에서 어색한 부분 하나만 짚어 줄 수 있나요?"',
-  },
-  {
-    category: "comprehension",
-    allowed: "Understand only the needed clue",
-    allowedKo: "필요한 단서만 이해하기",
-    avoid: '"Summarize the whole story."',
-    avoidKo: '"이야기 전체를 요약해 줘."',
-    better: '"Which clue matters for the next part?"',
-    betterKo: '"다음 부분을 위해 중요한 단서는 무엇인가요?"',
-  },
-] as const;
-
 function GuideContent() {
   return (
     <div className="guide-copy">
@@ -554,38 +497,43 @@ function GuideContentV2() {
       </div>
 
       <div className="guide-subsection">
-        <p className="guide-subtitle">2. How to Ask / 질문 방법</p>
-        <div className="guide-request-table">
-          <div className="guide-request-head">Categories / 질문 유형</div>
-          <div className="guide-request-head">Better / 좋은 질문</div>
-          <div className="guide-request-head">Avoid / 피할 질문</div>
-          {GUIDE_REQUEST_ROWS.map((row) => (
-            <div key={`${row.allowed}-${row.avoid}`} className="guide-request-row">
-              <div
-                className={`guide-request-cell guide-request-cell-${row.category}`}
-                data-label="Categories / 질문 유형"
-              >
-                {row.allowed}
-                <br />
-                {row.allowedKo}
-              </div>
-              <div className="guide-request-cell" data-label="Better / 좋은 질문">
-                {row.better}
-                <br />
-                {row.betterKo}
-              </div>
-              <div className="guide-request-cell" data-label="Avoid / 피할 질문">
-                {row.avoid}
-                <br />
-                {row.avoidKo}
-              </div>
-            </div>
-          ))}
-        </div>
+        <p className="guide-subtitle">2. Ask Like This / 이렇게 물어보세요</p>
+        <ul className="guide-list">
+          <li>
+            Story understanding / 이야기 이해
+            <br />
+            &quot;Which clue matters for the next part?&quot; / &quot;다음 부분을 위해 중요한 단서는 무엇인가요?&quot;
+          </li>
+          <li>
+            Ideas / 아이디어 얻기
+            <br />
+            &quot;What are 2 next events that use the clue?&quot; / &quot;그 단서를 사용한 다음 사건 2가지를 생각해 볼 수 있나요?&quot;
+          </li>
+          <li>
+            Organization / 구성 도움
+            <br />
+            &quot;How can I organize clue, thought, action, and result?&quot; / &quot;단서, 생각, 행동, 결과를 어떤 순서로 정리하면 좋을까요?&quot;
+          </li>
+          <li>
+            Expression patterns / 표현 도움
+            <br />
+            &quot;What pattern can I use for this idea?&quot; / &quot;이 생각을 표현할 때 쓸 수 있는 문장 패턴은 무엇인가요?&quot;
+          </li>
+        </ul>
       </div>
 
       <div className="guide-subsection">
-        <p className="guide-subtitle">3. Important Rules / {KO.rulesTitle}</p>
+        <p className="guide-subtitle">3. Do Not Ask Like This / 이렇게 묻지 마세요</p>
+        <ul className="guide-list">
+          <li>&quot;Write the next paragraph.&quot; / &quot;다음 문단을 써 줘.&quot;</li>
+          <li>&quot;Write the ending for me.&quot; / &quot;결말을 대신 써 줘.&quot;</li>
+          <li>&quot;Rewrite my paragraph.&quot; / &quot;내 문단을 다시 써 줘.&quot;</li>
+          <li>&quot;Translate this sentence into English.&quot; / &quot;이 문장을 영어로 번역해 줘.&quot;</li>
+        </ul>
+      </div>
+
+      <div className="guide-subsection">
+        <p className="guide-subtitle">4. Important Rules / {KO.rulesTitle}</p>
         <ul className="guide-list">
           <li>
             Ask one clear question at a time.

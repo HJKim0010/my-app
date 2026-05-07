@@ -2,6 +2,7 @@ export type QueryType = "allowed" | "restricted";
 
 export type RestrictionReason =
   | "sentence_generation"
+  | "sentence_translation"
   | "draft_rewrite"
   | "outside_content";
 
@@ -148,9 +149,25 @@ function mentionsPlanningHelp(query: string): boolean {
   );
 }
 
+function asksForDirectTranslation(query: string): boolean {
+  return /(in english|translate|translation|\uc601\uc5b4\ub85c|\ubc88\uc5ed)/i.test(query);
+}
+
+function looksLikeKoreanSentence(query: string): boolean {
+  const koreanChars = query.match(/[\uac00-\ud7a3]/g)?.length ?? 0;
+  const hasSentenceShape =
+    /[\s.!?。]|(\ub2e4|\ub2e4\.|\uc694|\uc5b4|\ud574|\ud588\ub2e4|\ud588\uc5b4|\ud588\uc694)/.test(query);
+
+  return koreanChars >= 6 && hasSentenceShape;
+}
+
 export function detectRestrictionReason(query: string): RestrictionReason | null {
   const q = query.toLowerCase();
   const continuationSupport = hasContinuationSupportSignal(q);
+
+  if (asksForDirectTranslation(query) && looksLikeKoreanSentence(query)) {
+    return "sentence_translation";
+  }
 
   if (
     (includesAny(q, draftRewritePatterns) ||

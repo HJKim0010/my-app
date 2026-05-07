@@ -13,29 +13,27 @@ This is a restricted, source-grounded AI chatbot for an EFL continuation writing
 - Supabase 환경 변수가 있으면 연구 로그를 Supabase에 저장
 - Supabase 설정이 없으면 개발 중 로컬 JSONL 로그로 대체
 
-## 사용 가능 요청
+## 이렇게 물어보세요
 
-챗봇에는 다음과 같은 요청을 할 수 있습니다.
+챗봇은 글을 대신 써주지 않습니다. 대신, 여러분이 직접 글을 쓸 수 있도록 아래 네 가지 방식으로 도와줍니다.
 
-- "이 부분은 무슨 뜻인가요?"
-- "다음에 일어날 수 있는 일을 2가지 생각해 볼 수 있나요?"
-- "단서, 생각, 행동, 결과 순서로 어떻게 구성하면 좋을까요?"
-- "'very tired' 대신 쓸 수 있는 다른 표현은 무엇인가요?"
-- "이 흐름이 자연스러운지 한 부분만 확인해 주세요."
+- 이야기 이해: "다음 부분을 위해 중요한 단서는 무엇인가요?"
+- 아이디어 얻기: "그 단서를 사용한 다음 사건 2가지를 생각해 볼 수 있나요?"
+- 구성 도움: "단서, 생각, 행동, 결과를 어떤 순서로 정리하면 좋을까요?"
+- 표현 도움: "이 생각을 표현할 때 쓸 수 있는 문장 패턴은 무엇인가요?"
 
-Allowed requests include comprehension support, idea generation, organization support, vocabulary or expression help, and short local feedback.
+Ask for story understanding, idea support, organization support, or expression patterns.
 
-## 제한되는 요청
+## 이렇게 묻지 마세요
 
-다음 요청은 연구 목적과 과제 조건을 지키기 위해 제한됩니다.
+다음 요청은 글을 대신 써주는 것에 가까우므로 제한됩니다.
 
-- 다음 문단이나 결말을 대신 써 달라는 요청
-- 완성 답안 작성 요청
-- 전체 글 고쳐쓰기 또는 전체 문단 재작성 요청
-- 이야기 전체 요약 요청
-- 단순히 더 흥미롭게 늘려 달라는 요청
+- "다음 문단을 써 줘."
+- "결말을 대신 써 줘."
+- "내 문단을 다시 써 줘."
+- "이 문장을 영어로 번역해 줘."
 
-The chatbot should guide the learner's process, but it should not generate the learner's final writing.
+For Korean-to-English sentence requests, the chatbot should give a pattern with blanks and key vocabulary, not a ready-to-use translated sentence.
 
 ## 시작하기
 

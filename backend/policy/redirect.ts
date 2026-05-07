@@ -2,6 +2,13 @@ import type { RestrictionReason } from "@/backend/policy/classifier";
 
 export function redirectResponse(reason: RestrictionReason): string {
   switch (reason) {
+    case "sentence_translation":
+      return [
+        "문장 전체를 그대로 영어로 바꿔주지는 않을게요.",
+        "대신 핵심 패턴만 잡아볼 수 있어요.",
+        "Pattern: [Subject] + [verb] + [object/detail]",
+        "먼저 누가, 무엇을 했는지 골라서 직접 채워 보세요.",
+      ].join("\n");
     case "draft_rewrite":
       return [
         "I cannot rewrite the whole draft for you, but I can still help you improve it.",
