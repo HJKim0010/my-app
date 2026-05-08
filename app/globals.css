@@ -83,13 +83,13 @@ body {
 
 .chat-card .chat-header h1 {
   margin: 0;
-  font-size: 1.02rem;
+  font-size: 1.28rem;
   font-weight: 600;
   letter-spacing: 0;
 }
 
 .chat-hero {
-  margin: 38px auto 22px;
+  margin: 24px auto 16px;
   text-align: center;
 }
 
@@ -496,20 +496,20 @@ body {
 .chat-header-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .icon-button {
   display: inline-grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
+  width: 50px;
+  height: 50px;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: #fff;
   color: var(--foreground);
-  font-size: 1.12rem;
+  font-size: 1.36rem;
   line-height: 1;
   transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
 }
@@ -610,7 +610,7 @@ body {
 
 .composer-inline {
   width: min(1280px, 100%);
-  margin: 18px auto 0;
+  margin: 12px auto 0;
   padding: 0 12px 12px;
   border: 1px solid #c8ccd3;
   border-radius: 12px;
@@ -624,7 +624,7 @@ body {
 
 .example-prompt-panel-thread {
   width: min(1280px, 100%);
-  margin: 16px auto 0;
+  margin: 12px auto 0;
   padding: 0;
 }
 
@@ -799,9 +799,10 @@ body {
 
 .example-prompt-panel-thread .example-prompt-list {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 220px));
   gap: 10px;
   align-items: stretch;
+  justify-content: center;
 }
 
 .example-prompt-panel-thread .example-prompt-button,
@@ -892,8 +893,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  min-height: 640px;
-  max-height: min(74vh, 900px);
+  min-height: clamp(320px, 38svh, 430px);
+  max-height: min(46svh, 540px);
   overflow-y: auto;
   overflow-x: hidden;
   padding: 8px 4px 8px 0;
@@ -1085,8 +1086,8 @@ body {
   }
 
   .icon-button {
-    width: 40px;
-    height: 40px;
+    width: 46px;
+    height: 46px;
   }
 
   .task-display-pill {
