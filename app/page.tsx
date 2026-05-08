@@ -65,7 +65,7 @@ function isExamplePromptText(value: string): boolean {
 }
 
 const CHAT_INPUT_PLACEHOLDER =
-  "Example: What clue or hint would help me continue this story logically? / \uC608: \uB2E4\uC74C \uC774\uC57C\uAE30 \uC804\uAC1C\uB97C \uB17C\uB9AC\uC801\uC73C\uB85C \uC774\uC5B4\uAC00\uB824\uBA74 \uBB34\uC2A8 \uD78C\uD2B8\uAC00 \uD544\uC694\uD574?";
+  "Example: Which clue should I use to continue the next part logically? / \uC608: \uB2E4\uC74C \uC804\uAC1C\uB97C \uB17C\uB9AC\uC801\uC73C\uB85C \uC774\uC5B4\uAC00\uB824\uBA74 \uC5B4\uB5A4 \uB2E8\uC11C\uB97C \uC774\uC6A9\uD558\uB294 \uAC8C \uC88B\uC744\uAE4C?";
 
 const KO = {
   intro:
