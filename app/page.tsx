@@ -1048,27 +1048,33 @@ export default function Home() {
             <div className="chat-header-actions">
               <button
                 type="button"
-                className="secondary-button"
+                className="icon-button"
                 onClick={returnToHomeScreen}
+                aria-label="Go to Home"
+                title="Go to Home"
               >
-                Go to Home
+                🏠
               </button>
               <button
                 type="button"
-                className="secondary-button"
+                className="icon-button"
                 onClick={() => setShowGuide(true)}
+                aria-label="Read Guide Again"
+                title="Read Guide Again"
               >
-                Read Guide Again
+                📖
               </button>
               <button
                 type="button"
-                className="secondary-button"
+                className="icon-button"
                 onClick={() => {
                   setShowAdminPanel((current) => !current);
                   setAdminResetMessage("");
                 }}
+                aria-label="Administrator"
+                title="Administrator"
               >
-                Administrator
+                ⚙️
               </button>
             </div>
           </div>
