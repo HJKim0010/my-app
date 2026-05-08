@@ -103,7 +103,7 @@ function looksLikeSentenceTranslationRequest(text: string): boolean {
 function looksLikeTranslationRedirect(text: string): boolean {
   return (
     text.includes("Pattern: [Subject]") ||
-    /full Korean sentence|direct full-sentence translation|ready-to-use English sentence/i.test(text) ||
+    /full Korean sentence|blank sentence frame|learner should assemble/i.test(text) ||
     /문장 전체|핵심 패턴|영어로 바꿔주지/.test(text)
   );
 }

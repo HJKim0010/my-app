@@ -33,7 +33,7 @@ Ask for story understanding, idea support, organization support, or expression p
 - "내 문단을 다시 써 줘."
 - "이 문장을 영어로 번역해 줘."
 
-For Korean-to-English sentence requests, the chatbot should give a pattern with blanks and key vocabulary, not a ready-to-use translated sentence.
+For Korean-to-English sentence or phrase requests, the chatbot may give direct local English options with a short nuance or grammar note, but it must not turn that help into a full continuation paragraph or model answer.
 
 ## 시작하기
 

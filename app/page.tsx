@@ -38,9 +38,9 @@ const CHAT_EXAMPLE_PROMPTS = [
     category: "Ideation",
     label: "Find next ideas",
     labelKo: "\uC544\uC774\uB514\uC5B4 \uC5BB\uAE30",
-    en: "Suggest 2 next events that use the clue",
-    promptKo: "\uC8FC\uC5B4\uC9C4 \uB2E8\uC11C\uB97C \uC0AC\uC6A9\uD574 \uB2E4\uC74C \uC0AC\uAC74 2\uAC00\uC9C0\uB97C \uC0DD\uAC01\uD574 \uBCFC \uC218 \uC788\uB098\uC694?",
-    ko: "주어진 단서를 사용해서 다음 사건 2가지를 생각해 볼 수 있나요?",
+    en: "Suggest 2 next-event ideas connected to the clue",
+    promptKo: "주어진 단서와 자연스럽게 연결되는 다음 사건 아이디어 2가지를 제안해 주세요.",
+    ko: "주어진 단서와 자연스럽게 연결되는 다음 사건 아이디어 2가지를 제안해 주세요.",
   },
   {
     category: "Organization",
