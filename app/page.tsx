@@ -271,6 +271,166 @@ const GUIDE_COMPARE_ROWS = [
   },
 ] as const;
 
+const GUIDE_GATE_CARDS = [
+  {
+    eyebrow: "1",
+    title: "Languages",
+    titleKo: "사용 가능 언어",
+    items: [
+      {
+        text: "You may ask in Korean, English, or both.",
+        textKo: "질문은 한국어, 영어, 또는 둘 다 사용해도 됩니다.",
+      },
+    ],
+  },
+  {
+    eyebrow: "2",
+    title: "Ask Like This",
+    titleKo: "이렇게 물어보세요",
+    items: [
+      {
+        tone: "comprehension",
+        label: "COMPREHENSION / 이야기 이해",
+        text: '"What does this part mean?"',
+        textKo: '"이 부분은 무슨 뜻인가요?"',
+      },
+      {
+        tone: "ideation",
+        label: "IDEATION / 아이디어 얻기",
+        text: '"What are 2 next events that use the clue?"',
+        textKo: '"그 단서를 사용한 다음 사건 2가지를 생각해 볼 수 있나요?"',
+      },
+      {
+        tone: "organization",
+        label: "ORGANIZATION / 구성 도움",
+        text: '"How can I organize clue, thought, action, and result?"',
+        textKo: '"단서, 생각, 행동, 결과를 어떤 순서로 정리하면 좋을까요?"',
+      },
+      {
+        tone: "language",
+        label: "LANGUAGE / 표현 도움",
+        text: '"What pattern can I use for this idea?"',
+        textKo: '"이 생각을 표현할 때 쓸 수 있는 문장 패턴은 무엇인가요?"',
+      },
+    ],
+  },
+  {
+    eyebrow: "3",
+    title: "Do Not Ask Like This",
+    titleKo: "이렇게 묻지 마세요",
+    items: [
+      {
+        text: '"Write the next paragraph."',
+        textKo: '"다음 문단을 써 줘."',
+      },
+      {
+        text: '"Write the ending for me."',
+        textKo: '"결말을 대신 써 줘."',
+      },
+      {
+        text: '"Rewrite my paragraph."',
+        textKo: '"내 문단을 다시 써 줘."',
+      },
+      {
+        text: '"Translate this sentence into English."',
+        textKo: '"이 문장을 영어로 번역해 줘."',
+      },
+    ],
+  },
+  {
+    eyebrow: "4",
+    title: "Important Rules",
+    titleKo: "중요한 규칙",
+    items: [
+      {
+        text: "Ask one clear question at a time.",
+        textKo: "한 번에 한 가지씩 분명하게 질문하세요.",
+      },
+      {
+        text:
+          "If the chatbot refuses a request, do not keep trying to get the same kind of answer in another way.",
+        textKo: "챗봇이 거절한 요청은 표현만 바꿔서 다시 시도하지 마세요.",
+      },
+      {
+        text:
+          "If the reply feels unclear, ask it to explain one point again more simply.",
+        textKo:
+          "짧은 반응보다는 '다시 설명해줘', '어느 부분이야?', '한 번 더 쉽게 말해줘'처럼 요청을 함께 말해주면 더 자연스럽게 도와드릴 수 있습니다.",
+      },
+    ],
+  },
+] as const;
+
+function GuideGateCards({
+  activeIndex,
+  onChange,
+}: {
+  activeIndex: number;
+  onChange: (index: number) => void;
+}) {
+  const activeCard = GUIDE_GATE_CARDS[activeIndex];
+  const previousIndex =
+    activeIndex === 0 ? GUIDE_GATE_CARDS.length - 1 : activeIndex - 1;
+  const nextIndex =
+    activeIndex === GUIDE_GATE_CARDS.length - 1 ? 0 : activeIndex + 1;
+
+  return (
+    <section className="guide-card-news" aria-label="Manual">
+      <div className="guide-card-news-track">
+        <button
+          type="button"
+          className="guide-card-arrow"
+          onClick={() => onChange(previousIndex)}
+          aria-label="Previous manual card"
+          title="Previous"
+        >
+          &lt;
+        </button>
+
+        <article className="guide-card-slide">
+          <h2>
+            <span>#{activeCard.eyebrow}.</span>
+            {activeCard.title}
+          </h2>
+          <p className="guide-card-title-ko">{activeCard.titleKo}</p>
+          <div className="guide-card-items">
+            {activeCard.items.map((item) => (
+              <div key={`${item.text}-${item.textKo}`} className="guide-card-item">
+                {"label" in item ? (
+                  <span
+                    className={
+                      "tone" in item
+                        ? `guide-card-label guide-card-label-${item.tone}`
+                        : "guide-card-label"
+                    }
+                  >
+                    {item.label}
+                  </span>
+                ) : null}
+                <p>
+                  {item.text}
+                  <br />
+                  {item.textKo}
+                </p>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <button
+          type="button"
+          className="guide-card-arrow"
+          onClick={() => onChange(nextIndex)}
+          aria-label="Next manual card"
+          title="Next"
+        >
+          &gt;
+        </button>
+      </div>
+    </section>
+  );
+}
+
 function GuideContent() {
   return (
     <div className="guide-copy">
@@ -576,6 +736,7 @@ export default function Home() {
   const [participantInput, setParticipantInput] = useState("");
   const [guideAccepted, setGuideAccepted] = useState(false);
   const [guideChecked, setGuideChecked] = useState(false);
+  const [guideGateCardIndex, setGuideGateCardIndex] = useState(0);
   const [showGuide, setShowGuide] = useState(true);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [adminResetCode, setAdminResetCode] = useState("");
@@ -956,6 +1117,7 @@ export default function Home() {
     setParticipantInput("");
     setGuideAccepted(false);
     setGuideChecked(false);
+    setGuideGateCardIndex(0);
     setShowGuide(true);
     setInput("");
     setSelectedTask("task1");
@@ -970,7 +1132,6 @@ export default function Home() {
         <section className="guide-gate-card">
           <div className="guide-gate-header">
             <h1>My Writing Assistant</h1>
-            <p>Please read the guide before you begin. / 시작하기 전에 안내를 읽어 주세요.</p>
           </div>
 
           <div className="guide-task-panel">
@@ -1010,9 +1171,10 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="guide-panel">
-            <GuideContentV2 />
-          </div>
+          <GuideGateCards
+            activeIndex={guideGateCardIndex}
+            onChange={setGuideGateCardIndex}
+          />
 
           <label className="guide-check">
             <input
