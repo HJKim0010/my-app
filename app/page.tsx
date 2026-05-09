@@ -58,7 +58,27 @@ const CHAT_EXAMPLE_PROMPTS = [
     promptKo: "\uC774 \uB9D0\uC744 \uB354 \uC790\uC5F0\uC2A4\uB7FD\uAC8C \uD45C\uD604\uD558\uB824\uBA74?",
     ko: "\uC774 \uB9D0\uC744 \uB354 \uC790\uC5F0\uC2A4\uB7FD\uAC8C \uD45C\uD604\uD558\uB824\uBA74?",
   },
-] as const;
+].map((example) => {
+  if (example.category === "Ideation") {
+    return {
+      ...example,
+      promptKo:
+        "\uADF8 \uB2E8\uC11C\uB97C \uC0AC\uC6A9\uD55C \uB2E4\uC74C \uC0AC\uAC74 2\uAC00\uC9C0\uB97C \uC0DD\uAC01\uD574 \uBCFC \uC218 \uC788\uB098\uC694?",
+      ko:
+        "\uADF8 \uB2E8\uC11C\uB97C \uC0AC\uC6A9\uD55C \uB2E4\uC74C \uC0AC\uAC74 2\uAC00\uC9C0\uB97C \uC0DD\uAC01\uD574 \uBCFC \uC218 \uC788\uB098\uC694?",
+    };
+  }
+
+  if (example.category === "Organization") {
+    return {
+      ...example,
+      ko:
+        "\uB2E8\uC11C, \uC0DD\uAC01, \uD589\uB3D9, \uACB0\uACFC\uB97C \uC5B4\uB5A4 \uC21C\uC11C\uB85C \uC815\uB9AC\uD558\uBA74 \uC88B\uC744\uAE4C\uC694?",
+    };
+  }
+
+  return example;
+});
 
 function isExamplePromptText(value: string): boolean {
   return CHAT_EXAMPLE_PROMPTS.some((example) => example.promptKo === value);
@@ -1062,6 +1082,7 @@ export default function Home() {
   };
 
   const displayTaskLabel = selectedTask === "task2" ? "EP2" : "EP1";
+  const hasStartedChat = activeTaskState.messages.some((message) => message.role === "user");
 
   const clearSavedLocalLogs = () => {
     if (adminResetCode !== "0784") {
@@ -1188,7 +1209,7 @@ export default function Home() {
           <div className="guide-actions">
             <button
               type="button"
-              className="send-button"
+              className="start-button"
               disabled={!guideChecked || !isParticipantReady}
               onClick={handleGuideConfirm}
             >
@@ -1201,10 +1222,13 @@ export default function Home() {
           ) : null}
         </section>
       ) : (
-        <section className="chat-card">
+        <section className={hasStartedChat ? "chat-card chat-card-active" : "chat-card"}>
           <div className="chat-header">
-            <div>
+            <div className="chat-title-group">
               <h1>My Writing Assistant</h1>
+              <p className="chat-session-caption">
+                {displayTaskLabel} / Participant no.: {participantId}
+              </p>
             </div>
 
             <div className="chat-header-actions">
@@ -1215,7 +1239,10 @@ export default function Home() {
                 aria-label="Go to Home"
                 title="Go to Home"
               >
-                🏠
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                      <polyline points="9 22 9 12 15 12 15 22"/>
+                  </svg>
               </button>
               <button
                 type="button"
@@ -1224,7 +1251,10 @@ export default function Home() {
                 aria-label="Read Guide Again"
                 title="Read Guide Again"
               >
-                📖
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                  </svg>
               </button>
               <button
                 type="button"
@@ -1236,15 +1266,20 @@ export default function Home() {
                 aria-label="Administrator"
                 title="Administrator"
               >
-                ⚙️
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="3"/>
+                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                  </svg>
               </button>
             </div>
           </div>
 
+          {!hasStartedChat ? (
           <section className="chat-hero" aria-label="Chat introduction">
             <p className="participant-caption">{displayTaskLabel} · Participant ID: {participantId}</p>
             <h2>How can I help with your writing?</h2>
           </section>
+          ) : null}
 
           {showAdminPanel ? (
             <section className="admin-reset-panel admin-reset-panel-inline">
@@ -1314,7 +1349,11 @@ export default function Home() {
               <textarea
                 id="chat-input"
                 value={input}
-                onChange={(event) => setInput(event.target.value)}
+                onChange={(event) => {
+                    setInput(event.target.value);
+                    event.target.style.height = "20px";
+                    event.target.style.height = event.target.scrollHeight + "px";
+                }}
                 onKeyDown={(event) => {
                   if (
                     (event.ctrlKey || event.metaKey) &&
@@ -1336,15 +1375,17 @@ export default function Home() {
                 }}
                 rows={4}
                 className="chat-input"
+                style={{ height: "55px" }}
                 placeholder={CHAT_INPUT_PLACEHOLDER}
               />
 
-              <div className="composer-footer">
+              {/*<div className="composer-footer">*/}
                 <button onClick={send} disabled={isLoading} className="send-button">
-                  {isLoading ? "Sending... | \uBCF4\uB0B4\uB294 \uC911..." : "Send | \uBCF4\uB0B4\uAE30"}
+                  {isLoading ? "⏳" : "↑"}
                 </button>
-              </div>
+              {/*</div>*/}
             </div>
+            {!hasStartedChat ? (
             <div className="example-prompt-panel example-prompt-panel-thread" aria-label="Question examples">
               <div className="example-prompt-list">
                 {CHAT_EXAMPLE_PROMPTS.map((example) => (
@@ -1363,6 +1404,7 @@ export default function Home() {
                 ))}
               </div>
             </div>
+            ) : null}
           </section>
         </section>
       )}
