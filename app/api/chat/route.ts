@@ -56,6 +56,17 @@ function isAmbiguousShortReaction(query: string): boolean {
     || PURE_SHORT_PUNCTUATION_PATTERN.test(normalized);
 }
 
+function isGreeting(query: string): boolean {
+  const normalized = compactText(query).toLowerCase();
+
+  if (!normalized || normalized.length > 40) {
+    return false;
+  }
+
+  return /^(hi|hello|hey|good morning|good afternoon|good evening)[!?.\s]*$/i.test(normalized)
+    || /(?:^|\s)(안녕|안녕하세요|하이|헬로)(?:[!?.~\s]|$)/.test(normalized);
+}
+
 function extractLastAssistantMessage(recentMessages: RecentMessage[]): string {
   for (let index = recentMessages.length - 1; index >= 0; index -= 1) {
     if (recentMessages[index]?.role === "assistant") {
@@ -72,6 +83,14 @@ function buildAmbiguousReactionResponse(language: ResponseLanguage): string {
   }
 
   return "무슨 뜻인지 아직 정확히 모르겠어요. 방금 제 답변에 대한 반응이라면 어느 부분이 이상했는지 말해주거나, 전개 / 구성 / 표현 / 피드백 중 하나를 골라 주세요.";
+}
+
+function buildGreetingResponse(language: ResponseLanguage): string {
+  if (language === "english") {
+    return "Hello! Are you ready to work on your writing? I can help with ideas, structure, expressions, or understanding a specific part. What would you like help with?";
+  }
+
+  return "안녕하세요! writing을 할 준비가 되었나요? 아이디어, 구성, 표현, 또는 특정 부분 이해까지 여러 가지 방법으로 도와드릴 수 있어요. 어떤 걸 도와드릴까요?";
 }
 
 function buildAcknowledgmentFollowUp(
@@ -250,6 +269,36 @@ export async function POST(request: NextRequest) {
   const conversationMemory = buildConversationMemory(taskId, query, recentMessages);
   const supportMode = detectSupportMode(query, category, conversationMemory);
   const responseLanguage = detectResponseLanguage(query);
+
+  if (isGreeting(query)) {
+    const response = buildGreetingResponse(responseLanguage);
+
+    await persistChatLog({
+      participant_id: participantId,
+      session_id: sessionId,
+      ep_id: epId,
+      condition_label: taskPackage.config.ai_condition,
+      selected_category: category,
+      raw_user_query: query,
+      policy_decision: "allowed",
+      status: "allowed",
+      retrieved_chunk_ids: [],
+      retrieved_chunk_metadata: [],
+      assistant_response: response,
+      timestamp,
+      response_length: response.length,
+      interaction_count: interactionCount,
+      session_duration_ms: sessionDurationMs,
+      query_type_label: "greeting",
+      source_types_used: [],
+      visual_assets_used: [],
+    });
+
+    return new Response(response, {
+      status: 200,
+      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    });
+  }
 
   if (isAmbiguousShortReaction(query)) {
     const response = buildAmbiguousReactionResponse(responseLanguage);

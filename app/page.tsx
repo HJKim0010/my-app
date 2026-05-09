@@ -145,7 +145,7 @@ function buildWelcomeMessage(): ChatMessage {
   return {
     id: "welcome",
     role: "assistant",
-    text: "Hello. I can help with writing.",
+    text: "Hello! Are you ready to work on your writing? I can help with ideas, structure, expressions, or understanding a specific part. What would you like help with?",
   };
 }
 
@@ -153,7 +153,7 @@ function buildCurrentWelcomeMessage(): ChatMessage {
   return {
     id: "welcome",
     role: "assistant",
-    text: "Hello. I can help with writing.",
+    text: "Hello! Are you ready to work on your writing? I can help with ideas, structure, expressions, or understanding a specific part. What would you like help with?",
   };
 }
 
