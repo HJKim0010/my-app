@@ -64,7 +64,7 @@ function isGreeting(query: string): boolean {
   }
 
   return /^(hi|hello|hey|good morning|good afternoon|good evening)[!?.\s]*$/i.test(normalized)
-    || /(?:^|\s)(안녕|안녕하세요|하이|헬로)(?:[!?.~\s]|$)/.test(normalized);
+    || /(?:^|\s)(\uc548\ub155|\uc548\ub155\ud558\uc138\uc694|\ud558\uc774|\ud5ec\ub85c)(?:[!?.~\s]|$)/.test(normalized);
 }
 
 function extractLastAssistantMessage(recentMessages: RecentMessage[]): string {
