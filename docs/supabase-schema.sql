@@ -3,7 +3,7 @@ create table if not exists public.chat_events (
   created_at timestamptz not null default now(),
   participant_id text not null,
   session_id text not null,
-  task_id text not null,
+  ep_id text not null,
   condition_label text not null,
   selected_category text not null,
   raw_user_query text not null,
@@ -27,7 +27,7 @@ create table if not exists public.session_transcripts (
   created_at timestamptz not null default now(),
   participant_id text not null,
   session_id text not null,
-  task_id text not null,
+  ep_id text not null,
   condition_label text not null,
   timestamp timestamptz not null,
   interaction_count integer not null,
@@ -66,3 +66,78 @@ alter table public.chat_events
 
 alter table public.session_transcripts
   alter column participant_id set not null;
+
+alter table public.chat_events
+  add column if not exists ep_id text;
+
+alter table public.session_transcripts
+  add column if not exists ep_id text;
+
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'chat_events'
+      and column_name = 'task_id'
+  ) then
+    execute $sql$
+      update public.chat_events
+      set ep_id = case task_id
+        when 'task1' then 'ep1'
+        when 'task2' then 'ep2'
+        else coalesce(nullif(ep_id, ''), task_id)
+      end
+      where ep_id is null or ep_id = '' or task_id in ('task1', 'task2')
+    $sql$;
+  end if;
+
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'session_transcripts'
+      and column_name = 'task_id'
+  ) then
+    execute $sql$
+      update public.session_transcripts
+      set ep_id = case task_id
+        when 'task1' then 'ep1'
+        when 'task2' then 'ep2'
+        else coalesce(nullif(ep_id, ''), task_id)
+      end
+      where ep_id is null or ep_id = '' or task_id in ('task1', 'task2')
+    $sql$;
+  end if;
+end $$;
+
+update public.chat_events
+set ep_id = case ep_id
+  when 'task1' then 'ep1'
+  when 'task2' then 'ep2'
+  else ep_id
+end;
+
+update public.session_transcripts
+set ep_id = case ep_id
+  when 'task1' then 'ep1'
+  when 'task2' then 'ep2'
+  else ep_id
+end;
+
+alter table public.chat_events
+  alter column ep_id set not null;
+
+alter table public.session_transcripts
+  alter column ep_id set not null;
+
+alter table public.chat_events
+  drop column if exists task_id;
+
+alter table public.session_transcripts
+  drop column if exists task_id;
+
+alter table public.chat_events enable row level security;
+
+alter table public.session_transcripts enable row level security;

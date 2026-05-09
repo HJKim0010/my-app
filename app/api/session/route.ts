@@ -19,6 +19,10 @@ function isValidParticipantId(value: string): boolean {
   return /^[A-Z0-9_-]{2,40}$/.test(value);
 }
 
+function toEpId(taskId: TaskId): "ep1" | "ep2" {
+  return taskId === "task2" ? "ep2" : "ep1";
+}
+
 export async function GET(request: NextRequest) {
   const taskParam = request.nextUrl.searchParams.get("task");
   const conditionParam = request.nextUrl.searchParams.get("condition");
@@ -28,7 +32,7 @@ export async function GET(request: NextRequest) {
   const status = getTaskSessionStatus(taskId);
 
   return Response.json({
-    task_id: taskPackage.config.task_id,
+    ep_id: toEpId(taskId),
     title: taskPackage.config.title,
     source_mode: condition,
     condition_label: taskPackage.config.ai_condition,
@@ -55,7 +59,7 @@ export async function POST(request: NextRequest) {
   await appendSessionTranscript({
     session_id: typeof body?.sessionId === "string" ? body.sessionId : "unknown-session",
     participant_id: participantId,
-    task_id: taskPackage.config.task_id,
+    ep_id: toEpId(taskId),
     condition_label: taskPackage.config.ai_condition,
     timestamp: new Date().toISOString(),
     interaction_count:

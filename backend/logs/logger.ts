@@ -4,7 +4,7 @@ import path from "node:path";
 export type ChatLogEntry = {
   participant_id: string;
   session_id: string;
-  task_id: string;
+  ep_id: string;
   condition_label: string;
   selected_category: string;
   raw_user_query: string;
@@ -34,7 +34,7 @@ export type ChatLogEntry = {
 export type SessionTranscriptEntry = {
   participant_id: string;
   session_id: string;
-  task_id: string;
+  ep_id: string;
   condition_label: string;
   timestamp: string;
   interaction_count: number;
@@ -98,32 +98,86 @@ function appendLocalFallback(filePath: string, entry: object, error: unknown): v
   }
 }
 
+function toLegacyTaskId(epId: string): string {
+  if (epId === "ep1") {
+    return "task1";
+  }
+
+  if (epId === "ep2") {
+    return "task2";
+  }
+
+  return epId;
+}
+
+function shouldRetryWithLegacyTaskId(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return error.message.includes("ep_id") || error.message.includes("task_id");
+}
+
+function buildChatLogPayload(entry: ChatLogEntry, useLegacyTaskId = false): object {
+  return {
+    participant_id: entry.participant_id,
+    session_id: entry.session_id,
+    ...(useLegacyTaskId
+      ? { task_id: toLegacyTaskId(entry.ep_id) }
+      : { ep_id: entry.ep_id }),
+    condition_label: entry.condition_label,
+    selected_category: entry.selected_category,
+    raw_user_query: entry.raw_user_query,
+    policy_decision: entry.policy_decision,
+    status: entry.status,
+    retrieved_chunk_ids: entry.retrieved_chunk_ids,
+    retrieved_chunk_metadata: entry.retrieved_chunk_metadata,
+    assistant_response: entry.assistant_response,
+    timestamp: entry.timestamp,
+    response_length: entry.response_length,
+    interaction_count: entry.interaction_count,
+    session_duration_ms: entry.session_duration_ms,
+    query_type_label: entry.query_type_label,
+    redirect_reason: entry.redirect_reason,
+    source_types_used: entry.source_types_used || [],
+    visual_assets_used: entry.visual_assets_used || [],
+  };
+}
+
+function buildSessionTranscriptPayload(
+  entry: SessionTranscriptEntry,
+  useLegacyTaskId = false
+): object {
+  return {
+    participant_id: entry.participant_id,
+    session_id: entry.session_id,
+    ...(useLegacyTaskId
+      ? { task_id: toLegacyTaskId(entry.ep_id) }
+      : { ep_id: entry.ep_id }),
+    condition_label: entry.condition_label,
+    timestamp: entry.timestamp,
+    interaction_count: entry.interaction_count,
+    session_duration_ms: entry.session_duration_ms,
+    transcript: entry.transcript,
+  };
+}
+
 export async function appendChatLog(entry: ChatLogEntry): Promise<void> {
   if (hasSupabaseConfig()) {
     try {
-      await insertIntoSupabase(CHAT_EVENTS_TABLE, {
-        participant_id: entry.participant_id,
-        session_id: entry.session_id,
-        task_id: entry.task_id,
-        condition_label: entry.condition_label,
-        selected_category: entry.selected_category,
-        raw_user_query: entry.raw_user_query,
-        policy_decision: entry.policy_decision,
-        status: entry.status,
-        retrieved_chunk_ids: entry.retrieved_chunk_ids,
-        retrieved_chunk_metadata: entry.retrieved_chunk_metadata,
-        assistant_response: entry.assistant_response,
-        timestamp: entry.timestamp,
-        response_length: entry.response_length,
-        interaction_count: entry.interaction_count,
-        session_duration_ms: entry.session_duration_ms,
-        query_type_label: entry.query_type_label,
-        redirect_reason: entry.redirect_reason,
-        source_types_used: entry.source_types_used || [],
-        visual_assets_used: entry.visual_assets_used || [],
-      });
+      await insertIntoSupabase(CHAT_EVENTS_TABLE, buildChatLogPayload(entry));
       return;
     } catch (error) {
+      if (shouldRetryWithLegacyTaskId(error)) {
+        try {
+          await insertIntoSupabase(CHAT_EVENTS_TABLE, buildChatLogPayload(entry, true));
+          return;
+        } catch (legacyError) {
+          appendLocalFallback(LOG_FILE, entry, legacyError);
+          return;
+        }
+      }
+
       appendLocalFallback(LOG_FILE, entry, error);
       return;
     }
@@ -137,9 +191,22 @@ export async function appendSessionTranscript(
 ): Promise<void> {
   if (hasSupabaseConfig()) {
     try {
-      await insertIntoSupabase(SESSION_TRANSCRIPTS_TABLE, entry);
+      await insertIntoSupabase(SESSION_TRANSCRIPTS_TABLE, buildSessionTranscriptPayload(entry));
       return;
     } catch (error) {
+      if (shouldRetryWithLegacyTaskId(error)) {
+        try {
+          await insertIntoSupabase(
+            SESSION_TRANSCRIPTS_TABLE,
+            buildSessionTranscriptPayload(entry, true)
+          );
+          return;
+        } catch (legacyError) {
+          appendLocalFallback(SESSION_TRANSCRIPT_FILE, entry, legacyError);
+          return;
+        }
+      }
+
       appendLocalFallback(SESSION_TRANSCRIPT_FILE, entry, error);
       return;
     }

@@ -186,6 +186,10 @@ function isValidParticipantId(value: string): boolean {
   return /^[A-Z0-9_-]{2,40}$/.test(value);
 }
 
+function toEpId(taskId: TaskId): "ep1" | "ep2" {
+  return taskId === "task2" ? "ep2" : "ep1";
+}
+
 export async function POST(request: NextRequest) {
   let query = "";
   let category = "Others";
@@ -238,6 +242,7 @@ export async function POST(request: NextRequest) {
   }
 
   const taskPackage = loadTaskPackage(taskId, condition);
+  const epId = toEpId(taskId);
   const timestamp = new Date().toISOString();
   const sessionDurationMs = Math.max(0, Date.now() - sessionStartedAt);
   const policyDecision = classifyQuery(query);
@@ -252,7 +257,7 @@ export async function POST(request: NextRequest) {
     await persistChatLog({
       participant_id: participantId,
       session_id: sessionId,
-      task_id: taskPackage.config.task_id,
+      ep_id: epId,
       condition_label: taskPackage.config.ai_condition,
       selected_category: category,
       raw_user_query: query,
@@ -286,7 +291,7 @@ export async function POST(request: NextRequest) {
     await persistChatLog({
       participant_id: participantId,
       session_id: sessionId,
-      task_id: taskPackage.config.task_id,
+      ep_id: epId,
       condition_label: taskPackage.config.ai_condition,
       selected_category: category,
       raw_user_query: query,
@@ -316,7 +321,7 @@ export async function POST(request: NextRequest) {
     await persistChatLog({
       participant_id: participantId,
       session_id: sessionId,
-      task_id: taskPackage.config.task_id,
+      ep_id: epId,
       condition_label: taskPackage.config.ai_condition,
       selected_category: category,
       raw_user_query: query,
@@ -363,7 +368,7 @@ export async function POST(request: NextRequest) {
     await persistChatLog({
       participant_id: participantId,
       session_id: sessionId,
-      task_id: taskPackage.config.task_id,
+      ep_id: epId,
       condition_label: taskPackage.config.ai_condition,
       selected_category: category,
       raw_user_query: query,
@@ -397,7 +402,7 @@ export async function POST(request: NextRequest) {
     await persistChatLog({
       participant_id: participantId,
       session_id: sessionId,
-      task_id: taskPackage.config.task_id,
+      ep_id: epId,
       condition_label: taskPackage.config.ai_condition,
       selected_category: category,
       raw_user_query: query,
@@ -483,7 +488,7 @@ export async function POST(request: NextRequest) {
     await persistChatLog({
       participant_id: participantId,
       session_id: sessionId,
-      task_id: taskPackage.config.task_id,
+      ep_id: epId,
       condition_label: taskPackage.config.ai_condition,
       selected_category: category,
       raw_user_query: query,
@@ -530,7 +535,7 @@ export async function POST(request: NextRequest) {
     await persistChatLog({
       participant_id: participantId,
       session_id: sessionId,
-      task_id: taskPackage.config.task_id,
+      ep_id: epId,
       condition_label: taskPackage.config.ai_condition,
       selected_category: category,
       raw_user_query: query,
