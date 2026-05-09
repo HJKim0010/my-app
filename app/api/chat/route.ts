@@ -168,8 +168,8 @@ function buildNoChunkResponse(
   return "먼저 어느 장면이나 단서를 말하는지 조금만 더 분명하게 알려 주세요. 한 장면, 행동, 물건, 문장 중 하나만 짚어 주면 그 기준으로 도와드릴게요.";
 }
 
-function persistChatLogInBackground(entry: ChatLogEntry): void {
-  void appendChatLog(entry).catch((error) => {
+async function persistChatLog(entry: ChatLogEntry): Promise<void> {
+  await appendChatLog(entry).catch((error) => {
     console.error("Failed to persist chat log", error);
   });
 }
@@ -249,7 +249,7 @@ export async function POST(request: NextRequest) {
   if (isAmbiguousShortReaction(query)) {
     const response = buildAmbiguousReactionResponse(responseLanguage);
 
-    persistChatLogInBackground({
+    await persistChatLog({
       participant_id: participantId,
       session_id: sessionId,
       task_id: taskPackage.config.task_id,
@@ -283,7 +283,7 @@ export async function POST(request: NextRequest) {
       conversationMemory.workingContext
     );
 
-    persistChatLogInBackground({
+    await persistChatLog({
       participant_id: participantId,
       session_id: sessionId,
       task_id: taskPackage.config.task_id,
@@ -313,7 +313,7 @@ export async function POST(request: NextRequest) {
   if (policyDecision === "restricted") {
     const redirected = redirectResponse(restrictionReason ?? "sentence_generation");
 
-    persistChatLogInBackground({
+    await persistChatLog({
       participant_id: participantId,
       session_id: sessionId,
       task_id: taskPackage.config.task_id,
@@ -360,7 +360,7 @@ export async function POST(request: NextRequest) {
   ) {
     const clarification = buildTargetClarificationResponse(responseLanguage, supportMode);
 
-    persistChatLogInBackground({
+    await persistChatLog({
       participant_id: participantId,
       session_id: sessionId,
       task_id: taskPackage.config.task_id,
@@ -394,7 +394,7 @@ export async function POST(request: NextRequest) {
       conversationMemory.workingContext
     );
 
-    persistChatLogInBackground({
+    await persistChatLog({
       participant_id: participantId,
       session_id: sessionId,
       task_id: taskPackage.config.task_id,
@@ -480,7 +480,7 @@ export async function POST(request: NextRequest) {
       response.output_text || extractLastAssistantMessage(recentMessages) || "No response text returned."
     );
 
-    persistChatLogInBackground({
+    await persistChatLog({
       participant_id: participantId,
       session_id: sessionId,
       task_id: taskPackage.config.task_id,
@@ -527,7 +527,7 @@ export async function POST(request: NextRequest) {
 
     const failureResponse = `OpenAI request failed: ${message}`;
 
-    persistChatLogInBackground({
+    await persistChatLog({
       participant_id: participantId,
       session_id: sessionId,
       task_id: taskPackage.config.task_id,
