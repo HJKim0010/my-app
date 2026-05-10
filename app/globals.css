@@ -1135,6 +1135,41 @@ body {
   opacity: 0.88;
 }
 
+.quick-reply-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.quick-reply-button {
+  min-height: 34px;
+  padding: 7px 12px;
+  border: 1px solid #c8ccd3;
+  border-radius: 8px;
+  background: #fff;
+  color: #303640;
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1.2;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    transform 160ms ease;
+}
+
+.quick-reply-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: #f4f5f6;
+  border-color: #aeb4bd;
+}
+
+.quick-reply-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 @keyframes bubble-rise {
   0% {
     opacity: 0;

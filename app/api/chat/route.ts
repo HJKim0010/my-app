@@ -21,6 +21,17 @@ import { retrieveTaskChunks } from "@/backend/rag/retriever";
 
 export const maxDuration = 60;
 
+type QuickReply = {
+  label: string;
+  value?: string;
+  action?: "send" | "prefill" | "focus";
+};
+
+type ChatApiResponse = {
+  text: string;
+  quickReplies?: QuickReply[];
+};
+
 function sanitizeAssistantResponse(text: string): string {
   return text
     .replace(/\*\*/g, "")
@@ -63,8 +74,24 @@ function isGreeting(query: string): boolean {
     return false;
   }
 
-  return /^(hi|hello|hey|good morning|good afternoon|good evening)[!?.\s]*$/i.test(normalized)
-    || /(?:^|\s)(\uc548\ub155|\uc548\ub155\ud558\uc138\uc694|\ud558\uc774|\ud5ec\ub85c)(?:[!?.~\s]|$)/.test(normalized);
+  return /^(hi|hello|hey|good morning|good afternoon|good evening)[!?.~\s]*$/i.test(normalized)
+    || /^(\uc548\ub155|\uc548\ub155\ud558\uc138\uc694|\ud558\uc774|\ud5ec\ub85c)[!?.~\s]*$/.test(normalized);
+}
+
+function containsGreeting(query: string): boolean {
+  const normalized = compactText(query).toLowerCase();
+  return /(?:^|\s)(hi|hello|hey|good morning|good afternoon|good evening)(?:[!?.~,\s]|$)/i.test(normalized)
+    || /(?:^|\s)(\uc548\ub155|\uc548\ub155\ud558\uc138\uc694|\ud558\uc774|\ud5ec\ub85c)(?:[!?.~,\s]|$)/.test(normalized);
+}
+
+function isVagueHelpRequest(query: string): boolean {
+  const normalized = compactText(query).toLowerCase();
+
+  if (normalized.length > 80) {
+    return false;
+  }
+
+  return /(help|help me|can you help|this part|which part|what part|\ub3c4\uc640\uc904|\ub3c4\uc640\uc8fc|\uc774\s*\ubd80\ubd84|\uc5b4\ub290\s*\ubd80\ubd84|\ubb50\ub97c\s*\ub3c4\uc640)/i.test(normalized);
 }
 
 function extractLastAssistantMessage(recentMessages: RecentMessage[]): string {
@@ -77,6 +104,7 @@ function extractLastAssistantMessage(recentMessages: RecentMessage[]): string {
   return "";
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function buildAmbiguousReactionResponse(language: ResponseLanguage): string {
   if (language === "english") {
     return "I am not fully sure what you mean yet. If you mean a reaction to my last answer, tell me what felt odd, or choose one: plot, structure, expression, or feedback.";
@@ -85,6 +113,7 @@ function buildAmbiguousReactionResponse(language: ResponseLanguage): string {
   return "무슨 뜻인지 아직 정확히 모르겠어요. 방금 제 답변에 대한 반응이라면 어느 부분이 이상했는지 말해주거나, 전개 / 구성 / 표현 / 피드백 중 하나를 골라 주세요.";
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function buildGreetingResponse(language: ResponseLanguage): string {
   if (language === "english") {
     return "Hello! Are you ready to work on your writing? I can help with ideas, structure, expressions, or understanding a specific part. What would you like help with?";
@@ -93,6 +122,7 @@ function buildGreetingResponse(language: ResponseLanguage): string {
   return "안녕하세요! writing을 할 준비가 되었나요? 아이디어, 구성, 표현, 또는 특정 부분 이해까지 여러 가지 방법으로 도와드릴 수 있어요. 어떤 걸 도와드릴까요?";
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function buildAcknowledgmentFollowUp(
   language: ResponseLanguage,
   mode: SupportMode,
@@ -144,6 +174,7 @@ function shouldAskTargetClarification(
   return false;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function buildTargetClarificationResponse(
   language: ResponseLanguage,
   mode: SupportMode
@@ -163,6 +194,7 @@ function buildTargetClarificationResponse(
   return "먼저 네가 만든 내용이나 초안의 짧은 부분 하나만 보여 주세요. 그 기준으로 바로 도와드릴게요.";
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function buildNoChunkResponse(
   mode: SupportMode,
   language: ResponseLanguage,
@@ -185,6 +217,206 @@ function buildNoChunkResponse(
   }
 
   return "먼저 어느 장면이나 단서를 말하는지 조금만 더 분명하게 알려 주세요. 한 장면, 행동, 물건, 문장 중 하나만 짚어 주면 그 기준으로 도와드릴게요.";
+}
+
+function chatJsonResponse(payload: ChatApiResponse, status = 200): Response {
+  return Response.json(payload, { status });
+}
+
+function confirmationQuickReplies(language: ResponseLanguage): QuickReply[] {
+  if (language === "english") {
+    return [
+      { label: "Yes", value: "Yes. Please help me in that direction.", action: "send" },
+      { label: "Different", value: "No. What I mean is ", action: "prefill" },
+      { label: "I'll type", action: "focus" },
+    ];
+  }
+
+  return [
+    { label: "맞아요", value: "맞아요. 그 방향으로 도와주세요.", action: "send" },
+    { label: "다른 방향", value: "아니에요. 제가 원하는 건 ", action: "prefill" },
+    { label: "직접 입력", action: "focus" },
+  ];
+}
+
+function supportChoiceQuickReplies(language: ResponseLanguage): QuickReply[] {
+  if (language === "english") {
+    return [
+      { label: "Plot", value: "Please help me with the plot.", action: "send" },
+      { label: "Structure", value: "Please help me organize the structure.", action: "send" },
+      { label: "Expression", value: "Please help me with expressions.", action: "send" },
+    ];
+  }
+
+  return [
+    { label: "전개", value: "다음 전개를 도와주세요.", action: "send" },
+    { label: "구성", value: "글의 구성을 도와주세요.", action: "send" },
+    { label: "표현", value: "표현을 더 자연스럽게 도와주세요.", action: "send" },
+  ];
+}
+
+function buildAmbiguousReactionResponseV2(language: ResponseLanguage): ChatApiResponse {
+  if (language === "english") {
+    return {
+      text: "I am not fully sure what you mean yet. Did you mean my last answer was unclear?",
+      quickReplies: confirmationQuickReplies(language),
+    };
+  }
+
+  return {
+    text: "아직 뜻을 정확히 잡기 어려워요. 방금 제 답변이 헷갈렸다는 뜻인가요?",
+    quickReplies: confirmationQuickReplies(language),
+  };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function buildGreetingResponseV2(language: ResponseLanguage): ChatApiResponse {
+  if (language === "english") {
+    return {
+      text: "Hello. What would you like help with?",
+      quickReplies: supportChoiceQuickReplies(language),
+    };
+  }
+
+  return {
+    text: "안녕하세요! 글쓰기에서 어떤 도움을 받고 싶나요?",
+    quickReplies: supportChoiceQuickReplies(language),
+  };
+}
+
+function buildGreetingClarificationResponse(language: ResponseLanguage): ChatApiResponse {
+  if (language === "english") {
+    return {
+      text: "Hello. Which part would you like help with? If you tell me the exact part, I can match the help to it.",
+      quickReplies: [
+        { label: "Story part", value: "Please help me understand this part: ", action: "prefill" },
+        { label: "My idea", value: "Please help me with my idea: ", action: "prefill" },
+        { label: "Expression", value: "Please help me say this naturally: ", action: "prefill" },
+      ],
+    };
+  }
+
+  return {
+    text: "안녕하세요. 어떤 부분을 도와드릴까요? 정확한 부분을 알려주시면 거기에 맞춰 도와드릴게요.",
+    quickReplies: [
+      { label: "이야기 부분", value: "이 부분을 이해하도록 도와주세요: ", action: "prefill" },
+      { label: "내 아이디어", value: "제 아이디어를 봐주세요: ", action: "prefill" },
+      { label: "표현", value: "이 표현을 자연스럽게 도와주세요: ", action: "prefill" },
+    ],
+  };
+}
+
+function buildCalmGreetingResponse(language: ResponseLanguage): ChatApiResponse {
+  if (language === "english") {
+    return {
+      text: "Hello. What would you like help with?",
+      quickReplies: supportChoiceQuickReplies(language),
+    };
+  }
+
+  return {
+    text: "안녕하세요. 어떤 부분을 도와드릴까요?",
+    quickReplies: supportChoiceQuickReplies(language),
+  };
+}
+
+function buildAcknowledgmentFollowUpV2(language: ResponseLanguage): ChatApiResponse {
+  if (language === "english") {
+    return {
+      text: "I understand. What would you like next?",
+      quickReplies: supportChoiceQuickReplies(language),
+    };
+  }
+
+  return {
+    text: "좋아요. 다음에는 어떤 도움을 받을까요?",
+    quickReplies: supportChoiceQuickReplies(language),
+  };
+}
+
+function buildTargetClarificationResponseV2(
+  language: ResponseLanguage,
+  mode: SupportMode
+): ChatApiResponse {
+  if (language === "english") {
+    if (mode === "comprehension") {
+      return {
+        text: "Which part should I explain first? Choose one or type the part yourself.",
+        quickReplies: [
+          { label: "Scene", value: "Please explain this scene: ", action: "prefill" },
+          { label: "Object", value: "Please explain this object: ", action: "prefill" },
+          { label: "I'll type", action: "focus" },
+        ],
+      };
+    }
+
+    return {
+      text: "Please show me one short part of your idea or draft first, and I will help from there.",
+      quickReplies: confirmationQuickReplies(language),
+    };
+  }
+
+  if (mode === "comprehension") {
+    return {
+      text: "어느 부분을 설명하면 좋을까요? 장면, 행동, 물건, 문장 중 하나를 알려주세요.",
+      quickReplies: [
+        { label: "장면", value: "이 장면을 설명해주세요: ", action: "prefill" },
+        { label: "물건", value: "이 물건을 설명해주세요: ", action: "prefill" },
+        { label: "직접 입력", action: "focus" },
+      ],
+    };
+  }
+
+  return {
+    text: "아이디어나 초안의 짧은 부분을 먼저 보여주세요. 그 부분부터 같이 다듬어볼게요.",
+    quickReplies: confirmationQuickReplies(language),
+  };
+}
+
+function buildNoChunkResponseV2(
+  mode: SupportMode,
+  language: ResponseLanguage,
+  workingContext: "source" | "user_continuation"
+): ChatApiResponse {
+  if (language === "english") {
+    if (workingContext === "user_continuation") {
+      return {
+        text:
+          mode === "feedback"
+            ? "I need one short part of your continuation or draft to give feedback."
+            : "I need one short part of your continuation idea first.",
+        quickReplies: confirmationQuickReplies(language),
+      };
+    }
+
+    return {
+      text: "I need one clearer target first. Which part should we focus on?",
+      quickReplies: [
+        { label: "Scene", value: "Please help me with this scene: ", action: "prefill" },
+        { label: "Clue", value: "Please help me with this clue: ", action: "prefill" },
+        { label: "I'll type", action: "focus" },
+      ],
+    };
+  }
+
+  if (workingContext === "user_continuation") {
+    return {
+      text:
+        mode === "feedback"
+          ? "피드백을 하려면 이어쓰기나 초안의 짧은 부분이 필요해요."
+          : "먼저 이어쓰기 아이디어나 초안의 짧은 부분을 보여주세요.",
+      quickReplies: confirmationQuickReplies(language),
+    };
+  }
+
+  return {
+    text: "먼저 어떤 부분을 보고 싶은지 알려주세요. 장면, 단서, 행동, 문장 중 하나를 골라도 좋아요.",
+    quickReplies: [
+      { label: "장면", value: "이 장면을 설명해주세요: ", action: "prefill" },
+      { label: "단서", value: "이 단서를 어떻게 쓰면 좋을까요: ", action: "prefill" },
+      { label: "직접 입력", action: "focus" },
+    ],
+  };
 }
 
 async function persistChatLog(entry: ChatLogEntry): Promise<void> {
@@ -270,8 +502,8 @@ export async function POST(request: NextRequest) {
   const supportMode = detectSupportMode(query, category, conversationMemory);
   const responseLanguage = detectResponseLanguage(query);
 
-  if (isGreeting(query)) {
-    const response = buildGreetingResponse(responseLanguage);
+  if (containsGreeting(query) && isVagueHelpRequest(query) && !isGreeting(query)) {
+    const response = buildGreetingClarificationResponse(responseLanguage);
 
     await persistChatLog({
       participant_id: participantId,
@@ -284,9 +516,36 @@ export async function POST(request: NextRequest) {
       status: "allowed",
       retrieved_chunk_ids: [],
       retrieved_chunk_metadata: [],
-      assistant_response: response,
+      assistant_response: response.text,
       timestamp,
-      response_length: response.length,
+      response_length: response.text.length,
+      interaction_count: interactionCount,
+      session_duration_ms: sessionDurationMs,
+      query_type_label: "greeting_needs_clarification",
+      source_types_used: [],
+      visual_assets_used: [],
+    });
+
+    return chatJsonResponse(response);
+  }
+
+  if (isGreeting(query)) {
+    const response = buildCalmGreetingResponse(responseLanguage);
+
+    await persistChatLog({
+      participant_id: participantId,
+      session_id: sessionId,
+      ep_id: epId,
+      condition_label: taskPackage.config.ai_condition,
+      selected_category: category,
+      raw_user_query: query,
+      policy_decision: "allowed",
+      status: "allowed",
+      retrieved_chunk_ids: [],
+      retrieved_chunk_metadata: [],
+      assistant_response: response.text,
+      timestamp,
+      response_length: response.text.length,
       interaction_count: interactionCount,
       session_duration_ms: sessionDurationMs,
       query_type_label: "greeting",
@@ -294,14 +553,11 @@ export async function POST(request: NextRequest) {
       visual_assets_used: [],
     });
 
-    return new Response(response, {
-      status: 200,
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
+    return chatJsonResponse(response);
   }
 
   if (isAmbiguousShortReaction(query)) {
-    const response = buildAmbiguousReactionResponse(responseLanguage);
+    const response = buildAmbiguousReactionResponseV2(responseLanguage);
 
     await persistChatLog({
       participant_id: participantId,
@@ -314,9 +570,9 @@ export async function POST(request: NextRequest) {
       status: "allowed",
       retrieved_chunk_ids: [],
       retrieved_chunk_metadata: [],
-      assistant_response: response,
+      assistant_response: response.text,
       timestamp,
-      response_length: response.length,
+      response_length: response.text.length,
       interaction_count: interactionCount,
       session_duration_ms: sessionDurationMs,
       query_type_label: "ambiguous_short_reaction",
@@ -324,18 +580,11 @@ export async function POST(request: NextRequest) {
       visual_assets_used: [],
     });
 
-    return new Response(response, {
-      status: 200,
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
+    return chatJsonResponse(response);
   }
 
   if (isShortAcknowledgment(query)) {
-    const response = buildAcknowledgmentFollowUp(
-      responseLanguage,
-      supportMode,
-      conversationMemory.workingContext
-    );
+    const response = buildAcknowledgmentFollowUpV2(responseLanguage);
 
     await persistChatLog({
       participant_id: participantId,
@@ -348,9 +597,9 @@ export async function POST(request: NextRequest) {
       status: "allowed",
       retrieved_chunk_ids: [],
       retrieved_chunk_metadata: [],
-      assistant_response: response,
+      assistant_response: response.text,
       timestamp,
-      response_length: response.length,
+      response_length: response.text.length,
       interaction_count: interactionCount,
       session_duration_ms: sessionDurationMs,
       query_type_label: "acknowledgment",
@@ -358,14 +607,26 @@ export async function POST(request: NextRequest) {
       visual_assets_used: [],
     });
 
-    return new Response(response, {
-      status: 200,
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
+    return chatJsonResponse(response);
   }
 
   if (policyDecision === "restricted") {
     const redirected = redirectResponse(restrictionReason ?? "sentence_generation");
+    const redirectPayload: ChatApiResponse = {
+      text: redirected,
+      quickReplies:
+        responseLanguage === "english"
+          ? [
+              { label: "Outline", value: "Please help me make a short outline.", action: "send" },
+              { label: "Ideas", value: "Please suggest possible next events.", action: "send" },
+              { label: "One sentence", value: "Please help me revise one sentence: ", action: "prefill" },
+            ]
+          : [
+              { label: "개요", value: "짧은 개요를 만드는 걸 도와주세요.", action: "send" },
+              { label: "아이디어", value: "가능한 다음 사건을 제안해주세요.", action: "send" },
+              { label: "한 문장", value: "이 한 문장을 고치는 걸 도와주세요: ", action: "prefill" },
+            ],
+    };
 
     await persistChatLog({
       participant_id: participantId,
@@ -389,10 +650,7 @@ export async function POST(request: NextRequest) {
       visual_assets_used: [],
     });
 
-    return new Response(redirected, {
-      status: 200,
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
+    return chatJsonResponse(redirectPayload);
   }
 
   const retrievedChunks = retrieveTaskChunks(
@@ -412,7 +670,7 @@ export async function POST(request: NextRequest) {
       conversationMemory.workingContext
     )
   ) {
-    const clarification = buildTargetClarificationResponse(responseLanguage, supportMode);
+    const clarification = buildTargetClarificationResponseV2(responseLanguage, supportMode);
 
     await persistChatLog({
       participant_id: participantId,
@@ -425,9 +683,9 @@ export async function POST(request: NextRequest) {
       status: "allowed",
       retrieved_chunk_ids: [],
       retrieved_chunk_metadata: [],
-      assistant_response: clarification,
+      assistant_response: clarification.text,
       timestamp,
-      response_length: clarification.length,
+      response_length: clarification.text.length,
       interaction_count: interactionCount,
       session_duration_ms: sessionDurationMs,
       query_type_label: "needs_target_clarification",
@@ -435,14 +693,11 @@ export async function POST(request: NextRequest) {
       visual_assets_used: [],
     });
 
-    return new Response(clarification, {
-      status: 200,
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
+    return chatJsonResponse(clarification);
   }
 
   if (retrievedChunks.length === 0) {
-    const boundedResponse = buildNoChunkResponse(
+    const boundedResponse = buildNoChunkResponseV2(
       supportMode,
       responseLanguage,
       conversationMemory.workingContext
@@ -459,9 +714,9 @@ export async function POST(request: NextRequest) {
       status: "allowed",
       retrieved_chunk_ids: [],
       retrieved_chunk_metadata: [],
-      assistant_response: boundedResponse,
+      assistant_response: boundedResponse.text,
       timestamp,
-      response_length: boundedResponse.length,
+      response_length: boundedResponse.text.length,
       interaction_count: interactionCount,
       session_duration_ms: sessionDurationMs,
       query_type_label: supportMode,
@@ -469,10 +724,7 @@ export async function POST(request: NextRequest) {
       visual_assets_used: [],
     });
 
-    return new Response(boundedResponse, {
-      status: 200,
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
+    return chatJsonResponse(boundedResponse);
   }
 
   const apiKey = process.env.OPENAI_API_KEY;

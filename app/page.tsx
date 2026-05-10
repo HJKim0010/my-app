@@ -5,13 +5,25 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 type TaskId = "task1" | "task2";
 type TaskCondition = "static" | "dynamic";
 
+type QuickReply = {
+  label: string;
+  value?: string;
+  action?: "send" | "prefill" | "focus";
+};
+
 type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   text: string;
+  quickReplies?: QuickReply[];
 };
 
 type StoredTranscriptMessage = Pick<ChatMessage, "role" | "text">;
+
+type ChatApiResponse = {
+  text: string;
+  quickReplies?: QuickReply[];
+};
 
 type TaskChatState = {
   sessionId: string;
@@ -82,6 +94,35 @@ const CHAT_EXAMPLE_PROMPTS = [
 
 function isExamplePromptText(value: string): boolean {
   return CHAT_EXAMPLE_PROMPTS.some((example) => example.promptKo === value);
+}
+
+function isQuickReply(value: unknown): value is QuickReply {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  const action = candidate.action;
+
+  return (
+    typeof candidate.label === "string" &&
+    (candidate.value === undefined || typeof candidate.value === "string") &&
+    (action === undefined || action === "send" || action === "prefill" || action === "focus")
+  );
+}
+
+function isChatApiResponse(value: unknown): value is ChatApiResponse {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+
+  return (
+    typeof candidate.text === "string" &&
+    (candidate.quickReplies === undefined ||
+      (Array.isArray(candidate.quickReplies) && candidate.quickReplies.every(isQuickReply)))
+  );
 }
 
 const CHAT_INPUT_PLACEHOLDER =
@@ -225,6 +266,9 @@ function hydrateTaskStates(raw: string | null): Record<TaskId, TaskChatState> {
           id: message.id,
           role: message.role,
           text: message.text,
+          quickReplies: Array.isArray(message.quickReplies)
+            ? message.quickReplies.filter(isQuickReply)
+            : undefined,
         }));
 
       const hasStaleAssistantText = hydratedMessages.some(
@@ -762,6 +806,7 @@ export default function Home() {
   const [adminResetCode, setAdminResetCode] = useState("");
   const [adminResetMessage, setAdminResetMessage] = useState("");
   const threadEndRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const taskStatesRef = useRef(taskStates);
   const revealedAssistantIdsRef = useRef<Set<string>>(collectAssistantIds(taskStates));
   const inFlightRequestRef = useRef<AbortController | null>(null);
@@ -781,6 +826,29 @@ export default function Home() {
     }
 
     setInput(prompt);
+  };
+
+  const handleQuickReply = (reply: QuickReply) => {
+    if (isLoading) {
+      return;
+    }
+
+    if (reply.action === "prefill" && reply.value) {
+      if (input.trim()) {
+        inputUndoStackRef.current.push(input);
+      }
+
+      setInput(reply.value);
+      window.setTimeout(() => inputRef.current?.focus(), 0);
+      return;
+    }
+
+    if (reply.action === "focus" || !reply.value) {
+      window.setTimeout(() => inputRef.current?.focus(), 0);
+      return;
+    }
+
+    void send(reply.value);
   };
 
   useEffect(() => {
@@ -940,12 +1008,14 @@ export default function Home() {
     };
   }, [persistTranscript]);
 
-  const send = async () => {
-    if (!input.trim() || isLoading) {
+  const send = async (overrideText?: string) => {
+    const outgoingText = overrideText ?? input;
+
+    if (!outgoingText.trim() || isLoading) {
       return;
     }
 
-    const userText = input.trim();
+    const userText = outgoingText.trim();
     inputUndoStackRef.current.push(userText);
     const currentState = taskStatesRef.current[selectedTask];
     const nextInteractionCount = currentState.interactionCount + 1;
@@ -997,11 +1067,27 @@ export default function Home() {
         signal: controller.signal,
       });
 
-      const text = await res.text();
+      const contentType = res.headers.get("content-type") || "";
+      const rawResponse = await res.text();
+      let assistantPayload: ChatApiResponse = { text: rawResponse };
+
+      if (contentType.includes("application/json")) {
+        try {
+          const parsed = JSON.parse(rawResponse);
+
+          if (isChatApiResponse(parsed)) {
+            assistantPayload = parsed;
+          }
+        } catch {
+          assistantPayload = { text: rawResponse };
+        }
+      }
+
       const assistantMessage: ChatMessage = {
         id: `${Date.now()}-assistant`,
         role: "assistant",
-        text,
+        text: assistantPayload.text,
+        quickReplies: assistantPayload.quickReplies,
       };
       const messagesWithResponse = [...currentState.messages, userMessage, assistantMessage];
       const nextState: TaskChatState = {
@@ -1332,6 +1418,21 @@ export default function Home() {
                       {message.role === "user" ? "You" : "Assistant"}
                     </div>
                     <div className="message-text">{message.text}</div>
+                    {message.role === "assistant" && message.quickReplies?.length ? (
+                      <div className="quick-reply-list" aria-label="Suggested replies">
+                        {message.quickReplies.map((reply, index) => (
+                          <button
+                            key={`${message.id}-reply-${index}`}
+                            type="button"
+                            className="quick-reply-button"
+                            onClick={() => handleQuickReply(reply)}
+                            disabled={isLoading}
+                          >
+                            {reply.label}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               ))}
@@ -1348,6 +1449,7 @@ export default function Home() {
             <div className="composer-inline">
               <textarea
                 id="chat-input"
+                ref={inputRef}
                 value={input}
                 onChange={(event) => {
                     setInput(event.target.value);
@@ -1380,7 +1482,7 @@ export default function Home() {
               />
 
               {/*<div className="composer-footer">*/}
-                <button onClick={send} disabled={isLoading} className="send-button">
+                <button onClick={() => void send()} disabled={isLoading} className="send-button">
                   {isLoading ? "⏳" : "↑"}
                 </button>
               {/*</div>*/}
