@@ -287,36 +287,24 @@ function buildGreetingResponseV2(language: ResponseLanguage): ChatApiResponse {
 function buildGreetingClarificationResponse(language: ResponseLanguage): ChatApiResponse {
   if (language === "english") {
     return {
-      text: "Hello. Which part would you like help with? If you tell me the exact part, I can match the help to it.",
-      quickReplies: [
-        { label: "Story part", value: "Please help me understand this part: ", action: "prefill" },
-        { label: "My idea", value: "Please help me with my idea: ", action: "prefill" },
-        { label: "Expression", value: "Please help me say this naturally: ", action: "prefill" },
-      ],
+      text: "Hello. Which part would you like help with? You can tap a quick bubble below or type your question directly.",
     };
   }
 
   return {
-    text: "안녕하세요. 어떤 부분을 도와드릴까요? 정확한 부분을 알려주시면 거기에 맞춰 도와드릴게요.",
-    quickReplies: [
-      { label: "이야기 부분", value: "이 부분을 이해하도록 도와주세요: ", action: "prefill" },
-      { label: "내 아이디어", value: "제 아이디어를 봐주세요: ", action: "prefill" },
-      { label: "표현", value: "이 표현을 자연스럽게 도와주세요: ", action: "prefill" },
-    ],
+    text: "안녕하세요. 어떤 부분을 도와드릴까요? 아래 quick bubble chat을 눌러도 되고, 질문을 직접 입력해도 좋아요.",
   };
 }
 
 function buildCalmGreetingResponse(language: ResponseLanguage): ChatApiResponse {
   if (language === "english") {
     return {
-      text: "Hello. What would you like help with?",
-      quickReplies: supportChoiceQuickReplies(language),
+      text: "Hello. What would you like help with? You can tap a quick bubble below or type your question directly.",
     };
   }
 
   return {
-    text: "안녕하세요. 어떤 부분을 도와드릴까요?",
-    quickReplies: supportChoiceQuickReplies(language),
+    text: "안녕하세요. 어떤 부분을 도와드릴까요? 아래 quick bubble chat을 눌러도 되고, 질문을 직접 입력해도 좋아요.",
   };
 }
 
