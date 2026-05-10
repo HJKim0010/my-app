@@ -1487,7 +1487,6 @@ export default function Home() {
                 </button>
               {/*</div>*/}
             </div>
-            {!hasStartedChat ? (
             <div className="example-prompt-panel example-prompt-panel-thread" aria-label="Question examples">
               <div className="example-prompt-list">
                 {CHAT_EXAMPLE_PROMPTS.map((example) => (
@@ -1506,7 +1505,6 @@ export default function Home() {
                 ))}
               </div>
             </div>
-            ) : null}
           </section>
         </section>
       )}
