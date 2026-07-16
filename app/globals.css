@@ -226,6 +226,11 @@ body {
   margin-top: 12px;
 }
 
+.guide-card-dots-top {
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+
 .guide-card-dot {
   width: 8px;
   height: 8px;
@@ -1391,19 +1396,18 @@ body {
   }
 
   .guide-card-news-track {
-    grid-template-columns: 44px minmax(0, 1fr) 44px;
-    gap: 8px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
   }
 
   .guide-card-arrow {
-    width: 44px;
-    height: 44px;
+    display: none;
   }
 
   .guide-card-slide {
     height: auto;
     min-height: 340px;
-    padding: 20px;
+    padding: 18px;
     overflow: visible;
   }
 
@@ -1421,7 +1425,20 @@ body {
   }
 
   .composer-inline {
-    padding: 0 10px 10px;
+    align-items: stretch;
+    flex-direction: column;
+    padding: 10px;
+    border-radius: 20px;
+  }
+
+  .chat-input {
+    width: 100%;
+    min-height: 88px;
+  }
+
+  .composer-inline .send-button {
+    width: 100%;
+    min-height: 48px;
   }
 
   .message-thread {

@@ -438,9 +438,33 @@ function GuideGateCards({
     activeIndex === 0 ? GUIDE_GATE_CARDS.length - 1 : activeIndex - 1;
   const nextIndex =
     activeIndex === GUIDE_GATE_CARDS.length - 1 ? 0 : activeIndex + 1;
+  const renderDots = (position: "top" | "bottom") => (
+    <div
+      className={
+        position === "top"
+          ? "guide-card-dots guide-card-dots-top"
+          : "guide-card-dots"
+      }
+      aria-label={`Manual card ${activeIndex + 1} of ${GUIDE_GATE_CARDS.length}`}
+    >
+      {GUIDE_GATE_CARDS.map((card, index) => (
+        <button
+          key={`${position}-${card.eyebrow}`}
+          type="button"
+          className={
+            index === activeIndex ? "guide-card-dot guide-card-dot-active" : "guide-card-dot"
+          }
+          onClick={() => onChange(index)}
+          aria-label={`Go to manual card ${index + 1}`}
+          aria-current={index === activeIndex ? "true" : undefined}
+        />
+      ))}
+    </div>
+  );
 
   return (
     <section className="guide-card-news" aria-label="Manual">
+      {renderDots("top")}
       <div className="guide-card-news-track">
         <button
           type="button"
@@ -492,23 +516,7 @@ function GuideGateCards({
           &gt;
         </button>
       </div>
-      <div
-        className="guide-card-dots"
-        aria-label={`Manual card ${activeIndex + 1} of ${GUIDE_GATE_CARDS.length}`}
-      >
-        {GUIDE_GATE_CARDS.map((card, index) => (
-          <button
-            key={card.eyebrow}
-            type="button"
-            className={
-              index === activeIndex ? "guide-card-dot guide-card-dot-active" : "guide-card-dot"
-            }
-            onClick={() => onChange(index)}
-            aria-label={`Go to manual card ${index + 1}`}
-            aria-current={index === activeIndex ? "true" : undefined}
-          />
-        ))}
-      </div>
+      {renderDots("bottom")}
     </section>
   );
 }
