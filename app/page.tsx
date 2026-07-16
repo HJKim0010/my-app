@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type TaskId = "task1" | "task2";
@@ -41,6 +42,8 @@ const TASK_IDS: TaskId[] = ["task1", "task2"];
 const STORAGE_KEY_PREFIX = "writing-assistant-task-state-v6";
 const GUIDE_KEY_PREFIX = "writing-assistant-guide-accepted-v6";
 const CURRENT_PARTICIPANT_KEY = "writing-assistant-current-participant-v4";
+const CHAT_INPUT_BASE_HEIGHT = 55;
+const CHAT_INPUT_MAX_HEIGHT = 190;
 const CHAT_EXAMPLE_PROMPTS = [
   {
     category: "Comprehension",
@@ -134,6 +137,83 @@ function isChatApiResponse(value: unknown): value is ChatApiResponse {
 
 const CHAT_INPUT_PLACEHOLDER =
   "Example: Which clue should I use to continue the next part logically? / \uC608: \uB2E4\uC74C \uC804\uAC1C\uB97C \uB17C\uB9AC\uC801\uC73C\uB85C \uC774\uC5B4\uAC00\uB824\uBA74 \uC5B4\uB5A4 \uB2E8\uC11C\uB97C \uC774\uC6A9\uD558\uB294 \uAC8C \uC88B\uC744\uAE4C?";
+
+function renderInlineText(text: string, keyPrefix: string): ReactNode {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+
+  return parts.map((part, index) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return <strong key={`${keyPrefix}-strong-${index}`}>{part.slice(2, -2)}</strong>;
+    }
+
+    return <span key={`${keyPrefix}-text-${index}`}>{part}</span>;
+  });
+}
+
+function renderAssistantText(text: string): ReactNode {
+  const blocks = text.split(/\n{2,}/).filter((block) => block.trim().length > 0);
+
+  if (blocks.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="assistant-response-content">
+      {blocks.map((block, blockIndex) => {
+        const lines = block.split("\n").filter((line) => line.trim().length > 0);
+        const isBulletList = lines.every((line) => /^[-*]\s+/.test(line.trim()));
+        const singleLine = lines.length === 1 ? lines[0].trim() : "";
+        const isHeading =
+          singleLine.endsWith(":") && singleLine.length <= 90 && !singleLine.startsWith("-");
+        const isQuote = lines.every((line) => line.trim().startsWith(">"));
+
+        if (isBulletList) {
+          return (
+            <ul key={`assistant-list-${blockIndex}`} className="assistant-response-list">
+              {lines.map((line, lineIndex) => (
+                <li key={`assistant-list-${blockIndex}-${lineIndex}`}>
+                  {renderInlineText(line.trim().replace(/^[-*]\s+/, ""), `li-${blockIndex}-${lineIndex}`)}
+                </li>
+              ))}
+            </ul>
+          );
+        }
+
+        if (isQuote) {
+          return (
+            <blockquote key={`assistant-quote-${blockIndex}`} className="assistant-response-quote">
+              {lines.map((line, lineIndex) => (
+                <span key={`assistant-quote-${blockIndex}-${lineIndex}`}>
+                  {renderInlineText(line.trim().replace(/^>\s?/, ""), `quote-${blockIndex}-${lineIndex}`)}
+                  {lineIndex < lines.length - 1 ? <br /> : null}
+                </span>
+              ))}
+            </blockquote>
+          );
+        }
+
+        if (isHeading) {
+          return (
+            <p key={`assistant-heading-${blockIndex}`} className="assistant-response-heading">
+              {renderInlineText(singleLine, `heading-${blockIndex}`)}
+            </p>
+          );
+        }
+
+        return (
+          <p key={`assistant-paragraph-${blockIndex}`} className="assistant-response-paragraph">
+            {lines.map((line, lineIndex) => (
+              <span key={`assistant-line-${blockIndex}-${lineIndex}`}>
+                {renderInlineText(line, `paragraph-${blockIndex}-${lineIndex}`)}
+                {lineIndex < lines.length - 1 ? <br /> : null}
+              </span>
+            ))}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
 
 const KO = {
   intro:
@@ -1009,6 +1089,24 @@ export default function Home() {
   const loadingTimeoutRef = useRef<number | null>(null);
   const inputUndoStackRef = useRef<string[]>([]);
 
+  const resizeChatInput = useCallback((element: HTMLTextAreaElement) => {
+    element.style.height = `${CHAT_INPUT_BASE_HEIGHT}px`;
+    const nextHeight = Math.min(element.scrollHeight, CHAT_INPUT_MAX_HEIGHT);
+    element.style.height = `${Math.max(CHAT_INPUT_BASE_HEIGHT, nextHeight)}px`;
+    element.style.overflowY = element.scrollHeight > CHAT_INPUT_MAX_HEIGHT ? "auto" : "hidden";
+  }, []);
+
+  const resetChatInputHeight = useCallback(() => {
+    const element = inputRef.current;
+
+    if (!element) {
+      return;
+    }
+
+    element.style.height = `${CHAT_INPUT_BASE_HEIGHT}px`;
+    element.style.overflowY = "hidden";
+  }, []);
+
   const activeTaskState = useMemo(() => taskStates[selectedTask], [selectedTask, taskStates]);
   const normalizedParticipantInput = useMemo(
     () => normalizeParticipantId(participantInput),
@@ -1019,6 +1117,12 @@ export default function Home() {
   useEffect(() => {
     taskStatesRef.current = taskStates;
   }, [taskStates]);
+
+  useEffect(() => {
+    if (!input) {
+      resetChatInputHeight();
+    }
+  }, [input, resetChatInputHeight]);
 
   useEffect(() => {
     return () => {
@@ -1204,6 +1308,7 @@ export default function Home() {
     }));
 
     setInput("");
+    resetChatInputHeight();
     setIsLoading(true);
 
     const controller = new AbortController();
@@ -1594,7 +1699,9 @@ export default function Home() {
                     <div className="message-role">
                       {message.role === "user" ? "You" : "Assistant"}
                     </div>
-                    <div className="message-text">{message.text}</div>
+                    <div className="message-text">
+                      {message.role === "assistant" ? renderAssistantText(message.text) : message.text}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1615,8 +1722,7 @@ export default function Home() {
                 value={input}
                 onChange={(event) => {
                     setInput(event.target.value);
-                    event.target.style.height = "20px";
-                    event.target.style.height = event.target.scrollHeight + "px";
+                    resizeChatInput(event.target);
                 }}
                 onKeyDown={(event) => {
                   if (
@@ -1639,7 +1745,7 @@ export default function Home() {
                 }}
                 rows={4}
                 className="chat-input"
-                style={{ height: "55px" }}
+                style={{ height: CHAT_INPUT_BASE_HEIGHT }}
                 placeholder={CHAT_INPUT_PLACEHOLDER}
               />
 
