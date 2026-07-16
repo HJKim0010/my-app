@@ -42,6 +42,9 @@ export type ChatLogEntry = {
   source_types_used?: string[];
   visual_assets_used?: string[];
   incomplete_reason?: string;
+  retrieval_executed?: boolean;
+  retrieval_reason?: string | null;
+  retrieval_skipped_reason?: string | null;
 };
 
 export type SessionTranscriptEntry = {
@@ -170,6 +173,9 @@ function buildChatLogPayload(entry: ChatLogEntry, useLegacyTaskId = false): obje
     source_types_used: entry.source_types_used || [],
     visual_assets_used: entry.visual_assets_used || [],
     incomplete_reason: entry.incomplete_reason,
+    retrieval_executed: entry.retrieval_executed,
+    retrieval_reason: entry.retrieval_reason ?? null,
+    retrieval_skipped_reason: entry.retrieval_skipped_reason ?? null,
   };
 }
 

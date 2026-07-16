@@ -10,7 +10,10 @@ alter table public.chat_events
   add column if not exists task_id text,
   add column if not exists episode_id text,
   add column if not exists researcher_code text,
-  add column if not exists incomplete_reason text;
+  add column if not exists incomplete_reason text,
+  add column if not exists retrieval_executed boolean,
+  add column if not exists retrieval_reason text,
+  add column if not exists retrieval_skipped_reason text;
 
 alter table public.session_transcripts
   add column if not exists source_condition text,
@@ -64,25 +67,27 @@ begin
       ) not valid;
   end if;
 
-  if not exists (
-    select 1 from pg_constraint where conname = 'chat_events_user_query_type_check'
-  ) then
-    alter table public.chat_events
-      add constraint chat_events_user_query_type_check
-      check (
-        user_query_type is null
-        or user_query_type in (
-          'comprehension',
-          'idea_generation',
-          'organization',
-          'vocabulary_expression',
-          'feedback_checking',
-          'procedural',
-          'restricted',
-          'other'
-        )
-      ) not valid;
-  end if;
+  alter table public.chat_events
+    drop constraint if exists chat_events_user_query_type_check;
+
+  alter table public.chat_events
+    add constraint chat_events_user_query_type_check
+    check (
+      user_query_type is null
+      or user_query_type in (
+        'comprehension',
+        'idea_generation',
+        'organization',
+        'vocabulary_expression',
+        'feedback_checking',
+        'procedural',
+        'restricted',
+        'draft_only',
+        'unclear_intent',
+        'language_change_followup',
+        'other'
+      )
+    ) not valid;
 end $$;
 
 comment on column public.chat_events.researcher_code is
@@ -90,3 +95,9 @@ comment on column public.chat_events.researcher_code is
 
 comment on column public.chat_events.user_query_type is
   'Runtime user query type detected by the chatbot. Use as application metadata, not as final researcher coding.';
+
+comment on column public.chat_events.retrieval_executed is
+  'True when source retrieval was executed for this turn. False when skipped by intent gate.';
+
+comment on column public.chat_events.retrieval_skipped_reason is
+  'Reason retrieval was skipped, such as draft_only_unclear_intent or language_change_followup.';

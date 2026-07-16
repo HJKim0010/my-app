@@ -145,7 +145,7 @@ function isMetaCapabilityQuestion(query: string): boolean {
 function hasExplicitAssistanceRequest(query: string): boolean {
   const normalized = compactText(query).toLowerCase();
 
-  return /(can you|could you|would you|please|help|check|feedback|review|fix|correct|revise|rewrite|translate|explain|what|how|why|which|idea|suggest|organize|outline|natural|awkward|make sense|is this|does this|do you think|어때|어떻게|왜|무슨|뭐|어느|이대로|도와|봐\s*줘|봐줄|확인|피드백|검토|수정|고쳐|번역|설명|아이디어|제안|정리|구성|순서|자연스|어색|괜찮|맞아|맞나요|말이\s*되|문제|도움)/i.test(
+  return /(can you|could you|would you|please|help(?: me)?|check|feedback|review|fix|correct|revise|rewrite|translate|explain|what does|what should|what would|what can|how can|how should|why does|why is|why did|why was|which part|which clue|idea|suggest|organize|outline|natural|awkward|make sense|is this\s+(?:okay|ok|good|natural|logical|right|correct|clear|connected|related)|does this\s+(?:make sense|fit|connect|sound natural|work)|do you think|어때|어떻게|왜\s*(?:그런|이런|그렇게|이렇게|인가|일까|죠|요|해|했)|무슨\s*뜻|뭐가|뭐를|뭘|어느\s*부분|이대로|도와|봐\s*줘|봐줄|확인|피드백|검토|수정|고쳐|번역|설명|아이디어|제안|정리|구성|순서|자연스|어색|괜찮|맞아|맞나요|말이\s*되|문제|도움)/i.test(
     normalized
   );
 }
@@ -178,6 +178,85 @@ function buildDraftOnlyClarificationResponse(language: ResponseLanguage): string
   return language === "english"
     ? "I’ve read your draft. What would you like help with?"
     : "작성한 내용을 확인했어요. 어떤 도움이 필요한지 알려주세요.";
+}
+
+function getLatestAssistantText(recentMessages: RecentMessage[]): string {
+  const latestAssistant = [...recentMessages]
+    .reverse()
+    .find((message) => message.role === "assistant" && message.text.trim().length > 0);
+
+  return latestAssistant?.text.trim() || "";
+}
+
+function isLanguageChangeFollowUp(query: string, recentMessages: RecentMessage[]): boolean {
+  const normalized = compactText(query).toLowerCase();
+
+  if (!normalized || normalized.length > 100 || !getLatestAssistantText(recentMessages)) {
+    return false;
+  }
+
+  const asksToRestatePrevious =
+    /(한국말|한국어|한글|korean|쉽게|더 쉽게|조금 쉽게|다시 설명|다시 말|풀어서|쉽게 설명|easier|simpler|more simply|explain that|explain it|say that again|rephrase)/i.test(
+      normalized
+    );
+  const introducesNewTarget =
+    /(이 장면|그 장면|이 부분|그 부분|이 문장|그 문장|단서|스토리|story|scene|sentence|clue|table\s*\d|anna|jack|wallet|presentation|subway|source|원문|자료)/i.test(
+      normalized
+    );
+
+  return asksToRestatePrevious && !introducesNewTarget;
+}
+
+function buildLanguageChangeInstructions(language: ResponseLanguage): string {
+  const responseLanguageInstruction =
+    language === "english"
+      ? "Answer in English."
+      : "Answer in Korean using simple, learner-friendly wording.";
+
+  return [
+    "You are My Writing Assistant.",
+    "The user is asking for a language/style change of the immediately preceding assistant response.",
+    "Use only the preceding assistant response and the current user request.",
+    "Do not use source materials, story chunks, or outside facts.",
+    "Do not introduce facts or examples that were absent from the preceding assistant response.",
+    "Keep the same meaning, but make it easier, clearer, or in the requested language.",
+    "If the preceding assistant response is empty or unclear, ask one brief clarification question.",
+    "Do not evaluate, correct, summarize, or rewrite the user's draft unless the current request explicitly asks for that.",
+    responseLanguageInstruction,
+  ].join("\n");
+}
+
+function buildLanguageChangeInput(
+  query: string,
+  previousAssistantResponse: string,
+  recentMessages: RecentMessage[]
+): string {
+  const recentHistory = recentMessages
+    .slice(-6)
+    .map((message) => `${message.role}: ${compactText(message.text)}`)
+    .join("\n");
+
+  return [
+    "<conversation_history>",
+    recentHistory || "(No recent conversation history)",
+    "</conversation_history>",
+    "",
+    "<source_material>",
+    "(Retrieval skipped for this turn. Do not use source material.)",
+    "</source_material>",
+    "",
+    "<learner_draft>",
+    "(No learner draft should be evaluated on this turn.)",
+    "</learner_draft>",
+    "",
+    "<previous_assistant_response>",
+    previousAssistantResponse,
+    "</previous_assistant_response>",
+    "",
+    "<current_user_request>",
+    query,
+    "</current_user_request>",
+  ].join("\n");
 }
 
 function shouldAskTargetClarification(
@@ -649,14 +728,168 @@ export async function POST(request: NextRequest) {
       interaction_count: interactionCount,
       session_duration_ms: sessionDurationMs,
       query_type_label: "draft_only/unclear_intent",
-      detected_support_mode: "draft_only/unclear_intent",
-      user_query_type: "draft_only/unclear_intent",
+      detected_support_mode: "draft_only",
+      user_query_type: "draft_only",
       feedback_target: null,
       source_types_used: [],
       visual_assets_used: [],
+      retrieval_executed: false,
+      retrieval_skipped_reason: "draft_only_unclear_intent",
     });
 
     return chatJsonResponse(responseFromText(responseText, requestId, "success", null));
+  }
+
+  if (isLanguageChangeFollowUp(query, recentMessages)) {
+    const previousAssistantResponse = getLatestAssistantText(recentMessages);
+    const apiKey = process.env.OPENAI_API_KEY;
+
+    if (!apiKey) {
+      const text = participantErrorMessage(responseLanguage);
+      await persistChatLog({
+        ...commonLog,
+        participant_id: participantId,
+        session_id: sessionId,
+        ep_id: epId,
+        condition_label: taskPackage.config.ai_condition,
+        selected_category: category,
+        raw_user_query: query,
+        policy_decision: "allowed",
+        status: "error",
+        response_status: "error",
+        retrieved_chunk_ids: [],
+        retrieved_chunk_metadata: [],
+        assistant_response: text,
+        timestamp,
+        response_length: text.length,
+        interaction_count: interactionCount,
+        session_duration_ms: sessionDurationMs,
+        query_type_label: "language_change_followup",
+        detected_support_mode: "language_change_followup",
+        user_query_type: "vocabulary_expression",
+        feedback_target: null,
+        source_types_used: [],
+        visual_assets_used: [],
+        retrieval_executed: false,
+        retrieval_skipped_reason: "language_change_followup",
+        incomplete_reason: "missing_api_key",
+      });
+
+      return chatJsonResponse(responseFromText(text, requestId, "error", "service_unavailable"), 500);
+    }
+
+    const client = new OpenAI({ apiKey });
+    const model = process.env.OPENAI_MODEL || "gpt-5.4-mini";
+    const timeoutMs = Number(process.env.OPENAI_TIMEOUT_MS || 45000);
+    const openAIController = new AbortController();
+    const timeout = setTimeout(() => openAIController.abort(), timeoutMs);
+
+    try {
+      const response = await client.responses.create(
+        {
+          model,
+          instructions: buildLanguageChangeInstructions(responseLanguage),
+          max_output_tokens: Number(process.env.OPENAI_MAX_OUTPUT_TOKENS || 1200),
+          input: [
+            {
+              role: "user" as const,
+              content: [
+                {
+                  type: "input_text" as const,
+                  text: buildLanguageChangeInput(
+                    query,
+                    previousAssistantResponse,
+                    recentMessages
+                  ),
+                },
+              ],
+            },
+          ],
+        },
+        { signal: openAIController.signal }
+      );
+      clearTimeout(timeout);
+
+      const responseText = sanitizeAssistantResponse(response.output_text || "");
+      const displayResponse = responseText || participantErrorMessage(responseLanguage);
+      const responseStatus: ChatApiResponse["status"] = responseText ? "success" : "incomplete";
+
+      await persistChatLog({
+        ...commonLog,
+        participant_id: participantId,
+        session_id: sessionId,
+        ep_id: epId,
+        condition_label: taskPackage.config.ai_condition,
+        selected_category: category,
+        raw_user_query: query,
+        policy_decision: "allowed",
+        status: responseStatus,
+        response_status: responseStatus,
+        retrieved_chunk_ids: [],
+        retrieved_chunk_metadata: [],
+        assistant_response: displayResponse,
+        timestamp,
+        response_length: displayResponse.length,
+        interaction_count: interactionCount,
+        session_duration_ms: sessionDurationMs,
+        query_type_label: "language_change_followup",
+        detected_support_mode: "language_change_followup",
+        user_query_type: "vocabulary_expression",
+        feedback_target: null,
+        source_types_used: [],
+        visual_assets_used: [],
+        retrieval_executed: false,
+        retrieval_skipped_reason: "language_change_followup",
+        incomplete_reason: responseText ? undefined : "empty_response",
+      });
+
+      return chatJsonResponse(
+        responseFromText(
+          displayResponse,
+          requestId,
+          responseStatus,
+          responseStatus === "incomplete" ? "empty_response" : null
+        )
+      );
+    } catch (error) {
+      clearTimeout(timeout);
+      const isTimeout = error instanceof Error && error.name === "AbortError";
+      const text = participantErrorMessage(responseLanguage);
+
+      await persistChatLog({
+        ...commonLog,
+        participant_id: participantId,
+        session_id: sessionId,
+        ep_id: epId,
+        condition_label: taskPackage.config.ai_condition,
+        selected_category: category,
+        raw_user_query: query,
+        policy_decision: "allowed",
+        status: isTimeout ? "timeout" : "error",
+        response_status: isTimeout ? "timeout" : "error",
+        retrieved_chunk_ids: [],
+        retrieved_chunk_metadata: [],
+        assistant_response: text,
+        timestamp,
+        response_length: text.length,
+        interaction_count: interactionCount,
+        session_duration_ms: sessionDurationMs,
+        query_type_label: "language_change_followup",
+        detected_support_mode: "language_change_followup",
+        user_query_type: "vocabulary_expression",
+        feedback_target: null,
+        source_types_used: [],
+        visual_assets_used: [],
+        retrieval_executed: false,
+        retrieval_skipped_reason: "language_change_followup",
+        incomplete_reason: error instanceof Error ? error.message : String(error),
+      });
+
+      return chatJsonResponse(
+        responseFromText(text, requestId, isTimeout ? "timeout" : "error", isTimeout ? "timeout" : "error"),
+        isTimeout ? 504 : 500
+      );
+    }
   }
 
   if (isMetaCapabilityQuestion(query)) {
@@ -685,6 +918,8 @@ export async function POST(request: NextRequest) {
       user_query_type: "procedural",
       source_types_used: [],
       visual_assets_used: [],
+      retrieval_executed: false,
+      retrieval_skipped_reason: "meta_capability",
     });
 
     return chatJsonResponse(responseFromText(response.text, requestId, "success", null));
@@ -716,6 +951,8 @@ export async function POST(request: NextRequest) {
       user_query_type: "others",
       source_types_used: [],
       visual_assets_used: [],
+      retrieval_executed: false,
+      retrieval_skipped_reason: "greeting_clarification",
     });
 
     return chatJsonResponse(responseFromText(response.text, requestId, "success", null, response.quickReplies));
@@ -747,6 +984,8 @@ export async function POST(request: NextRequest) {
       user_query_type: "others",
       source_types_used: [],
       visual_assets_used: [],
+      retrieval_executed: false,
+      retrieval_skipped_reason: "greeting",
     });
 
     return chatJsonResponse(responseFromText(response.text, requestId, "success", null, response.quickReplies));
@@ -776,6 +1015,8 @@ export async function POST(request: NextRequest) {
       query_type_label: "ambiguous_short_reaction",
       source_types_used: [],
       visual_assets_used: [],
+      retrieval_executed: false,
+      retrieval_skipped_reason: "ambiguous_short_reaction_without_context",
     });
 
     return chatJsonResponse(responseFromText(response.text, requestId, "success", null, response.quickReplies));
@@ -805,6 +1046,8 @@ export async function POST(request: NextRequest) {
       query_type_label: "acknowledgment",
       source_types_used: [],
       visual_assets_used: [],
+      retrieval_executed: false,
+      retrieval_skipped_reason: "acknowledgment_without_context",
     });
 
     return chatJsonResponse(responseFromText(response.text, requestId, "success", null, response.quickReplies));
@@ -854,6 +1097,8 @@ export async function POST(request: NextRequest) {
       feedback_target: policyAnalysis.feedbackTarget,
       source_types_used: [],
       visual_assets_used: [],
+      retrieval_executed: false,
+      retrieval_skipped_reason: "restricted_request",
     });
 
     return chatJsonResponse(redirectPayload);
@@ -885,6 +1130,8 @@ export async function POST(request: NextRequest) {
       user_query_type: "feedback_checking",
       source_types_used: [],
       visual_assets_used: [],
+      retrieval_executed: false,
+      retrieval_skipped_reason: "needs_learner_draft_before_retrieval",
     });
 
     return chatJsonResponse(responseFromText(draftNeeded.text, requestId, "success", null));
@@ -928,6 +1175,8 @@ export async function POST(request: NextRequest) {
       query_type_label: "needs_target_clarification",
       source_types_used: [],
       visual_assets_used: [],
+      retrieval_executed: true,
+      retrieval_reason: "standard_rag_before_target_clarification",
     });
 
     return chatJsonResponse(
@@ -967,6 +1216,8 @@ export async function POST(request: NextRequest) {
       query_type_label: supportMode,
       source_types_used: [],
       visual_assets_used: [],
+      retrieval_executed: true,
+      retrieval_reason: "standard_rag_no_relevant_chunks",
     });
 
     return chatJsonResponse(
@@ -990,6 +1241,8 @@ export async function POST(request: NextRequest) {
       query_type_label: supportMode,
       source_types_used: [],
       visual_assets_used: [],
+      retrieval_executed: true,
+      retrieval_reason: "standard_rag",
       incomplete_reason: "missing_api_key",
     });
 
@@ -1120,6 +1373,8 @@ export async function POST(request: NextRequest) {
           visual_assets_used: taskPackage.visualAssets
             .slice(0, visualInputs.length)
             .map((asset) => asset.id),
+          retrieval_executed: true,
+          retrieval_reason: "standard_rag",
           incomplete_reason: incompleteReason,
         });
 
@@ -1169,6 +1424,8 @@ export async function POST(request: NextRequest) {
           visual_assets_used: taskPackage.visualAssets
             .slice(0, visualInputs.length)
             .map((asset) => asset.id),
+          retrieval_executed: true,
+          retrieval_reason: "standard_rag",
           incomplete_reason: error instanceof Error ? error.message : String(error),
         });
 
