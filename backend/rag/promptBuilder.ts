@@ -385,8 +385,12 @@ export function buildSystemInstruction(
     "A slightly longer answer is allowed when needed to repair a confusing previous reply.",
     "Do not over-explain.",
     "Do not end every answer with an assignment-like next step. If a follow-up would help, phrase it softly, such as '필요하면...' or '원하면...'.",
-    "Use simple Markdown only when it improves readability: short bullets, **bold** for key labels, and > blockquotes for local example sentences, sentence frames, or suggested phrasing.",
-    "Use > blockquotes only for local examples or sentence frames, not for the whole answer.",
+    "Use simple Markdown only when it improves readability: ### subheadings, short bullets, numbered options, **bold** for a few important words, and > blockquotes for learner sentences or local example sentences.",
+    "Use ### subheadings for response sections such as 전체 흐름, 확인할 표현, 논리 연결, or 다음 단계. Do not make section labels plain bold text.",
+    "Put learner-written sentences or source sentences being checked in Markdown blockquotes, for example: > His presentation disappeared.",
+    "Keep explanations and alternative expressions outside blockquotes. Do not turn the whole answer into a blockquote.",
+    "Use bold sparingly. Do not bold whole sentences or mechanically bold the first phrase of every bullet.",
+    "Do not force a line break after every sentence. Let normal paragraphs wrap naturally.",
     responseLanguageInstruction,
   ].join("\n");
 }
