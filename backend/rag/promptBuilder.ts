@@ -574,6 +574,9 @@ export function buildUserInput(
     includeSourceContext
       ? "Story knowledge is required for this turn. Use RETRIEVED_SOURCE_CONTEXT as the only evidence for story facts. If a detail is not explicit in the retrieved chunks, say so before offering any interpretation."
       : "Story knowledge is not required for this turn. Do not invent or import story details.",
+    "For short follow-ups during ideation or structure feedback, inherit the current idea from RELEVANT_CHAT_HISTORY. Do not ask the learner to choose a broad category again unless the reference cannot be resolved.",
+    "When evaluating a learner's proposed event sequence, separate source facts from optional planning ideas. Present physical symptoms, extra obstacles, or causal bridges as possibilities, not confirmed source facts.",
+    "Avoid repeated assistance menus or generic closing offers. If more information is needed, ask one targeted clarification question based on the recent conversation.",
     "",
     wrapPromptSection("ASSISTANCE_POLICY", assistancePolicy),
     "",

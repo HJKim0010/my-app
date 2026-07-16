@@ -619,6 +619,44 @@ function looksLikeAmbiguousNextRequest(query: string): boolean {
   );
 }
 
+function recentDialogueLooksLikeContinuationWork(recentMessages: RecentMessage[]): boolean {
+  const recentText = recentMessages
+    .slice(-4)
+    .map((message) => compactText(message.text))
+    .join(" ");
+
+  return /(next event|possible direction|continue|story flow|sequence|idea|clue|memo|note|presentation|structure|feedback|다음\s*전개|다음\s*사건|아이디어|흐름|구성|순서|단서|메모|노트|발표|검사|피드백|자연스럽|이어)/i.test(
+    recentText
+  );
+}
+
+function looksLikeContinuationFollowUp(query: string, recentMessages: RecentMessage[]): boolean {
+  if (!recentDialogueLooksLikeContinuationWork(recentMessages)) {
+    return false;
+  }
+
+  const normalized = normalizeRoutingText(query);
+  const shortEnough = normalized.length <= 180;
+  const followUpCue =
+    /(what\s*about|how\s*about|then|next|that works|sounds good|check|flow|sequence|structure|does this work|is this okay|이어가|이어지|그럼|그러면|그다음|다음|여기서|이 흐름|흐름|구성|순서|검사|봐줘|어떨까|괜찮|좋을 것|좋겠다|그게|그걸로|쓰러지|정신을\s*잃|노트|메모)/i.test(
+      normalized
+    );
+  const hasStoryOrPlanFragment =
+    /(jack|anna|he|she|memo|note|student id|wallet|presentation|subway|train|table|cafe|잭|애나|안나|메모|노트|학생증|지갑|발표|지하철|전철|카페|테이블)/i.test(
+      normalized
+    ) || normalized.split(/\s+/).length >= 4;
+
+  return shortEnough && (followUpCue || hasStoryOrPlanFragment);
+}
+
+function looksLikeStructureFeedbackFollowUp(query: string): boolean {
+  const normalized = normalizeRoutingText(query);
+
+  return /(flow|sequence|structure|organization|check|feedback|does this work|흐름|구성|순서|검사|피드백|봐줘|자연스럽|괜찮|말이\s*되)/i.test(
+    normalized
+  );
+}
+
 function buildClarificationNeededResponse(query: string, language: ResponseLanguage): string {
   if (looksLikeAmbiguousNextRequest(query)) {
     return language === "english"
@@ -717,6 +755,29 @@ function classifyCurrentRequest(
       requires_source_context: false,
       conversation_operation: operation,
       confidence: 0.92,
+    };
+  }
+
+  if (looksLikeContinuationFollowUp(classificationTarget, recentMessages)) {
+    const wantsStructureFeedback = looksLikeStructureFeedbackFollowUp(classificationTarget);
+    const storyKnowledge = requiresStoryKnowledgeForRouting(
+      classificationTarget,
+      taskId,
+      recentMessages,
+      wantsStructureFeedback ? "organization" : "ideas"
+    );
+
+    return {
+      intent: wantsStructureFeedback ? "organization" : "idea_generation",
+      request_is_explicit: true,
+      requires_source_context: true,
+      requires_task_context: false,
+      story_request_mode: wantsStructureFeedback ? "interpretive" : "generative",
+      requires_exact_fact: false,
+      response_mode: wantsStructureFeedback ? "cautious_interpretation" : "idea_options",
+      conversation_operation: "new_request",
+      confidence: 0.78,
+      recognized_story_entity: storyKnowledge.entity,
     };
   }
 
