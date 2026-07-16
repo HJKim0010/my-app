@@ -61,6 +61,11 @@ body {
   box-shadow: none;
 }
 
+.chat-card-active {
+  display: flex;
+  flex-direction: column;
+}
+
 .chat-header {
   display: flex;
   justify-content: space-between;
@@ -794,7 +799,13 @@ body {
 }
 
 .chat-card-active .thread-section {
-  margin-top: 18px;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 0;
+  margin-top: 10px;
+  margin-bottom: 0;
 }
 
 .admin-reset-panel {
@@ -1221,8 +1232,9 @@ body {
 }
 
 .chat-card-active .message-thread {
-  min-height: clamp(420px, 58svh, 640px);
-  max-height: min(62svh, 700px);
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
   padding-top: 18px;
 }
 
@@ -1750,8 +1762,8 @@ body {
   }
 
   .chat-card-active .message-thread {
-    min-height: 460px;
-    max-height: 64vh;
+    min-height: 0;
+    max-height: none;
   }
 
   .guidance-box {
@@ -1925,6 +1937,11 @@ body {
   .message-thread {
     min-height: 260px;
     max-height: min(48vh, 480px);
+  }
+
+  .chat-card-active .message-thread {
+    min-height: 0;
+    max-height: none;
   }
 }
 
