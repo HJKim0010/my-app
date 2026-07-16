@@ -259,7 +259,7 @@ body {
 }
 
 .guide-card-navigation {
-  display: grid;
+  display: none;
   grid-template-columns: minmax(112px, 1fr) auto minmax(112px, 1fr);
   gap: 12px;
   align-items: center;
@@ -1305,6 +1305,10 @@ body {
   font-weight: 800;
 }
 
+.assistant-markdown li strong {
+  font-weight: inherit;
+}
+
 .assistant-markdown p,
 .assistant-markdown h3,
 .assistant-markdown blockquote,
@@ -1319,11 +1323,11 @@ body {
 .assistant-markdown ul + p,
 .assistant-markdown ol + p,
 .assistant-markdown blockquote + p {
-  margin-top: 0.75rem;
+  margin-top: 0.5rem;
 }
 
 .assistant-markdown h3 {
-  margin-top: 1.5rem;
+  margin-top: 2rem;
   margin-bottom: 0.6rem;
   font-size: calc(1rem + 2px);
   font-weight: 500;
@@ -1332,6 +1336,19 @@ body {
 
 .assistant-markdown h3:first-child {
   margin-top: 0;
+}
+
+.assistant-markdown p + h3,
+.assistant-markdown ul + h3,
+.assistant-markdown ol + h3,
+.assistant-markdown blockquote + h3 {
+  margin-top: 2.15rem;
+}
+
+.assistant-markdown h3 + p,
+.assistant-markdown h3 + ul,
+.assistant-markdown h3 + ol {
+  margin-top: 0.35rem;
 }
 
 .assistant-markdown ul {
@@ -1354,7 +1371,7 @@ body {
 
 .assistant-markdown li {
   display: list-item;
-  margin-block: 0.35rem;
+  margin-block: 0.28rem;
   padding-left: 0.1rem;
 }
 
@@ -1657,6 +1674,7 @@ body {
   }
 
   .guide-card-navigation {
+    display: grid;
     grid-template-columns: 44px minmax(0, 1fr) 44px;
     gap: 10px;
     margin-top: 12px;

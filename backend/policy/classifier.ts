@@ -87,6 +87,38 @@ function includesAny(text: string, patterns: readonly (string | RegExp)[]): bool
   );
 }
 
+function hasFeedbackSignal(query: string): boolean {
+  const normalized = normalize(query);
+
+  return includesAny(normalized, [
+    "feedback",
+    "check",
+    "review",
+    "diagnose",
+    "natural",
+    "awkward",
+    "make sense",
+    "logical",
+    "logic",
+    "coherent",
+    "connected",
+    "connection",
+    "fit the story",
+    "match the story",
+    "matches the source",
+    "story connection",
+    "source connection",
+    "does this idea work",
+    "is this idea okay",
+    "is my idea okay",
+    "is this okay",
+    "what is wrong",
+    "anything wrong",
+    "problem with",
+    /피드백|확인|검토|점검|봐\s*줘|봐줄|어색|자연스|자연스럽|논리|말이\s*되|말\s*돼|괜찮|맞아|맞나요|맞는지|이어지|연결|개연성|현실성|이상한\s*부분|문제\s*(있는|있나|있어)|고칠\s*부분|수정할\s*부분|부자연/,
+  ]);
+}
+
 function stripRequestWords(text: string): string {
   return compactText(
     text
@@ -190,6 +222,23 @@ function detectRequestedAction(query: string): RequestedAction {
 
   if (asksForDirectTranslation(query)) {
     return "translate";
+  }
+
+  if (
+    includesAny(q, [
+      "rewrite my whole",
+      "rewrite the whole",
+      "whole draft",
+      "entire draft",
+      "correct everything",
+      /전체\s*(초안|글|문단)|글\s*전체|초안\s*전체|다시\s*써|고쳐\s*써|전부\s*고쳐|전체.*수정/,
+    ])
+  ) {
+    return "rewrite";
+  }
+
+  if (hasFeedbackSignal(query)) {
+    return "check";
   }
 
   if (
@@ -408,6 +457,9 @@ export function detectSupportModeLabel(query: string): SupportModeLabel {
     return "idea_generation";
   }
   if (action === "explain") return "comprehension";
+  if (includesAny(q, [/한국어로\s*질문|영어로\s*질문|질문해도\s*돼|질문해도\s*되|어떻게\s*사용|사용\s*방법|시작|버튼/])) {
+    return "procedural";
+  }
   if (includesAny(q, ["how to use", "button", "category", "start", "버튼", "사용", "시작"])) {
     return "procedural";
   }
@@ -434,13 +486,40 @@ export function detectFeedbackTarget(query: string): FeedbackTarget {
   return null;
 }
 
+function detectFeedbackTargetV2(query: string): FeedbackTarget {
+  const q = normalize(query);
+
+  if (
+    includesAny(q, [
+      "source connection",
+      "connected",
+      "match the story",
+      "matches the source",
+      /원래\s*이야기|원문|자료|source|story.*connect|connect.*story|연결|이어지/,
+    ])
+  ) return "source_connection";
+  if (includesAny(q, ["clue", "hint", /단서|힌트/])) return "source_use";
+  if (includesAny(q, ["plausible", "realistic", "make sense", /말이\s*되|말\s*돼|개연성|현실성|자연스/])) {
+    return "content_plausibility";
+  }
+  if (includesAny(q, ["flow", "sequence", "organization", "order", /흐름|순서|구성|전개/])) {
+    return "organization_coherence";
+  }
+  if (includesAny(q, ["grammar", "expression", "sentence", "language", /문법|표현|문장|어색|부자연|고칠\s*부분/])) {
+    return "language";
+  }
+  if (includesAny(q, ["complete", "task", "ending", /마무리|완성|과제/])) return "task_completion";
+
+  return detectFeedbackTarget(query) ?? (hasFeedbackSignal(query) ? "general" : null);
+}
+
 export function analyzeQueryScope(query: string): ScopeDecision {
   const requestedAction = detectRequestedAction(query);
   const targetScope = detectTargetScope(query);
   const outputForm = detectOutputForm(query, requestedAction, targetScope);
   const taskRelevance = detectTaskRelevance(query);
   const detectedSupportMode = detectSupportModeLabel(query);
-  const feedbackTarget = detectFeedbackTarget(query);
+  const feedbackTarget = detectFeedbackTargetV2(query);
 
   const asksForCompleteSentence =
     /as a sentence|write .*sentence|문장으로\s*써|문장.*써줘|문장.*작성/i.test(query);

@@ -100,6 +100,18 @@ const multiTurnBypass = [
   ["User asks clue -> 그걸로 model answer 써줘.", "sentence_generation"],
 ];
 
+const supportModeCases = [
+  ["이 아이디어가 원래 이야기와 잘 연결되나요?", "feedback_checking", "source_connection"],
+  ["내 문장에서 어색한 부분만 봐줘.", "feedback_checking", "language"],
+  ["Does this idea make sense in the story?", "feedback_checking", "content_plausibility"],
+  ["발표를 제대로 못하는 분위기가 잘 이어집니다. 다만 조금 어색한 부분이 있나요?", "feedback_checking", "language"],
+  ["다음 전개 아이디어 두 가지 알려줘.", "idea_generation", null],
+  ["이 단서가 무슨 뜻이야?", "comprehension", null],
+  ["이 표현을 영어로 어떻게 말해?", "vocabulary_expression", null],
+  ["구성 순서를 정리해줘.", "organization", null],
+  ["한국어로 질문해도 돼?", "procedural", null],
+];
+
 for (const query of allowed) {
   const result = analyzeQueryScope(query);
   assert.equal(result.queryType, "allowed", `${query} should be allowed, got ${result.reason}`);
@@ -124,6 +136,22 @@ for (const [query, reason] of multiTurnBypass) {
   assert.equal(result.reason, reason, `${query} must not bypass restriction`);
 }
 
+for (const [query, supportMode, feedbackTarget] of supportModeCases) {
+  const result = analyzeQueryScope(query);
+  assert.equal(
+    result.detectedSupportMode,
+    supportMode,
+    `${query} should be ${supportMode}, got ${result.detectedSupportMode}`
+  );
+  if (feedbackTarget !== null) {
+    assert.equal(
+      result.feedbackTarget,
+      feedbackTarget,
+      `${query} should target ${feedbackTarget}, got ${result.feedbackTarget}`
+    );
+  }
+}
+
 for (const [query, reason] of restricted) {
   const scaffold = buildQueryAwareRedirect(reason, query, "korean");
   assert.ok(scaffold.frame.includes("___"), `${query} scaffold must include a real blank`);
@@ -138,6 +166,7 @@ console.log(
     phraseTranslations.length +
     fullTranslations.length +
     multiTurnBypass.length +
+    supportModeCases.length +
     restricted.length
   } checks`
 );
