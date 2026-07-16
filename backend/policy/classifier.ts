@@ -443,6 +443,43 @@ function detectTaskRelevance(query: string): ScopeDecision["taskRelevance"] {
   return "unclear";
 }
 
+function isLanguageFeedbackOrWritingSupportQuery(query: string): boolean {
+  const q = normalize(query);
+
+  return (
+    includesAny(q, [
+      "sentence",
+      "phrase",
+      "expression",
+      "grammar",
+      "vocabulary",
+      "word",
+      "natural",
+      "awkward",
+      "feedback",
+      "check",
+      "revise",
+      "how do i say",
+      "how can i say",
+      "in english",
+      "translate",
+      "문장",
+      "표현",
+      "단어",
+      "어휘",
+      "문법",
+      "자연",
+      "어색",
+      "피드백",
+      "확인",
+      "검토",
+      "영어로",
+      "번역",
+      "고쳐",
+    ]) || /더\s*자연스럽|자연스럽게|어떻게\s*표현|어떻게\s*말|봐\s*줘/.test(query)
+  );
+}
+
 export function detectSupportModeLabel(query: string): SupportModeLabel {
   const action = detectRequestedAction(query);
   const q = normalize(query);
@@ -555,7 +592,7 @@ export function analyzeQueryScope(query: string): ScopeDecision {
     reason = "direct_translation";
   } else if (requestedAction === "score_evaluate") {
     reason = "scoring_evaluation";
-  } else if (taskRelevance === "task_unrelated") {
+  } else if (taskRelevance === "task_unrelated" && !isLanguageFeedbackOrWritingSupportQuery(query)) {
     reason = "outside_content";
   }
 
