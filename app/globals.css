@@ -64,6 +64,10 @@ body {
 .chat-card-active {
   display: flex;
   flex-direction: column;
+  height: calc(100vh - 36px);
+  max-height: calc(100vh - 36px);
+  min-height: 0;
+  overflow: hidden;
 }
 
 .chat-header {
@@ -1611,6 +1615,12 @@ body {
     min-height: calc(100vh - 36px);
     padding: 16px;
     border-radius: 10px;
+  }
+
+  .chat-card-active {
+    height: calc(100svh - 36px);
+    max-height: calc(100svh - 36px);
+    min-height: 0;
   }
 
   .chat-header,
