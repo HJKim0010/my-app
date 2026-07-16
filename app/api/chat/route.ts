@@ -247,24 +247,24 @@ function buildGreetingResponseV2(language: ResponseLanguage): AssistantDraftResp
 function buildGreetingClarificationResponse(language: ResponseLanguage): AssistantDraftResponse {
   if (language === "english") {
     return {
-      text: "Hello. Which part would you like help with? You can tap a quick bubble below or type your question directly.",
+      text: "Hello. Which part would you like help with? Please type your question in the chat box.",
     };
   }
 
   return {
-    text: "안녕하세요. 어떤 부분을 도와드릴까요? 질문을 직접 입력해도 좋아요.",
+    text: "안녕하세요. 어떤 부분을 도와드릴까요? 채팅창에 질문을 입력해 주세요.",
   };
 }
 
 function buildCalmGreetingResponse(language: ResponseLanguage): AssistantDraftResponse {
   if (language === "english") {
     return {
-      text: "Hello. What would you like help with? You can tap a quick bubble below or type your question directly.",
+      text: "Hello. What would you like help with? Please type your question in the chat box.",
     };
   }
 
   return {
-    text: "안녕하세요. 어떤 부분을 도와드릴까요? 질문을 직접 입력해도 좋아요.",
+    text: "안녕하세요. 어떤 부분을 도와드릴까요? 채팅창에 질문을 입력해 주세요.",
   };
 }
 
