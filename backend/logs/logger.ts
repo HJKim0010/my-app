@@ -45,6 +45,16 @@ export type ChatLogEntry = {
   retrieval_executed?: boolean;
   retrieval_reason?: string | null;
   retrieval_skipped_reason?: string | null;
+  intent?: string;
+  request_is_explicit?: boolean;
+  requires_source_context?: boolean;
+  conversation_operation?:
+    | "new_request"
+    | "translate_previous"
+    | "simplify_previous"
+    | "clarify_previous"
+    | "none";
+  classifier_confidence?: number;
 };
 
 export type SessionTranscriptEntry = {
@@ -176,6 +186,11 @@ function buildChatLogPayload(entry: ChatLogEntry, useLegacyTaskId = false): obje
     retrieval_executed: entry.retrieval_executed,
     retrieval_reason: entry.retrieval_reason ?? null,
     retrieval_skipped_reason: entry.retrieval_skipped_reason ?? null,
+    intent: entry.intent,
+    request_is_explicit: entry.request_is_explicit,
+    requires_source_context: entry.requires_source_context,
+    conversation_operation: entry.conversation_operation,
+    classifier_confidence: entry.classifier_confidence,
   };
 }
 

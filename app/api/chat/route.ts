@@ -46,6 +46,21 @@ type AssistantDraftResponse = {
   quickReplies?: QuickReply[];
 };
 
+type ConversationOperation =
+  | "new_request"
+  | "translate_previous"
+  | "simplify_previous"
+  | "clarify_previous"
+  | "none";
+
+type RequestIntentClassification = {
+  intent: string;
+  request_is_explicit: boolean;
+  requires_source_context: boolean;
+  conversation_operation: ConversationOperation;
+  confidence: number;
+};
+
 type ChatStreamEvent =
   | {
       type: "start";
@@ -145,7 +160,7 @@ function isMetaCapabilityQuestion(query: string): boolean {
 function hasExplicitAssistanceRequest(query: string): boolean {
   const normalized = compactText(query).toLowerCase();
 
-  return /(can you|could you|would you|please|help(?: me)?|check|feedback|review|fix|correct|revise|rewrite|translate|explain|what does|what should|what would|what can|how can|how should|why does|why is|why did|why was|which part|which clue|idea|suggest|organize|outline|natural|awkward|make sense|is this\s+(?:okay|ok|good|natural|logical|right|correct|clear|connected|related)|does this\s+(?:make sense|fit|connect|sound natural|work)|do you think|어때|어떻게|왜\s*(?:그런|이런|그렇게|이렇게|인가|일까|죠|요|해|했)|무슨\s*뜻|뭐가|뭐를|뭘|어느\s*부분|이대로|도와|봐\s*줘|봐줄|확인|피드백|검토|수정|고쳐|번역|설명|아이디어|제안|정리|구성|순서|자연스|어색|괜찮|맞아|맞나요|말이\s*되|문제|도움)/i.test(
+  return /(can you|could you|would you|please|help(?: me)?|check|feedback|review|fix|correct|revise|rewrite|translate|explain|this sentence|my sentence|this phrase|my phrase|what does|what should|what would|what can|how can|how should|why does|why is|why did|why was|which part|which clue|idea|suggest|organize|outline|natural|awkward|make sense|is this\s+(?:okay|ok|good|natural|logical|right|correct|clear|connected|related)|does this\s+(?:make sense|fit|connect|sound natural|work)|do you think|어때|어떻게|왜\s*(?:그런|이런|그렇게|이렇게|인가|일까|죠|요|해|했)|무슨\s*뜻|뭐가|뭐를|뭘|어느\s*부분|이대로|도와|봐\s*줘|봐줄|확인|피드백|검토|수정|고쳐|번역|설명|아이디어|제안|정리|구성|순서|자연스|어색|괜찮|맞아|맞나요|말이\s*되|문제|도움)/i.test(
     normalized
   );
 }
@@ -172,6 +187,180 @@ function isDraftOnlyOrUnclearIntent(query: string): boolean {
   }
 
   return !hasExplicitAssistanceRequest(query);
+}
+
+function looksLikeProceduralQuestion(query: string): boolean {
+  const normalized = compactText(query).toLowerCase();
+
+  return /(can i ask|how do i use|what can i ask|where should i|interface|button|한국어로 질문|영어로 질문|질문해도|어떻게 사용|사용 방법|절차|버튼|화면)/i.test(
+    normalized
+  );
+}
+
+function looksLikeGeneralLanguageQuestion(query: string): boolean {
+  const normalized = compactText(query).toLowerCase();
+
+  return /(natural|awkward|grammar|word|phrase|expression|vocabulary|sentence structure|pattern|in english|translate|translation|문장이 자연|자연스러|어색|문법|단어|표현|어휘|문장 구조|패턴|영어로|번역)/i.test(
+    normalized
+  );
+}
+
+function looksLikeSourceAlignmentRequest(query: string): boolean {
+  const normalized = compactText(query).toLowerCase();
+
+  return /(match|matches|fit|fits|connect|connected|consistent|contradict|missing connection|source connection|story connection|원래\s*이야기와\s*맞|자료와\s*맞|원문과\s*맞|연결|이어지|모순|빠진\s*연결|개연성|현실성)/i.test(
+    normalized
+  );
+}
+
+function looksLikeSourceContextRequest(query: string): boolean {
+  const normalized = compactText(query).toLowerCase();
+  const sourceReference =
+    /(source|original story|story source|story material|reading|video|clue|event|character|relationship|scene|plot|원래\s*이야기|원문|자료|소스|읽기\s*자료|영상|단서|사건|장면|인물|관계|줄거리|스토리)/i.test(
+      normalized
+    );
+  const sourceComprehension =
+    /(what happened|what does|what did|who did|who was|where did|why did|why was|which clue|which event|explain the clue|explain this scene|무슨\s*뜻|무슨\s*일|누굴|누가|어디|왜\s*(?:그런|이런|그렇게|이렇게|인가|일까|죠|요|해|했)|어느\s*장면|어떤\s*단서|단서가\s*뭐|설명)/i.test(
+      normalized
+    );
+
+  if (looksLikeSourceAlignmentRequest(query)) {
+    return true;
+  }
+
+  if (sourceReference && (sourceComprehension || /explain|이해|설명|맞|연결|fit|match|connect/i.test(normalized))) {
+    return true;
+  }
+
+  return false;
+}
+
+function classifyCurrentRequest(
+  query: string,
+  recentMessages: RecentMessage[],
+  supportMode: SupportMode
+): RequestIntentClassification {
+  if (isDraftOnlyOrUnclearIntent(query)) {
+    return {
+      intent: "draft_only",
+      request_is_explicit: false,
+      requires_source_context: false,
+      conversation_operation: "none",
+      confidence: 0.96,
+    };
+  }
+
+  if (isLanguageChangeFollowUp(query, recentMessages)) {
+    const normalized = compactText(query).toLowerCase();
+    const operation: ConversationOperation = /(translate|in english|영어로|번역)/i.test(normalized)
+      ? "translate_previous"
+      : /(뭐라고|무슨 뜻|clarify|explain)/i.test(normalized)
+        ? "clarify_previous"
+        : "simplify_previous";
+
+    return {
+      intent: "language_change",
+      request_is_explicit: true,
+      requires_source_context: false,
+      conversation_operation: operation,
+      confidence: 0.92,
+    };
+  }
+
+  if (!hasExplicitAssistanceRequest(query) && looksLikeDraftOrPassage(query)) {
+    return {
+      intent: "unclear_intent",
+      request_is_explicit: false,
+      requires_source_context: false,
+      conversation_operation: "none",
+      confidence: 0.88,
+    };
+  }
+
+  if (looksLikeProceduralQuestion(query) || isMetaCapabilityQuestion(query)) {
+    return {
+      intent: "procedural",
+      request_is_explicit: true,
+      requires_source_context: false,
+      conversation_operation: "new_request",
+      confidence: 0.86,
+    };
+  }
+
+  if (looksLikeSourceContextRequest(query)) {
+    return {
+      intent: looksLikeSourceAlignmentRequest(query)
+        ? "source_alignment"
+        : "source_comprehension",
+      request_is_explicit: true,
+      requires_source_context: true,
+      conversation_operation: "new_request",
+      confidence: 0.84,
+    };
+  }
+
+  if (looksLikeGeneralLanguageQuestion(query) || supportMode === "language") {
+    return {
+      intent: supportMode === "feedback" ? "language_feedback" : "vocabulary_expression",
+      request_is_explicit: hasExplicitAssistanceRequest(query),
+      requires_source_context: false,
+      conversation_operation: "new_request",
+      confidence: 0.78,
+    };
+  }
+
+  if (supportMode === "feedback") {
+    return {
+      intent: "language_feedback",
+      request_is_explicit: hasExplicitAssistanceRequest(query),
+      requires_source_context: false,
+      conversation_operation: "new_request",
+      confidence: 0.72,
+    };
+  }
+
+  if (supportMode === "ideas" || supportMode === "organization") {
+    const sourceNeeded = looksLikeSourceContextRequest(query);
+    return {
+      intent: supportMode === "ideas" ? "idea_generation" : "organization",
+      request_is_explicit: hasExplicitAssistanceRequest(query),
+      requires_source_context: sourceNeeded,
+      conversation_operation: "new_request",
+      confidence: sourceNeeded ? 0.8 : 0.7,
+    };
+  }
+
+  return {
+    intent: hasExplicitAssistanceRequest(query) ? "general_question" : "unclear_intent",
+    request_is_explicit: hasExplicitAssistanceRequest(query),
+    requires_source_context: false,
+    conversation_operation: hasExplicitAssistanceRequest(query) ? "new_request" : "none",
+    confidence: hasExplicitAssistanceRequest(query) ? 0.62 : 0.45,
+  };
+}
+
+function intentLogFields(classification: RequestIntentClassification) {
+  return {
+    intent: classification.intent,
+    request_is_explicit: classification.request_is_explicit,
+    requires_source_context: classification.requires_source_context,
+    conversation_operation: classification.conversation_operation,
+    classifier_confidence: classification.confidence,
+  };
+}
+
+function extractRetrievalQuery(query: string): string {
+  const lines = query
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const sourceLines = lines.filter(
+    (line) => hasExplicitAssistanceRequest(line) || looksLikeSourceContextRequest(line)
+  );
+  const selected = sourceLines.at(-1) || lines.at(-1) || query;
+
+  return compactText(selected).slice(0, 500);
 }
 
 function buildDraftOnlyClarificationResponse(language: ResponseLanguage): string {
@@ -237,25 +426,21 @@ function buildLanguageChangeInput(
     .join("\n");
 
   return [
-    "<conversation_history>",
+    "<RELEVANT_CHAT_HISTORY>",
     recentHistory || "(No recent conversation history)",
-    "</conversation_history>",
+    "</RELEVANT_CHAT_HISTORY>",
     "",
-    "<source_material>",
-    "(Retrieval skipped for this turn. Do not use source material.)",
-    "</source_material>",
-    "",
-    "<learner_draft>",
+    "<LEARNER_DRAFT>",
     "(No learner draft should be evaluated on this turn.)",
-    "</learner_draft>",
+    "</LEARNER_DRAFT>",
     "",
-    "<previous_assistant_response>",
+    "<PREVIOUS_ASSISTANT_RESPONSE>",
     previousAssistantResponse,
-    "</previous_assistant_response>",
+    "</PREVIOUS_ASSISTANT_RESPONSE>",
     "",
-    "<current_user_request>",
+    "<CURRENT_USER_REQUEST>",
     query,
-    "</current_user_request>",
+    "</CURRENT_USER_REQUEST>",
   ].join("\n");
 }
 
@@ -684,29 +869,33 @@ export async function POST(request: NextRequest) {
   const supportMode = detectSupportMode(query, category, conversationMemory);
   const responseLanguage = detectResponseLanguage(query);
   const hasConversationContext = recentMessages.length > 0;
-  const commonLog = buildCommonLogFields({
-    participantId,
-    sessionId,
-    epId,
-    taskId,
-    condition,
-    conditionLabel: taskPackage.config.ai_condition,
-    category,
-    query,
-    policyDecision,
-    policyReason: restrictionReason,
-    inputOrigin,
-    detectedSupportMode:
-      policyAnalysis.detectedSupportMode === "other"
-        ? mapSupportModeForLog(supportMode)
-        : policyAnalysis.detectedSupportMode,
-    feedbackTarget: policyAnalysis.feedbackTarget,
-    timestamp,
-    interactionCount,
-    sessionDurationMs,
-  });
+  const requestClassification = classifyCurrentRequest(query, recentMessages, supportMode);
+  const commonLog = {
+    ...buildCommonLogFields({
+      participantId,
+      sessionId,
+      epId,
+      taskId,
+      condition,
+      conditionLabel: taskPackage.config.ai_condition,
+      category,
+      query,
+      policyDecision,
+      policyReason: restrictionReason,
+      inputOrigin,
+      detectedSupportMode:
+        policyAnalysis.detectedSupportMode === "other"
+          ? mapSupportModeForLog(supportMode)
+          : policyAnalysis.detectedSupportMode,
+      feedbackTarget: policyAnalysis.feedbackTarget,
+      timestamp,
+      interactionCount,
+      sessionDurationMs,
+    }),
+    ...intentLogFields(requestClassification),
+  };
 
-  if (isDraftOnlyOrUnclearIntent(query)) {
+  if (!requestClassification.request_is_explicit || requestClassification.confidence < 0.58) {
     const responseText = buildDraftOnlyClarificationResponse(responseLanguage);
 
     await persistChatLog({
@@ -727,20 +916,21 @@ export async function POST(request: NextRequest) {
       response_length: responseText.length,
       interaction_count: interactionCount,
       session_duration_ms: sessionDurationMs,
-      query_type_label: "draft_only/unclear_intent",
-      detected_support_mode: "draft_only",
-      user_query_type: "draft_only",
+      query_type_label: requestClassification.intent,
+      detected_support_mode: requestClassification.intent,
+      user_query_type:
+        requestClassification.intent === "draft_only" ? "draft_only" : "unclear_intent",
       feedback_target: null,
       source_types_used: [],
       visual_assets_used: [],
       retrieval_executed: false,
-      retrieval_skipped_reason: "draft_only_unclear_intent",
+      retrieval_skipped_reason: requestClassification.intent,
     });
 
     return chatJsonResponse(responseFromText(responseText, requestId, "success", null));
   }
 
-  if (isLanguageChangeFollowUp(query, recentMessages)) {
+  if (requestClassification.intent === "language_change") {
     const previousAssistantResponse = getLatestAssistantText(recentMessages);
     const apiKey = process.env.OPENAI_API_KEY;
 
@@ -1137,16 +1327,28 @@ export async function POST(request: NextRequest) {
     return chatJsonResponse(responseFromText(draftNeeded.text, requestId, "success", null));
   }
 
-  const retrievedChunks = retrieveTaskChunks(
-    taskId,
-    query,
-    taskPackage,
-    4,
-    true,
-    conversationMemory
-  );
+  const shouldRunRetrieval =
+    requestClassification.requires_source_context &&
+    requestClassification.request_is_explicit &&
+    requestClassification.confidence >= 0.58;
+  const retrievalQuery = shouldRunRetrieval ? extractRetrievalQuery(query) : "";
+  const retrievalReason = shouldRunRetrieval
+    ? `conditional_rag:${requestClassification.intent}`
+    : null;
+  const retrievalSkippedReason = shouldRunRetrieval
+    ? null
+    : requestClassification.intent === "language_change"
+      ? "language_change_followup"
+      : requestClassification.intent === "draft_only" ||
+          requestClassification.intent === "unclear_intent"
+        ? requestClassification.intent
+        : "source_context_not_required";
+  const retrievedChunks = shouldRunRetrieval
+    ? retrieveTaskChunks(taskId, retrievalQuery, taskPackage, 3, true, conversationMemory)
+    : [];
 
   if (
+    shouldRunRetrieval &&
     shouldAskTargetClarification(
       query,
       supportMode,
@@ -1157,6 +1359,7 @@ export async function POST(request: NextRequest) {
     const clarification = buildTargetClarificationResponseV2(responseLanguage, supportMode);
 
     await persistChatLog({
+      ...commonLog,
       participant_id: participantId,
       session_id: sessionId,
       ep_id: epId,
@@ -1176,7 +1379,7 @@ export async function POST(request: NextRequest) {
       source_types_used: [],
       visual_assets_used: [],
       retrieval_executed: true,
-      retrieval_reason: "standard_rag_before_target_clarification",
+      retrieval_reason: retrievalReason,
     });
 
     return chatJsonResponse(
@@ -1185,6 +1388,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (
+    shouldRunRetrieval &&
     retrievedChunks.length === 0 &&
     !conversationMemory.isContextualFollowUp &&
     !conversationMemory.activeSupportContext
@@ -1217,7 +1421,7 @@ export async function POST(request: NextRequest) {
       source_types_used: [],
       visual_assets_used: [],
       retrieval_executed: true,
-      retrieval_reason: "standard_rag_no_relevant_chunks",
+      retrieval_reason: retrievalReason,
     });
 
     return chatJsonResponse(
@@ -1241,15 +1445,16 @@ export async function POST(request: NextRequest) {
       query_type_label: supportMode,
       source_types_used: [],
       visual_assets_used: [],
-      retrieval_executed: true,
-      retrieval_reason: "standard_rag",
+      retrieval_executed: shouldRunRetrieval,
+      retrieval_reason: retrievalReason,
+      retrieval_skipped_reason: retrievalSkippedReason,
       incomplete_reason: "missing_api_key",
     });
 
     return chatJsonResponse(responseFromText(text, requestId, "error", "service_unavailable"), 500);
   }
 
-  const visualInputs = resolveVisualInputs(taskId, query, condition);
+  const visualInputs = shouldRunRetrieval ? resolveVisualInputs(taskId, query, condition) : [];
   const client = new OpenAI({ apiKey });
   const model = process.env.OPENAI_MODEL || "gpt-5.4-mini";
   const timeoutMs = Number(process.env.OPENAI_TIMEOUT_MS || 45000);
@@ -1275,7 +1480,14 @@ export async function POST(request: NextRequest) {
               retrievedChunks,
               supportMode,
               responseLanguage,
-              conversationMemory
+              conversationMemory,
+              {
+                includeSourceContext: shouldRunRetrieval,
+                learnerDraft:
+                  conversationMemory.workingContext === "user_continuation"
+                    ? conversationMemory.continuationFocus || query
+                    : undefined,
+              }
             ),
           },
           ...visualInputs,
@@ -1373,8 +1585,9 @@ export async function POST(request: NextRequest) {
           visual_assets_used: taskPackage.visualAssets
             .slice(0, visualInputs.length)
             .map((asset) => asset.id),
-          retrieval_executed: true,
-          retrieval_reason: "standard_rag",
+          retrieval_executed: shouldRunRetrieval,
+          retrieval_reason: retrievalReason,
+          retrieval_skipped_reason: retrievalSkippedReason,
           incomplete_reason: incompleteReason,
         });
 
@@ -1424,8 +1637,9 @@ export async function POST(request: NextRequest) {
           visual_assets_used: taskPackage.visualAssets
             .slice(0, visualInputs.length)
             .map((asset) => asset.id),
-          retrieval_executed: true,
-          retrieval_reason: "standard_rag",
+          retrieval_executed: shouldRunRetrieval,
+          retrieval_reason: retrievalReason,
+          retrieval_skipped_reason: retrievalSkippedReason,
           incomplete_reason: error instanceof Error ? error.message : String(error),
         });
 

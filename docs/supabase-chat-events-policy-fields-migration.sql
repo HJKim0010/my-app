@@ -13,7 +13,12 @@ alter table public.chat_events
   add column if not exists incomplete_reason text,
   add column if not exists retrieval_executed boolean,
   add column if not exists retrieval_reason text,
-  add column if not exists retrieval_skipped_reason text;
+  add column if not exists retrieval_skipped_reason text,
+  add column if not exists intent text,
+  add column if not exists request_is_explicit boolean,
+  add column if not exists requires_source_context boolean,
+  add column if not exists conversation_operation text,
+  add column if not exists classifier_confidence double precision;
 
 alter table public.session_transcripts
   add column if not exists source_condition text,
@@ -85,6 +90,8 @@ begin
         'draft_only',
         'unclear_intent',
         'language_change_followup',
+        'language_feedback',
+        'source_alignment',
         'other'
       )
     ) not valid;
@@ -101,3 +108,12 @@ comment on column public.chat_events.retrieval_executed is
 
 comment on column public.chat_events.retrieval_skipped_reason is
   'Reason retrieval was skipped, such as draft_only_unclear_intent or language_change_followup.';
+
+comment on column public.chat_events.intent is
+  'Fine-grained current-turn intent used by the conditional RAG gate.';
+
+comment on column public.chat_events.requires_source_context is
+  'True only when the current request genuinely needs original source/story material.';
+
+comment on column public.chat_events.classifier_confidence is
+  'Confidence score from the deterministic conditional RAG intent gate.';
