@@ -363,6 +363,27 @@ function looksLikeActiveStoryQuestion(
   return { requiresSource: true, entity };
 }
 
+function requiresStoryKnowledgeForRouting(
+  query: string,
+  taskId: TaskId,
+  recentMessages: RecentMessage[] = []
+): { requiresStoryKnowledge: boolean; entity: string | null } {
+  const storyQuestion = looksLikeActiveStoryQuestion(query, taskId, recentMessages);
+
+  if (storyQuestion.requiresSource) {
+    return { requiresStoryKnowledge: true, entity: storyQuestion.entity };
+  }
+
+  if (looksLikeSourceContextRequest(query)) {
+    return {
+      requiresStoryKnowledge: true,
+      entity: findStoryEntity(query, taskId, recentMessages),
+    };
+  }
+
+  return { requiresStoryKnowledge: false, entity: storyQuestion.entity };
+}
+
 function detectTaskRequirementRule(query: string): TaskRequirementRuleId | null {
   const normalized = normalizeKoreanSpacing(query).toLowerCase();
 
@@ -523,7 +544,7 @@ function looksLikeSourceContextRequest(query: string): boolean {
       normalized
     );
   const sourceComprehension =
-    /(what happened|what does|what did|who did|who was|where did|why did|why was|which clue|which event|explain the clue|explain this scene|무슨\s*뜻|무슨\s*일|누굴|누가|어디|왜\s*(?:그런|이런|그렇게|이렇게|인가|일까|죠|요|해|했)|어느\s*장면|어떤\s*단서|단서가\s*뭐|설명)/i.test(
+    /(what happened|what does|what did|who did|who was|where did|why did|why was|which clue|which event|use.*clue|clue.*use|explain the clue|explain this scene|무슨\s*뜻|무슨\s*일|누굴|누가|어디|왜\s*(?:그런|이런|그렇게|이렇게|인가|일까|죠|요|해|했)|어느\s*장면|어떤.*단서|원래.*단서|단서.*사용|단서가\s*뭐|설명)/i.test(
       normalized
     );
 
@@ -532,6 +553,10 @@ function looksLikeSourceContextRequest(query: string): boolean {
   }
 
   if (sourceReference && (sourceComprehension || /explain|이해|설명|맞|연결|fit|match|connect/i.test(normalized))) {
+    return true;
+  }
+
+  if (/(다음\s*전개|next\s*(?:event|development|part)).*(원래|source|story|clue|단서)/i.test(normalized)) {
     return true;
   }
 
@@ -587,21 +612,58 @@ function classifyCurrentRequest(
     };
   }
 
-  const activeStoryQuestion = looksLikeActiveStoryQuestion(
-    classificationTarget,
-    taskId,
-    recentMessages
-  );
+  if (looksLikeSourceAlignmentRequest(classificationTarget)) {
+    const storyKnowledge = requiresStoryKnowledgeForRouting(
+      classificationTarget,
+      taskId,
+      recentMessages
+    );
 
-  if (activeStoryQuestion.requiresSource) {
     return {
-      intent: "source_comprehension",
+      intent: "source_alignment",
       request_is_explicit: true,
       requires_source_context: true,
       requires_task_context: false,
       conversation_operation: "new_request",
       confidence: 0.86,
-      recognized_story_entity: activeStoryQuestion.entity,
+      recognized_story_entity: storyKnowledge.entity,
+    };
+  }
+
+  if (
+    looksLikeGeneralLanguageQuestion(classificationTarget) &&
+    !looksLikeSourceContextRequest(classificationTarget)
+  ) {
+    return {
+      intent: supportMode === "feedback" ? "language_feedback" : "vocabulary_expression",
+      request_is_explicit: true,
+      requires_source_context: false,
+      requires_task_context: false,
+      conversation_operation: "new_request",
+      confidence: 0.82,
+    };
+  }
+
+  const storyKnowledgeRoute = requiresStoryKnowledgeForRouting(
+    classificationTarget,
+    taskId,
+    recentMessages
+  );
+
+  if (storyKnowledgeRoute.requiresStoryKnowledge) {
+    return {
+      intent:
+        supportMode === "ideas"
+          ? "idea_generation"
+          : supportMode === "organization"
+            ? "organization"
+            : "source_comprehension",
+      request_is_explicit: true,
+      requires_source_context: true,
+      requires_task_context: false,
+      conversation_operation: "new_request",
+      confidence: 0.86,
+      recognized_story_entity: storyKnowledgeRoute.entity,
     };
   }
 
@@ -628,15 +690,14 @@ function classifyCurrentRequest(
   const subRequests = splitSubRequests(classificationTarget).map((text) => ({
     text,
     ...(() => {
-      const storyQuestion = looksLikeActiveStoryQuestion(text, taskId, recentMessages);
-      const requiresSource = looksLikeSourceContextRequest(text) || storyQuestion.requiresSource;
+      const storyKnowledge = requiresStoryKnowledgeForRouting(text, taskId, recentMessages);
 
       return {
-        requires_source_context: requiresSource,
-        recognized_story_entity: storyQuestion.entity,
+        requires_source_context: storyKnowledge.requiresStoryKnowledge,
+        recognized_story_entity: storyKnowledge.entity,
         intent: looksLikeSourceAlignmentRequest(text)
           ? "source_alignment"
-          : requiresSource
+          : storyKnowledge.requiresStoryKnowledge
             ? "source_comprehension"
             : looksLikeGeneralLanguageQuestion(text)
               ? "language_feedback"
@@ -795,11 +856,26 @@ function buildRecognizedQuestionMissingContextResponse(language: ResponseLanguag
     : "질문 의도는 이해했지만 현재 정보만으로 정확히 확인할 수 없어요. 과제 안내나 필요한 맥락을 조금 더 알려주세요.";
 }
 
-function buildNoSourceEvidenceResponse(entity: string | null | undefined, language: ResponseLanguage): string {
+function buildNoSourceEvidenceResponse(
+  query: string,
+  entity: string | null | undefined,
+  language: ResponseLanguage
+): string {
+  const normalized = normalizeRoutingText(query);
+  const isReasonQuestion = /(why|reason|왜|이유|무엇때문|뭐때문|뭘하느라|서둘|바빴)/i.test(normalized);
+
   if (language === "english") {
+    if (entity && isReasonQuestion) {
+      return `The current story does not clearly explain why ${entity} did that.`;
+    }
+
     return entity
       ? `I cannot clearly confirm that information about ${entity} from the current story.`
       : "I cannot clearly confirm that information from the current story.";
+  }
+
+  if (entity && isReasonQuestion) {
+    return `현재 이야기에서는 ${entity}의 이유를 명확히 설명하지 않아요.`;
   }
 
   return entity
@@ -1877,7 +1953,7 @@ export async function POST(request: NextRequest) {
   const retrievalReason = shouldRunRetrieval
     ? `conditional_rag:${requestClassification.intent}`
     : null;
-  const retrievalLimit = requestClassification.intent === "source_comprehension" ? 5 : 3;
+  const retrievalLimit = requestClassification.requires_source_context ? 5 : 3;
   const retrievalSkippedReason = shouldRunRetrieval
     ? null
     : requestClassification.intent === "language_change"
@@ -1980,12 +2056,11 @@ export async function POST(request: NextRequest) {
     !conversationMemory.isContextualFollowUp &&
     !conversationMemory.activeSupportContext
   ) {
-    const noSourceEvidence =
-      requestClassification.intent === "source_comprehension" ||
-      requestClassification.intent === "source_alignment";
+    const noSourceEvidence = requestClassification.requires_source_context;
     const boundedResponse = noSourceEvidence
       ? {
           text: buildNoSourceEvidenceResponse(
+            query,
             requestClassification.recognized_story_entity,
             responseLanguage
           ),
