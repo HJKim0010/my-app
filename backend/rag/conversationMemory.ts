@@ -32,8 +32,11 @@ export type ConversationMemory = {
   isContextualFollowUp: boolean;
 };
 
-const MAX_MESSAGES = 5;
-const VAGUE_REFERENCE_PATTERNS = [/\b(it|that|this|inside|there|they|them)\b/i];
+const MAX_MESSAGES = 12;
+const VAGUE_REFERENCE_PATTERNS = [
+  /\b(it|that|this|inside|there|they|them)\b/i,
+  /(그거|그것|이거|이것|저거|저것|아까|방금|전에|위에|그 부분|이 부분|그 문장|그 아이디어|그 전개)/,
+];
 const ACKNOWLEDGMENT_PATTERNS = [
   /^(yes|yeah|yep|ok|okay|sure|right|got it)$/i,
   /^(응|ㅇㅇ|네|맞아|그래|알겠어|좋아)$/i,
@@ -115,7 +118,7 @@ function looksLikeShortContextualFollowUp(text: string): boolean {
     return false;
   }
 
-  return /(hint|hints|clue|help|example|pattern|more|why|how|what about|then|next|again|check|좀|힌트|도움|예시|패턴|조금|더|왜|어떻게|그럼|그러면|다음|다시|확인|괜찮|알려줘|알려주세요)/i.test(
+  return /(hint|hints|clue|help|example|pattern|more|why|how|what about|then|next|again|check|huh|what\?|좀|힌트|도움|예시|패턴|조금|더|왜|어떻게|그럼|그러면|다음|다시|확인|괜찮|알려줘|알려주세요|뭐라고|무슨 뜻|헐|ㅇㅇ|응\?)/i.test(
     normalized
   );
 }

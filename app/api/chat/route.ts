@@ -1,6 +1,10 @@
 import { NextRequest } from "next/server";
 import OpenAI from "openai";
-import { classifyQuery, detectRestrictionReason } from "@/backend/policy/classifier";
+import {
+  analyzeQueryScope,
+  type FeedbackTarget,
+  type SupportModeLabel,
+} from "@/backend/policy/classifier";
 import { redirectResponse } from "@/backend/policy/redirect";
 import { appendChatLog, type ChatLogEntry } from "@/backend/logs/logger";
 import { resolveVisualInputs } from "@/backend/rag/assetResolver";
@@ -28,6 +32,15 @@ type QuickReply = {
 };
 
 type ChatApiResponse = {
+  ok: boolean;
+  requestId: string;
+  status: "success" | "redirected" | "incomplete" | "timeout" | "error";
+  text: string;
+  reason: string | null;
+  quickReplies: QuickReply[];
+};
+
+type AssistantDraftResponse = {
   text: string;
   quickReplies?: QuickReply[];
 };
@@ -94,16 +107,6 @@ function isVagueHelpRequest(query: string): boolean {
   return /(help|help me|can you help|this part|which part|what part|\ub3c4\uc640\uc904|\ub3c4\uc640\uc8fc|\uc774\s*\ubd80\ubd84|\uc5b4\ub290\s*\ubd80\ubd84|\ubb50\ub97c\s*\ub3c4\uc640)/i.test(normalized);
 }
 
-function extractLastAssistantMessage(recentMessages: RecentMessage[]): string {
-  for (let index = recentMessages.length - 1; index >= 0; index -= 1) {
-    if (recentMessages[index]?.role === "assistant") {
-      return compactText(recentMessages[index].text);
-    }
-  }
-
-  return "";
-}
-
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function buildAmbiguousReactionResponse(language: ResponseLanguage): string {
   if (language === "english") {
@@ -141,14 +144,14 @@ function buildAcknowledgmentFollowUp(
   }
 
   if (workingContext === "user_continuation") {
-    return "응으로 이해했어요. 다음은 전개, 구성, 표현, 피드백 중 뭐부터 볼까요?";
+    return "알겠어요. 다음은 전개, 구성, 표현, 피드백 중 뭐부터 볼까요?";
   }
 
   if (mode === "comprehension") {
-    return "응으로 이해했어요. 다음은 자료 확인, 전개, 구성, 표현 중 뭐부터 볼까요?";
+    return "알겠어요. 다음은 자료 확인, 전개, 구성, 표현 중 뭐부터 볼까요?";
   }
 
-  return "응으로 이해했어요. 다음은 전개, 구성, 표현, 피드백 중 뭐부터 볼까요?";
+  return "알겠어요. 다음은 전개, 구성, 표현, 피드백 중 뭐부터 볼까요?";
 }
 
 function shouldAskTargetClarification(
@@ -219,8 +222,43 @@ function buildNoChunkResponse(
   return "먼저 어느 장면이나 단서를 말하는지 조금만 더 분명하게 알려 주세요. 한 장면, 행동, 물건, 문장 중 하나만 짚어 주면 그 기준으로 도와드릴게요.";
 }
 
-function chatJsonResponse(payload: ChatApiResponse, status = 200): Response {
-  return Response.json(payload, { status });
+function emptyQuickReplies(payload: Partial<ChatApiResponse>): ChatApiResponse {
+  return {
+    ok: payload.ok ?? true,
+    requestId: payload.requestId ?? crypto.randomUUID(),
+    status: payload.status ?? "success",
+    text: payload.text ?? "",
+    reason: payload.reason ?? null,
+    quickReplies: payload.quickReplies ?? [],
+  };
+}
+
+function chatJsonResponse(payload: Partial<ChatApiResponse>, status = 200): Response {
+  const normalized = emptyQuickReplies(payload);
+  return Response.json(normalized, { status });
+}
+
+function participantErrorMessage(language: ResponseLanguage): string {
+  return language === "english"
+    ? "I could not make a reply just now. Please try once more."
+    : "잠시 응답을 만들지 못했어요. 한 번만 다시 시도해 주세요.";
+}
+
+function mapSupportModeForLog(mode: SupportMode): SupportModeLabel {
+  if (mode === "ideas") return "idea_generation";
+  if (mode === "language") return "vocabulary_expression";
+  if (mode === "feedback") return "feedback_checking";
+  return mode;
+}
+
+function responseFromText(
+  text: string,
+  requestId: string,
+  status: ChatApiResponse["status"] = "success",
+  reason: string | null = null,
+  quickReplies: QuickReply[] = []
+): ChatApiResponse {
+  return { ok: status === "success" || status === "redirected", requestId, status, text, reason, quickReplies };
 }
 
 function confirmationQuickReplies(language: ResponseLanguage): QuickReply[] {
@@ -255,7 +293,7 @@ function supportChoiceQuickReplies(language: ResponseLanguage): QuickReply[] {
   ];
 }
 
-function buildAmbiguousReactionResponseV2(language: ResponseLanguage): ChatApiResponse {
+function buildAmbiguousReactionResponseV2(language: ResponseLanguage): AssistantDraftResponse {
   if (language === "english") {
     return {
       text: "I am not fully sure what you mean yet. Did you mean my last answer was unclear?",
@@ -270,7 +308,7 @@ function buildAmbiguousReactionResponseV2(language: ResponseLanguage): ChatApiRe
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function buildGreetingResponseV2(language: ResponseLanguage): ChatApiResponse {
+function buildGreetingResponseV2(language: ResponseLanguage): AssistantDraftResponse {
   if (language === "english") {
     return {
       text: "Hello. What would you like help with?",
@@ -284,7 +322,7 @@ function buildGreetingResponseV2(language: ResponseLanguage): ChatApiResponse {
   };
 }
 
-function buildGreetingClarificationResponse(language: ResponseLanguage): ChatApiResponse {
+function buildGreetingClarificationResponse(language: ResponseLanguage): AssistantDraftResponse {
   if (language === "english") {
     return {
       text: "Hello. Which part would you like help with? You can tap a quick bubble below or type your question directly.",
@@ -292,11 +330,11 @@ function buildGreetingClarificationResponse(language: ResponseLanguage): ChatApi
   }
 
   return {
-    text: "안녕하세요. 어떤 부분을 도와드릴까요? 아래 quick bubble chat을 눌러도 되고, 질문을 직접 입력해도 좋아요.",
+    text: "안녕하세요. 어떤 부분을 도와드릴까요? 아래 빠른 답변 버튼을 눌러도 되고, 질문을 직접 입력해도 좋아요.",
   };
 }
 
-function buildCalmGreetingResponse(language: ResponseLanguage): ChatApiResponse {
+function buildCalmGreetingResponse(language: ResponseLanguage): AssistantDraftResponse {
   if (language === "english") {
     return {
       text: "Hello. What would you like help with? You can tap a quick bubble below or type your question directly.",
@@ -304,11 +342,11 @@ function buildCalmGreetingResponse(language: ResponseLanguage): ChatApiResponse 
   }
 
   return {
-    text: "안녕하세요. 어떤 부분을 도와드릴까요? 아래 quick bubble chat을 눌러도 되고, 질문을 직접 입력해도 좋아요.",
+    text: "안녕하세요. 어떤 부분을 도와드릴까요? 아래 빠른 답변 버튼을 눌러도 되고, 질문을 직접 입력해도 좋아요.",
   };
 }
 
-function buildAcknowledgmentFollowUpV2(language: ResponseLanguage): ChatApiResponse {
+function buildAcknowledgmentFollowUpV2(language: ResponseLanguage): AssistantDraftResponse {
   if (language === "english") {
     return {
       text: "I understand. What would you like next?",
@@ -325,7 +363,7 @@ function buildAcknowledgmentFollowUpV2(language: ResponseLanguage): ChatApiRespo
 function buildTargetClarificationResponseV2(
   language: ResponseLanguage,
   mode: SupportMode
-): ChatApiResponse {
+): AssistantDraftResponse {
   if (language === "english") {
     if (mode === "comprehension") {
       return {
@@ -365,7 +403,7 @@ function buildNoChunkResponseV2(
   mode: SupportMode,
   language: ResponseLanguage,
   workingContext: "source" | "user_continuation"
-): ChatApiResponse {
+): AssistantDraftResponse {
   if (language === "english") {
     if (workingContext === "user_continuation") {
       return {
@@ -429,6 +467,68 @@ function toEpId(taskId: TaskId): "ep1" | "ep2" {
   return taskId === "task2" ? "ep2" : "ep1";
 }
 
+function buildCommonLogFields(params: {
+  participantId: string;
+  sessionId: string;
+  epId: "ep1" | "ep2";
+  taskId: TaskId;
+  condition: TaskCondition;
+  conditionLabel: string;
+  category: string;
+  query: string;
+  policyDecision: string;
+  policyReason: string | null;
+  inputOrigin: "typed" | "quick_reply" | "prefill_edited";
+  detectedSupportMode: string;
+  feedbackTarget: FeedbackTarget;
+  timestamp: string;
+  interactionCount: number;
+  sessionDurationMs: number;
+}): Pick<
+  ChatLogEntry,
+  | "participant_id"
+  | "session_id"
+  | "ep_id"
+  | "task_id"
+  | "episode_id"
+  | "condition_label"
+  | "selected_category"
+  | "raw_user_query"
+  | "policy_decision"
+  | "policy_reason"
+  | "input_origin"
+  | "source_condition"
+  | "support_condition"
+  | "detected_support_mode"
+  | "feedback_target"
+  | "timestamp"
+  | "interaction_count"
+  | "session_duration_ms"
+  | "researcher_code"
+> {
+  return {
+    participant_id: params.participantId,
+    session_id: params.sessionId,
+    ep_id: params.epId,
+    task_id: params.taskId,
+    episode_id: params.epId,
+    condition_label: params.conditionLabel,
+    selected_category: params.category,
+    raw_user_query: params.query,
+    policy_decision: params.policyDecision,
+    policy_reason: params.policyReason,
+    input_origin: params.inputOrigin,
+    source_condition: params.condition,
+    support_condition: "ai",
+    detected_support_mode: params.detectedSupportMode,
+    feedback_target: params.feedbackTarget,
+    timestamp: params.timestamp,
+    interaction_count: params.interactionCount,
+    session_duration_ms: params.sessionDurationMs,
+    researcher_code: null,
+  };
+}
+
 export async function POST(request: NextRequest) {
   let query = "";
   let category = "Others";
@@ -439,6 +539,8 @@ export async function POST(request: NextRequest) {
   let interactionCount = 1;
   let sessionStartedAt = Date.now();
   let recentMessages: RecentMessage[] = [];
+  let inputOrigin: "typed" | "quick_reply" | "prefill_edited" = "typed";
+  const requestId = crypto.randomUUID();
 
   try {
     const body = await request.json();
@@ -452,6 +554,10 @@ export async function POST(request: NextRequest) {
       typeof body?.interactionCount === "number" ? body.interactionCount : interactionCount;
     sessionStartedAt =
       typeof body?.sessionStartedAt === "number" ? body.sessionStartedAt : sessionStartedAt;
+    inputOrigin =
+      body?.input_origin === "quick_reply" || body?.input_origin === "prefill_edited"
+        ? body.input_origin
+        : "typed";
     recentMessages = Array.isArray(body?.recentMessages)
       ? body.recentMessages.filter(
           (message: unknown): message is RecentMessage =>
@@ -467,33 +573,62 @@ export async function POST(request: NextRequest) {
   }
 
   if (!query.trim()) {
-    return new Response("Please enter a prompt.", {
-      status: 400,
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
+    return chatJsonResponse(
+      responseFromText("Please enter a prompt.", requestId, "error", "empty_query"),
+      400
+    );
   }
 
   if (!isValidParticipantId(participantId)) {
-    return new Response("Participant ID is required before starting the chat.", {
-      status: 400,
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
+    return chatJsonResponse(
+      responseFromText(
+        "Participant ID is required before starting the chat.",
+        requestId,
+        "error",
+        "invalid_participant_id"
+      ),
+      400
+    );
   }
 
   const taskPackage = loadTaskPackage(taskId, condition);
   const epId = toEpId(taskId);
   const timestamp = new Date().toISOString();
   const sessionDurationMs = Math.max(0, Date.now() - sessionStartedAt);
-  const policyDecision = classifyQuery(query);
-  const restrictionReason = detectRestrictionReason(query);
+  const policyAnalysis = analyzeQueryScope(query);
+  const policyDecision = policyAnalysis.queryType;
+  const restrictionReason = policyAnalysis.reason;
   const conversationMemory = buildConversationMemory(taskId, query, recentMessages);
   const supportMode = detectSupportMode(query, category, conversationMemory);
   const responseLanguage = detectResponseLanguage(query);
+  const hasConversationContext = recentMessages.length > 0;
+  const commonLog = buildCommonLogFields({
+    participantId,
+    sessionId,
+    epId,
+    taskId,
+    condition,
+    conditionLabel: taskPackage.config.ai_condition,
+    category,
+    query,
+    policyDecision,
+    policyReason: restrictionReason,
+    inputOrigin,
+    detectedSupportMode:
+      policyAnalysis.detectedSupportMode === "other"
+        ? mapSupportModeForLog(supportMode)
+        : policyAnalysis.detectedSupportMode,
+    feedbackTarget: policyAnalysis.feedbackTarget,
+    timestamp,
+    interactionCount,
+    sessionDurationMs,
+  });
 
   if (containsGreeting(query) && isVagueHelpRequest(query) && !isGreeting(query)) {
     const response = buildGreetingClarificationResponse(responseLanguage);
 
     await persistChatLog({
+      ...commonLog,
       participant_id: participantId,
       session_id: sessionId,
       ep_id: epId,
@@ -502,6 +637,7 @@ export async function POST(request: NextRequest) {
       raw_user_query: query,
       policy_decision: "allowed",
       status: "allowed",
+      response_status: "success",
       retrieved_chunk_ids: [],
       retrieved_chunk_metadata: [],
       assistant_response: response.text,
@@ -514,13 +650,14 @@ export async function POST(request: NextRequest) {
       visual_assets_used: [],
     });
 
-    return chatJsonResponse(response);
+    return chatJsonResponse(responseFromText(response.text, requestId, "success", null, response.quickReplies));
   }
 
   if (isGreeting(query)) {
     const response = buildCalmGreetingResponse(responseLanguage);
 
     await persistChatLog({
+      ...commonLog,
       participant_id: participantId,
       session_id: sessionId,
       ep_id: epId,
@@ -529,6 +666,7 @@ export async function POST(request: NextRequest) {
       raw_user_query: query,
       policy_decision: "allowed",
       status: "allowed",
+      response_status: "success",
       retrieved_chunk_ids: [],
       retrieved_chunk_metadata: [],
       assistant_response: response.text,
@@ -541,13 +679,14 @@ export async function POST(request: NextRequest) {
       visual_assets_used: [],
     });
 
-    return chatJsonResponse(response);
+    return chatJsonResponse(responseFromText(response.text, requestId, "success", null, response.quickReplies));
   }
 
-  if (isAmbiguousShortReaction(query)) {
+  if (isAmbiguousShortReaction(query) && !hasConversationContext) {
     const response = buildAmbiguousReactionResponseV2(responseLanguage);
 
     await persistChatLog({
+      ...commonLog,
       participant_id: participantId,
       session_id: sessionId,
       ep_id: epId,
@@ -556,6 +695,7 @@ export async function POST(request: NextRequest) {
       raw_user_query: query,
       policy_decision: "allowed",
       status: "allowed",
+      response_status: "success",
       retrieved_chunk_ids: [],
       retrieved_chunk_metadata: [],
       assistant_response: response.text,
@@ -568,13 +708,14 @@ export async function POST(request: NextRequest) {
       visual_assets_used: [],
     });
 
-    return chatJsonResponse(response);
+    return chatJsonResponse(responseFromText(response.text, requestId, "success", null, response.quickReplies));
   }
 
-  if (isShortAcknowledgment(query)) {
+  if (isShortAcknowledgment(query) && !hasConversationContext) {
     const response = buildAcknowledgmentFollowUpV2(responseLanguage);
 
     await persistChatLog({
+      ...commonLog,
       participant_id: participantId,
       session_id: sessionId,
       ep_id: epId,
@@ -583,6 +724,7 @@ export async function POST(request: NextRequest) {
       raw_user_query: query,
       policy_decision: "allowed",
       status: "allowed",
+      response_status: "success",
       retrieved_chunk_ids: [],
       retrieved_chunk_metadata: [],
       assistant_response: response.text,
@@ -595,28 +737,37 @@ export async function POST(request: NextRequest) {
       visual_assets_used: [],
     });
 
-    return chatJsonResponse(response);
+    return chatJsonResponse(responseFromText(response.text, requestId, "success", null, response.quickReplies));
   }
 
   if (policyDecision === "restricted") {
-    const redirected = redirectResponse(restrictionReason ?? "sentence_generation");
+    const redirected = redirectResponse(
+      restrictionReason ?? "sentence_generation",
+      responseLanguage,
+      query
+    );
     const redirectPayload: ChatApiResponse = {
+      ok: true,
+      requestId,
+      status: "redirected",
       text: redirected,
+      reason: restrictionReason ?? "sentence_generation",
       quickReplies:
         responseLanguage === "english"
           ? [
               { label: "Outline", value: "Please help me make a short outline.", action: "send" },
               { label: "Ideas", value: "Please suggest possible next events.", action: "send" },
-              { label: "One sentence", value: "Please help me revise one sentence: ", action: "prefill" },
+              { label: "Frame", value: "Please help me make a sentence frame for: ", action: "prefill" },
             ]
           : [
               { label: "개요", value: "짧은 개요를 만드는 걸 도와주세요.", action: "send" },
               { label: "아이디어", value: "가능한 다음 사건을 제안해주세요.", action: "send" },
-              { label: "한 문장", value: "이 한 문장을 고치는 걸 도와주세요: ", action: "prefill" },
+              { label: "문장 틀", value: "이 내용을 쓸 수 있는 문장 틀을 도와주세요: ", action: "prefill" },
             ],
     };
 
     await persistChatLog({
+      ...commonLog,
       participant_id: participantId,
       session_id: sessionId,
       ep_id: epId,
@@ -624,7 +775,9 @@ export async function POST(request: NextRequest) {
       selected_category: category,
       raw_user_query: query,
       policy_decision: policyDecision,
+      policy_reason: restrictionReason ?? "sentence_generation",
       status: "redirected",
+      response_status: "redirected",
       retrieved_chunk_ids: [],
       retrieved_chunk_metadata: [],
       assistant_response: redirected,
@@ -634,6 +787,11 @@ export async function POST(request: NextRequest) {
       session_duration_ms: sessionDurationMs,
       query_type_label: "restricted",
       redirect_reason: restrictionReason ?? "sentence_generation",
+      input_origin: inputOrigin,
+      source_condition: condition,
+      support_condition: "ai",
+      detected_support_mode: "restricted",
+      feedback_target: policyAnalysis.feedbackTarget,
       source_types_used: [],
       visual_assets_used: [],
     });
@@ -681,10 +839,16 @@ export async function POST(request: NextRequest) {
       visual_assets_used: [],
     });
 
-    return chatJsonResponse(clarification);
+    return chatJsonResponse(
+      responseFromText(clarification.text, requestId, "success", null, clarification.quickReplies)
+    );
   }
 
-  if (retrievedChunks.length === 0) {
+  if (
+    retrievedChunks.length === 0 &&
+    !conversationMemory.isContextualFollowUp &&
+    !conversationMemory.activeSupportContext
+  ) {
     const boundedResponse = buildNoChunkResponseV2(
       supportMode,
       responseLanguage,
@@ -692,6 +856,7 @@ export async function POST(request: NextRequest) {
     );
 
     await persistChatLog({
+      ...commonLog,
       participant_id: participantId,
       session_id: sessionId,
       ep_id: epId,
@@ -700,6 +865,7 @@ export async function POST(request: NextRequest) {
       raw_user_query: query,
       policy_decision: "allowed",
       status: "allowed",
+      response_status: "success",
       retrieved_chunk_ids: [],
       retrieved_chunk_metadata: [],
       assistant_response: boundedResponse.text,
@@ -712,22 +878,37 @@ export async function POST(request: NextRequest) {
       visual_assets_used: [],
     });
 
-    return chatJsonResponse(boundedResponse);
+    return chatJsonResponse(
+      responseFromText(boundedResponse.text, requestId, "success", null, boundedResponse.quickReplies)
+    );
   }
 
   const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
-    return new Response("The chatbot is temporarily unavailable. Please try again later.", {
-      status: 500,
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    const text = participantErrorMessage(responseLanguage);
+    await persistChatLog({
+      ...commonLog,
+      policy_decision: "allowed",
+      status: "error",
+      response_status: "error",
+      retrieved_chunk_ids: retrievedChunks.map((chunk) => chunk.chunkId),
+      retrieved_chunk_metadata: [],
+      assistant_response: text,
+      response_length: text.length,
+      query_type_label: supportMode,
+      source_types_used: [],
+      visual_assets_used: [],
+      incomplete_reason: "missing_api_key",
     });
+
+    return chatJsonResponse(responseFromText(text, requestId, "error", "service_unavailable"), 500);
   }
 
   const visualInputs = resolveVisualInputs(taskId, query, condition);
   const client = new OpenAI({ apiKey });
   const model = process.env.OPENAI_MODEL || "gpt-5.4-mini";
-  const timeoutMs = Number(process.env.OPENAI_TIMEOUT_MS || 60000);
+  const timeoutMs = Number(process.env.OPENAI_TIMEOUT_MS || 45000);
 
   try {
     const controller = new AbortController();
@@ -770,11 +951,14 @@ export async function POST(request: NextRequest) {
 
     const incompleteReason =
       response.status === "incomplete" ? response.incomplete_details?.reason : undefined;
-    const assistantResponse = sanitizeAssistantResponse(
-      response.output_text || extractLastAssistantMessage(recentMessages) || "No response text returned."
-    );
+    const assistantResponse = sanitizeAssistantResponse(response.output_text || "");
+    const responseStatus: ChatApiResponse["status"] =
+      response.status === "incomplete" || !assistantResponse ? "incomplete" : "success";
+    const displayResponse =
+      assistantResponse || participantErrorMessage(responseLanguage);
 
     await persistChatLog({
+      ...commonLog,
       participant_id: participantId,
       session_id: sessionId,
       ep_id: epId,
@@ -782,18 +966,22 @@ export async function POST(request: NextRequest) {
       selected_category: category,
       raw_user_query: query,
       policy_decision: "allowed",
-      status: "allowed",
+      status: responseStatus,
+      response_status: responseStatus,
       retrieved_chunk_ids: retrievedChunks.map((chunk) => chunk.chunkId),
       retrieved_chunk_metadata: retrievedChunks.map((chunk) => ({
         chunkId: chunk.chunkId,
         sourceId: chunk.sourceId,
         sourceType: chunk.sourceType,
         chunkIndex: chunk.chunkIndex,
+        chunkCount: chunk.chunkCount,
+        documentChunkIndex: chunk.documentChunkIndex,
+        documentChunkCount: chunk.documentChunkCount,
         score: chunk.score,
       })),
-      assistant_response: assistantResponse,
+      assistant_response: displayResponse,
       timestamp,
-      response_length: assistantResponse.length,
+      response_length: displayResponse.length,
       interaction_count: interactionCount,
       session_duration_ms: sessionDurationMs,
       query_type_label: supportMode,
@@ -801,27 +989,24 @@ export async function POST(request: NextRequest) {
       visual_assets_used: taskPackage.visualAssets
         .slice(0, visualInputs.length)
         .map((asset) => asset.id),
-      response_status: response.status,
       incomplete_reason: incompleteReason,
     });
 
-    return new Response(assistantResponse, {
-      status: 200,
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
+    return chatJsonResponse(
+      responseFromText(
+        displayResponse,
+        requestId,
+        responseStatus,
+        responseStatus === "incomplete" ? incompleteReason || "empty_response" : null
+      ),
+      responseStatus === "success" ? 200 : 502
+    );
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.name === "AbortError"
-          ? `The OpenAI request timed out after ${Math.round(
-              timeoutMs / 1000
-            )} seconds. The deployed server may need a longer timeout or a faster model.`
-          : error.message
-        : "OpenAI request failed.";
-
-    const failureResponse = `OpenAI request failed: ${message}`;
+    const isTimeout = error instanceof Error && error.name === "AbortError";
+    const failureResponse = participantErrorMessage(responseLanguage);
 
     await persistChatLog({
+      ...commonLog,
       participant_id: participantId,
       session_id: sessionId,
       ep_id: epId,
@@ -829,13 +1014,17 @@ export async function POST(request: NextRequest) {
       selected_category: category,
       raw_user_query: query,
       policy_decision: "allowed",
-      status: "allowed",
+      status: isTimeout ? "timeout" : "error",
+      response_status: isTimeout ? "timeout" : "error",
       retrieved_chunk_ids: retrievedChunks.map((chunk) => chunk.chunkId),
       retrieved_chunk_metadata: retrievedChunks.map((chunk) => ({
         chunkId: chunk.chunkId,
         sourceId: chunk.sourceId,
         sourceType: chunk.sourceType,
         chunkIndex: chunk.chunkIndex,
+        chunkCount: chunk.chunkCount,
+        documentChunkIndex: chunk.documentChunkIndex,
+        documentChunkCount: chunk.documentChunkCount,
         score: chunk.score,
       })),
       assistant_response: failureResponse,
@@ -848,11 +1037,12 @@ export async function POST(request: NextRequest) {
       visual_assets_used: taskPackage.visualAssets
         .slice(0, visualInputs.length)
         .map((asset) => asset.id),
+      incomplete_reason: error instanceof Error ? error.message : String(error),
     });
 
-    return new Response(failureResponse, {
-      status: 500,
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
-    });
+    return chatJsonResponse(
+      responseFromText(failureResponse, requestId, isTimeout ? "timeout" : "error", isTimeout ? "timeout" : "error"),
+      500
+    );
   }
 }

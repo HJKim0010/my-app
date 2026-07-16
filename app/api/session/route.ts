@@ -61,6 +61,10 @@ export async function POST(request: NextRequest) {
     participant_id: participantId,
     ep_id: toEpId(taskId),
     condition_label: taskPackage.config.ai_condition,
+    source_condition: condition,
+    support_condition: "ai",
+    task_id: taskId,
+    episode_id: toEpId(taskId),
     timestamp: new Date().toISOString(),
     interaction_count:
       typeof body?.interactionCount === "number" ? body.interactionCount : 0,

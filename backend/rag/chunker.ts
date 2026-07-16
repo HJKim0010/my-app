@@ -7,10 +7,24 @@ export type TaskChunk = {
   sourceType: string;
   sourceLabel: string;
   chunkIndex: number;
+  chunkCount: number;
+  documentChunkIndex: number;
+  documentChunkCount: number;
   content: string;
 };
 
 const MAX_CHUNK_LENGTH = 500;
+const OVERLAP_SENTENCES = 1;
+
+function splitSentences(text: string): string[] {
+  return (
+    text
+      .replace(/\r/g, "")
+      .match(/[^.!?。！？\n]+[.!?。！？]?/gu) || [text]
+  )
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+}
 
 function splitIntoSegments(content: string): string[] {
   const normalized = content.replace(/\r/g, "").trim();
@@ -27,16 +41,24 @@ function splitIntoSegments(content: string): string[] {
   const segments: string[] = [];
 
   for (const block of blocks) {
-    if (block.length <= MAX_CHUNK_LENGTH) {
-      segments.push(block);
-      continue;
+    const sentences = splitSentences(block);
+    let current: string[] = [];
+
+    for (const sentence of sentences.length ? sentences : [block]) {
+      const candidate = [...current, sentence].join(" ");
+
+      if (candidate.length <= MAX_CHUNK_LENGTH || current.length === 0) {
+        current.push(sentence);
+        continue;
+      }
+
+      segments.push(current.join(" ").trim());
+      current = current.slice(-OVERLAP_SENTENCES);
+      current.push(sentence);
     }
 
-    let start = 0;
-
-    while (start < block.length) {
-      segments.push(block.slice(start, start + MAX_CHUNK_LENGTH).trim());
-      start += MAX_CHUNK_LENGTH;
+    if (current.length > 0) {
+      segments.push(current.join(" ").trim());
     }
   }
 
@@ -44,15 +66,24 @@ function splitIntoSegments(content: string): string[] {
 }
 
 export function chunkDocuments(taskId: string, documents: TaskDocument[]): TaskChunk[] {
-  return documents.flatMap((document) =>
-    splitIntoSegments(document.content).map((content, index) => ({
+  const chunks = documents.flatMap((document) => {
+    const segments = splitIntoSegments(document.content);
+    return segments.map((content, index) => ({
       chunkId: `${taskId}:${document.id}:${index}`,
       taskId,
       sourceId: document.id,
       sourceType: document.sourceType,
       sourceLabel: document.label,
       chunkIndex: index,
+      chunkCount: segments.length,
+      documentChunkIndex: index,
+      documentChunkCount: segments.length,
       content,
-    }))
-  );
+    }));
+  });
+
+  return chunks.map((chunk, index) => ({
+    ...chunk,
+    chunkIndex: index,
+  }));
 }

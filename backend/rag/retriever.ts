@@ -15,15 +15,18 @@ function splitNormalized(text: string): string[] {
 }
 
 function getSegmentForChunk(chunk: TaskChunk, totalChunks: number): StorySegment {
-  if (totalChunks <= 1) {
+  const count = chunk.documentChunkCount || totalChunks;
+  const index = chunk.documentChunkIndex ?? chunk.chunkIndex;
+
+  if (count <= 1) {
     return "beginning";
   }
 
-  if (chunk.chunkIndex <= 0) {
+  if (index <= 0) {
     return "beginning";
   }
 
-  if (chunk.chunkIndex >= totalChunks - 1) {
+  if (index >= count - 1) {
     return "end";
   }
 
@@ -64,6 +67,10 @@ function sourceBoost(sourceType: string): number {
   return 0;
 }
 
+function relevanceThreshold(query: string): number {
+  return query.trim().length < 20 ? 2 : 3;
+}
+
 function scoreChunk(
   taskId: TaskId,
   chunk: TaskChunk,
@@ -75,10 +82,12 @@ function scoreChunk(
   const expandedTerms = new Set(expandQueryTerms(taskId, `${query} ${memoryText}`));
   const chunkTokens = splitNormalized(chunk.content);
   let score = 0;
+  let lexicalScore = 0;
 
   for (const token of chunkTokens) {
     if (expandedTerms.has(token)) {
       score += 2;
+      lexicalScore += 2;
     }
   }
 
@@ -113,6 +122,7 @@ function scoreChunk(
   for (const phrase of emphasisPhrases) {
     if (normalizedQuery.includes(phrase) && normalizedChunk.includes(phrase)) {
       score += 8;
+      lexicalScore += 8;
     }
   }
 
@@ -122,6 +132,7 @@ function scoreChunk(
 
   if (explicitSegment && explicitSegment === chunkSegment) {
     score += 4;
+    lexicalScore += 2;
   }
 
   if (lexicalSegments.includes(chunkSegment)) {
@@ -137,31 +148,13 @@ function scoreChunk(
     for (const entity of memory.activeEntities) {
       if (normalizedChunk.includes(normalizeLexiconText(entity))) {
         score += 2;
+        lexicalScore += 2;
       }
     }
   }
 
   score += sourceBoost(chunk.sourceType);
-  return score;
-}
-
-function fallbackChunks(chunks: TaskChunk[], query: string): TaskChunk[] {
-  const explicitSegment = detectExplicitSegment(query);
-
-  if (explicitSegment === "beginning") {
-    return chunks.slice(0, Math.min(2, chunks.length));
-  }
-
-  if (explicitSegment === "middle") {
-    const start = Math.max(0, Math.floor(chunks.length / 2) - 1);
-    return chunks.slice(start, Math.min(start + 2, chunks.length));
-  }
-
-  if (explicitSegment === "end") {
-    return chunks.slice(Math.max(0, chunks.length - 2));
-  }
-
-  return chunks.slice(0, Math.min(3, chunks.length));
+  return lexicalScore >= relevanceThreshold(query) ? score : 0;
 }
 
 export function retrieveTaskChunks(
@@ -192,17 +185,14 @@ export function retrieveTaskChunks(
     return [];
   }
 
-  return fallbackChunks(chunks, query).map((chunk) => ({
-    ...chunk,
-    score: taskPackage.condition === "dynamic" ? 0.5 : 0.4,
-  }));
+  return [];
 }
 
 export function retrieveTaskDocumentsForCondition(
   taskId: TaskId,
   query: string,
   documents: TaskDocument[],
-  condition: TaskCondition,
+  _condition: TaskCondition,
   limit = 4,
   memory?: ConversationMemory
 ): RetrievedChunk[] {
@@ -222,8 +212,5 @@ export function retrieveTaskDocumentsForCondition(
     return scored;
   }
 
-  return fallbackChunks(chunks, query).map((chunk) => ({
-    ...chunk,
-    score: condition === "dynamic" ? 0.5 : 0.4,
-  }));
+  return [];
 }

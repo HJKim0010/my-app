@@ -3,194 +3,499 @@ export type QueryType = "allowed" | "restricted";
 export type RestrictionReason =
   | "sentence_generation"
   | "draft_rewrite"
-  | "outside_content";
+  | "outside_content"
+  | "direct_translation"
+  | "scoring_evaluation";
 
-const CONTINUATION_SUPPORT_SIGNALS = [
-  "what can happen next",
-  "what happens next",
-  "possible next",
-  "possible continuation",
-  "next event",
-  "next scene",
-  "next idea",
-  "story flow",
-  "plot flow",
-  "plot outline",
-  "clue",
-  "hint",
-  "use the clue",
-  "given clue",
-  "think before acting",
-  "thought before acting",
-  "natural flow",
-  "problem solving",
-  "resolve the problem",
-  "does this flow make sense",
-  "is this logical",
-  "does this make sense",
-  "organize this story",
-  "organize my continuation",
-  "my continuation",
-  "my story",
-  "my idea",
-  "based on my idea",
-  "based on what i wrote",
-  "check this flow",
-  "check the logic",
-  "check my grammar",
-  "grammar check",
-  "source 말고",
-  "자료 얘기 그만해",
-  "내가 만든 이야기",
-  "내가 만든 내용",
-  "내가 짠 전개",
-  "내가 쓴 글",
-  "내 전개",
-  "이어쓰기",
-  "쓰기 과제",
-  "글쓰기 과제",
-  "다음에 가능한 전개",
-  "다음 전개",
-  "다음 장면",
-  "뒷이야기",
-  "단서",
-  "힌트",
-  "단서 활용",
-  "행동 전에",
-  "생각하고",
-  "자연스러운 흐름",
-  "문제 해결",
-  "뒤에 뭐가",
-  "어떻게 이어",
-  "흐름이",
-  "말이 돼",
-  "이렇게 가면",
-  "문법적으로",
-  "어색한 부분",
-  "표현이 자연",
-] as const;
+export type RequestedAction =
+  | "explain"
+  | "suggest"
+  | "brainstorm"
+  | "organize"
+  | "check"
+  | "translate"
+  | "generate"
+  | "rewrite"
+  | "score_evaluate"
+  | "unknown";
 
-const sentenceGenerationPatterns = [
-  "write the next",
-  "write next",
-  "continue the story for me",
-  "continue it for me",
-  "finish the story",
-  "give me a paragraph",
-  "write a paragraph",
-  "write the paragraph",
-  "write a sentence",
-  "give me a sentence",
-  "complete the sentence",
-  "complete this for me",
-  "do it for me",
-  "write it for me",
-  "answer for me",
-  "generate the answer",
-  "give me the answer",
-  "model answer",
-  "sample answer",
-  "example answer",
-  "full answer",
-  "write the continuation",
-  "write my answer",
-  "write based on this",
-  "write from this",
-  "write using this",
-] as const;
+export type TargetScope =
+  | "word"
+  | "phrase"
+  | "clause_sentence"
+  | "multiple_sentences"
+  | "paragraph"
+  | "whole_draft"
+  | "whole_answer"
+  | "unknown";
 
-const draftRewritePatterns = [
-  "rewrite my draft",
-  "rewrite my writing",
-  "rewrite the whole draft",
-  "rewrite the whole thing",
-  "polish my draft",
-  "revise my whole draft",
-  "edit my whole draft",
-  "fix the whole draft",
-  "rewrite this whole paragraph",
-  "rewrite this paragraph for me",
-  "rewrite this essay",
-  "improve my whole draft",
-  "correct everything",
-  "translate this paragraph into english",
-  "translate this into english writing",
-] as const;
+export type OutputForm =
+  | "explanation"
+  | "options"
+  | "outline"
+  | "feedback"
+  | "complete_sentence"
+  | "paragraph"
+  | "full_answer"
+  | "score"
+  | "unknown";
 
-const outsideContentPatterns = [
-  "add new background",
-  "give outside ideas",
-  "use outside knowledge",
-  "based on real life",
-  "what usually happens in real life",
-  "what would people normally do",
-  "cultural background",
-  "extra background knowledge",
-] as const;
+export type SupportModeLabel =
+  | "comprehension"
+  | "idea_generation"
+  | "organization"
+  | "vocabulary_expression"
+  | "feedback_checking"
+  | "procedural"
+  | "restricted"
+  | "other";
 
-function includesAny(query: string, patterns: readonly string[]): boolean {
-  return patterns.some((pattern) => query.includes(pattern));
+export type FeedbackTarget =
+  | "source_connection"
+  | "source_use"
+  | "content_plausibility"
+  | "organization_coherence"
+  | "language"
+  | "task_completion"
+  | "general"
+  | null;
+
+export type ScopeDecision = {
+  queryType: QueryType;
+  reason: RestrictionReason | null;
+  requestedAction: RequestedAction;
+  targetScope: TargetScope;
+  outputForm: OutputForm;
+  taskRelevance: "task_related" | "task_unrelated" | "unclear";
+  detectedSupportMode: SupportModeLabel;
+  feedbackTarget: FeedbackTarget;
+};
+
+const HANGUL = /[\uac00-\ud7a3]/;
+
+function compactText(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
 }
 
-function hasContinuationSupportSignal(query: string): boolean {
-  return includesAny(query, CONTINUATION_SUPPORT_SIGNALS);
+function normalize(text: string): string {
+  return compactText(text).toLowerCase();
 }
 
-function mentionsFeedbackStyleHelp(query: string): boolean {
-  return /(grammar|logic|flow|make sense|natural|unclear|awkward|clue|hint|문법|논리|흐름|어색|자연|단서|힌트|말이 되)/.test(
-    query
+function includesAny(text: string, patterns: readonly (string | RegExp)[]): boolean {
+  return patterns.some((pattern) =>
+    typeof pattern === "string" ? text.includes(pattern) : pattern.test(text)
   );
 }
 
-function mentionsPlanningHelp(query: string): boolean {
-  return /(idea|ideas|outline|structure|flow|plan|possible|organization|plot|clue|hint|next event|next scene|problem solving|구성|전개|흐름|아이디어|가능한|단서|힌트|다음 장면|문제 해결|이어쓰기)/.test(
-    query
+function stripRequestWords(text: string): string {
+  return compactText(
+    text
+      .replace(/please|pls|can you|could you|would you|help me|tell me|give me/gi, " ")
+      .replace(/영어로|번역해줘|번역|뭐라고 해|뭐라고|어떻게 표현해|표현|알려줘|해줘|바꿔줘|주세요|줘/g, " ")
+      .replace(/[?!.]/g, " ")
   );
+}
+
+function extractKoreanTranslationTarget(query: string): string {
+  const cleaned = compactText(query);
+  const colonTarget = cleaned.match(/[:：]\s*(.+)$/)?.[1];
+  if (colonTarget && HANGUL.test(colonTarget)) {
+    return compactText(colonTarget);
+  }
+
+  const beforeEnglishMarker = cleaned.split(/영어로|in english|into english/i)[0]?.trim() || cleaned;
+  const objectMatch = beforeEnglishMarker.match(/(.+?)(?:을|를)\s*(?:영어로|뭐라고|어떻게|번역)/);
+  if (objectMatch?.[1]) {
+    return compactText(objectMatch[1]);
+  }
+
+  return stripRequestWords(beforeEnglishMarker);
+}
+
+function looksLikeKoreanClauseOrSentence(text: string): boolean {
+  const target = extractKoreanTranslationTarget(text);
+  const koreanChars = target.match(/[\uac00-\ud7a3]/g)?.length ?? 0;
+
+  if (koreanChars < 5) {
+    return false;
+  }
+
+  const hasSentenceEnding =
+    /(다|요|어요|아요|했다|했다가|였다|였다가|한다|했다는|있다|없다)[.!?。！？]?$/u.test(
+      target
+    );
+  const hasSubjectPredicateShape =
+    /(나는|내가|그는|그녀는|그가|그들이|사람들이|주인공이|학생이|경찰이|사장이|친구가).+(했다|한다|갔다|왔다|있다|없다|느꼈|생각했|말했|보았|봤|발견했|잃어버렸|늦었|두근)/u.test(
+      target
+    );
+  const hasClauseConnector = /(해서|하고|지만|는데|으면|라면|때문에|느라|려고|다가|어서|아서)/u.test(target);
+
+  return hasSentenceEnding || hasSubjectPredicateShape || hasClauseConnector;
+}
+
+function looksLikePhraseTranslation(query: string): boolean {
+  const target = extractKoreanTranslationTarget(query);
+
+  if (!target || !HANGUL.test(target)) {
+    return false;
+  }
+
+  if (looksLikeKoreanClauseOrSentence(query)) {
+    return false;
+  }
+
+  return target.length <= 28 || /(하다|되다|거리다|스럽다)$/u.test(target);
 }
 
 export function asksForDirectTranslation(query: string): boolean {
-  return /(in english|translate|translation|\uc601\uc5b4\ub85c|\ubc88\uc5ed)/i.test(query);
+  return /(in english|into english|translate|translation|영어로|번역|뭐라고 해|어떻게 표현)/i.test(
+    query
+  );
 }
 
-export function looksLikeKoreanSentence(query: string): boolean {
-  const koreanChars = query.match(/[\uac00-\ud7a3]/g)?.length ?? 0;
-  const hasSentenceShape =
-    /[\s.!?。]|(\ub2e4|\ub2e4\.|\uc694|\uc5b4|\ud574|\ud588\ub2e4|\ud588\uc5b4|\ud588\uc694)/.test(query);
+export function asksForFullSentenceTranslation(query: string): boolean {
+  const q = normalize(query);
 
-  return koreanChars >= 6 && hasSentenceShape;
+  if (!asksForDirectTranslation(query)) {
+    return false;
+  }
+
+  if (looksLikePhraseTranslation(query)) {
+    return false;
+  }
+
+  return (
+    looksLikeKoreanClauseOrSentence(query) ||
+    includesAny(q, [
+      "translate this sentence",
+      "translate the sentence",
+      "translate this paragraph",
+      "whole sentence",
+      "full sentence",
+      "문장 전체",
+      "전체 문장",
+      "이 문장",
+      "그 문장",
+      "완성해서",
+    ])
+  );
 }
 
-export function detectRestrictionReason(query: string): RestrictionReason | null {
-  const q = query.toLowerCase();
-  const continuationSupport = hasContinuationSupportSignal(q);
+function detectRequestedAction(query: string): RequestedAction {
+  const q = normalize(query);
 
-  if (
-    (includesAny(q, draftRewritePatterns) ||
-      (/(my draft|my writing|this essay|whole paragraph|whole draft)/.test(q) &&
-        /(rewrite|polish|edit|improve|correct|translate)/.test(q))) &&
-    !continuationSupport &&
-    !mentionsFeedbackStyleHelp(q)
-  ) {
-    return "draft_rewrite";
+  if (includesAny(q, ["rubric", "score", "band", "grade", "evaluate", "몇 점", "점수", "채점", "평가"])) {
+    return "score_evaluate";
+  }
+
+  if (asksForDirectTranslation(query)) {
+    return "translate";
   }
 
   if (
-    (includesAny(q, sentenceGenerationPatterns) ||
-      (/(write|continue|generate|make|give)/.test(q) &&
-        /(sentence|paragraph|essay|answer|continuation|next part)/.test(q))) &&
-    !continuationSupport &&
-    !mentionsPlanningHelp(q)
+    includesAny(q, [
+      "write the next paragraph",
+      "write the next part",
+      "write the whole",
+      "model answer",
+      "sample answer",
+      "full answer",
+      "next paragraph",
+      "as a sentence",
+      "write a sentence",
+      "write it as a sentence",
+      "다음 문단",
+      "전체 이어쓰기",
+      "모범 답안",
+      "완성 답안",
+      "문단을 써",
+      "문장으로 써",
+      "대신 써",
+    ])
   ) {
-    return "sentence_generation";
+    return "generate";
   }
 
-  if (includesAny(q, outsideContentPatterns)) {
-    return "outside_content";
+  if (
+    includesAny(q, [
+      "rewrite my whole",
+      "rewrite the whole",
+      "whole draft",
+      "entire draft",
+      "correct everything",
+      "전체 초안",
+      "전체 글",
+      "글 전체",
+      "다 고쳐",
+      "다시 써",
+    ])
+  ) {
+    return "rewrite";
   }
+
+  if (includesAny(q, ["check", "feedback", "natural", "make sense", "awkward", "문제", "자연스", "어색", "말이 돼", "괜찮"])) {
+    return "check";
+  }
+
+  if (includesAny(q, ["organize", "outline", "structure", "sequence", "flow", "순서", "구성", "흐름", "개요"])) {
+    return "organize";
+  }
+
+  if (includesAny(q, ["idea", "brainstorm", "suggest", "possible", "next event", "아이디어", "사건", "전개", "제안"])) {
+    return "brainstorm";
+  }
+
+  if (
+    includesAny(q, [
+      "rewrite",
+      "revise",
+      "polish",
+      "edit",
+      "fix",
+      "correct",
+      "고쳐",
+      "수정",
+      "다듬",
+      "자연스럽게 다시",
+      "바꿔줘",
+    ])
+  ) {
+    return "rewrite";
+  }
+
+  if (
+    includesAny(q, [
+      "write",
+      "generate",
+      "make",
+      "complete",
+      "finish",
+      "써줘",
+      "작성",
+      "완성",
+      "대신",
+      "답안",
+    ])
+  ) {
+    return "generate";
+  }
+
+  if (includesAny(q, ["what does", "meaning", "explain", "understand", "무슨 뜻", "설명", "이해"])) {
+    return "explain";
+  }
+
+  return "unknown";
+}
+
+function detectTargetScope(query: string): TargetScope {
+  const q = normalize(query);
+
+  if (includesAny(q, ["whole draft", "whole continuation", "entire draft", "everything", "전체 초안", "전체 글", "글 전체", "다 고쳐"])) {
+    return "whole_draft";
+  }
+
+  if (
+    includesAny(q, [
+      "whole answer",
+      "full answer",
+      "full continuation",
+      "whole continuation",
+      "model answer",
+      "sample answer",
+      "high-scoring answer",
+      "완성 답안",
+      "모범 답안",
+      "고득점 답안",
+      "전체 이어쓰기",
+      "이어쓰기 전체",
+    ])
+  ) {
+    return "whole_answer";
+  }
+
+  if (includesAny(q, ["paragraph", "문단"])) {
+    return "paragraph";
+  }
+
+  if (includesAny(q, ["several sentences", "multiple sentences", "몇 문장", "여러 문장"])) {
+    return "multiple_sentences";
+  }
+
+  if (includesAny(q, ["sentence", "문장"])) {
+    return "clause_sentence";
+  }
+
+  if (asksForDirectTranslation(query)) {
+    if (asksForFullSentenceTranslation(query)) return "clause_sentence";
+    if (looksLikePhraseTranslation(query)) return "phrase";
+  }
+
+  if (includesAny(q, ["word", "단어"])) return "word";
+  if (includesAny(q, ["phrase", "expression", "collocation", "표현", "구"])) return "phrase";
+
+  return "unknown";
+}
+
+function detectOutputForm(query: string, action: RequestedAction, scope: TargetScope): OutputForm {
+  const q = normalize(query);
+
+  if (action === "score_evaluate" || includesAny(q, ["몇 점", "score", "band", "grade"])) return "score";
+  if (scope === "whole_answer") return "full_answer";
+  if (scope === "paragraph") return "paragraph";
+  if (action === "generate" && (scope === "clause_sentence" || /문장으로\s*써|as a sentence/i.test(query))) {
+    return "complete_sentence";
+  }
+  if (action === "check") return "feedback";
+  if (action === "organize") return "outline";
+  if (action === "brainstorm") return "options";
+  if (action === "explain") return "explanation";
+
+  return "unknown";
+}
+
+function detectTaskRelevance(query: string): ScopeDecision["taskRelevance"] {
+  const q = normalize(query);
+
+  if (
+    includesAny(q, [
+      "realistic",
+      "real life",
+      "normally do",
+      "make sense in real life",
+      "현실적으로",
+      "실제라면",
+      "현실에서는",
+      "말이 돼",
+      "자연스러",
+    ])
+  ) {
+    return "task_related";
+  }
+
+  if (
+    includesAny(q, [
+      "weather",
+      "news",
+      "stock",
+      "celebrity",
+      "recipe",
+      "travel plan",
+      "unrelated",
+      "일반 상식",
+      "뉴스",
+      "주식",
+      "날씨",
+      "레시피",
+    ])
+  ) {
+    return "task_unrelated";
+  }
+
+  return "unclear";
+}
+
+export function detectSupportModeLabel(query: string): SupportModeLabel {
+  const action = detectRequestedAction(query);
+  const q = normalize(query);
+
+  if (action === "score_evaluate") return "restricted";
+  if (action === "check") return "feedback_checking";
+  if (action === "translate" || includesAny(q, ["word", "phrase", "expression", "vocabulary", "단어", "표현"])) {
+    return "vocabulary_expression";
+  }
+  if (action === "organize") return "organization";
+  if (action === "brainstorm" || includesAny(q, ["next event", "idea", "아이디어", "사건", "전개"])) {
+    return "idea_generation";
+  }
+  if (action === "explain") return "comprehension";
+  if (includesAny(q, ["how to use", "button", "category", "start", "버튼", "사용", "시작"])) {
+    return "procedural";
+  }
+
+  return "other";
+}
+
+export function detectFeedbackTarget(query: string): FeedbackTarget {
+  const q = normalize(query);
+
+  if (includesAny(q, ["source connection", "connect", "원래 이야기", "연결"])) return "source_connection";
+  if (includesAny(q, ["clue", "hint", "단서"])) return "source_use";
+  if (includesAny(q, ["plausible", "realistic", "make sense", "말이 돼", "현실", "자연스러"])) {
+    return "content_plausibility";
+  }
+  if (includesAny(q, ["flow", "sequence", "organization", "order", "흐름", "순서", "구성"])) {
+    return "organization_coherence";
+  }
+  if (includesAny(q, ["grammar", "expression", "sentence", "language", "문법", "표현", "문장", "어색"])) {
+    return "language";
+  }
+  if (includesAny(q, ["complete", "task", "ending", "마무리", "완성", "과제"])) return "task_completion";
 
   return null;
 }
 
+export function analyzeQueryScope(query: string): ScopeDecision {
+  const requestedAction = detectRequestedAction(query);
+  const targetScope = detectTargetScope(query);
+  const outputForm = detectOutputForm(query, requestedAction, targetScope);
+  const taskRelevance = detectTaskRelevance(query);
+  const detectedSupportMode = detectSupportModeLabel(query);
+  const feedbackTarget = detectFeedbackTarget(query);
+
+  const asksForCompleteSentence =
+    /as a sentence|write .*sentence|문장으로\s*써|문장.*써줘|문장.*작성/i.test(query);
+  const asksForFullGeneration =
+    /next paragraph|full continuation|whole continuation|model answer|sample answer|다음 문단|전체 이어쓰기|모범 답안|완성 답안/i.test(
+      query
+    );
+
+  let reason: RestrictionReason | null = null;
+
+  if (
+    requestedAction === "generate" &&
+    (targetScope === "whole_answer" ||
+      targetScope === "paragraph" ||
+      outputForm === "full_answer" ||
+      outputForm === "complete_sentence" ||
+      outputForm === "paragraph" ||
+      asksForCompleteSentence ||
+      asksForFullGeneration)
+  ) {
+    reason = "sentence_generation";
+  } else if (
+    requestedAction === "rewrite" &&
+    (targetScope === "whole_draft" ||
+      targetScope === "whole_answer" ||
+      targetScope === "paragraph" ||
+      /whole|entire|everything|전체|다 고쳐|초안|문단/i.test(query))
+  ) {
+    reason = "draft_rewrite";
+  } else if (requestedAction === "translate" && targetScope === "paragraph") {
+    reason = "draft_rewrite";
+  } else if (asksForFullSentenceTranslation(query)) {
+    reason = "direct_translation";
+  } else if (requestedAction === "score_evaluate") {
+    reason = "scoring_evaluation";
+  } else if (taskRelevance === "task_unrelated") {
+    reason = "outside_content";
+  }
+
+  return {
+    queryType: reason ? "restricted" : "allowed",
+    reason,
+    requestedAction,
+    targetScope,
+    outputForm,
+    taskRelevance,
+    detectedSupportMode: reason ? "restricted" : detectedSupportMode,
+    feedbackTarget,
+  };
+}
+
+export function detectRestrictionReason(query: string): RestrictionReason | null {
+  return analyzeQueryScope(query).reason;
+}
+
 export function classifyQuery(query: string): QueryType {
-  return detectRestrictionReason(query) ? "restricted" : "allowed";
+  return analyzeQueryScope(query).queryType;
 }

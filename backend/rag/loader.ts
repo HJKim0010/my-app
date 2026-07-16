@@ -143,14 +143,14 @@ function buildCandidateDocuments(taskId: TaskId, condition: TaskCondition): Task
         id: "source_text",
         sourceType: "source_text",
         label: "Source Text",
-        content: isPlaceholderText(staticSourceText) ? dynamicVideoTranscript : staticSourceText,
+        content: isPlaceholderText(staticSourceText) ? "" : staticSourceText,
         filePath: path.join(staticRoot, "raw", "source_text.txt"),
       },
       {
         id: "audio_transcript",
         sourceType: "audio_transcript",
         label: "Audio Transcript",
-        content: isPlaceholderText(staticAudioTranscript) ? dynamicVideoTranscript : staticAudioTranscript,
+        content: isPlaceholderText(staticAudioTranscript) ? "" : staticAudioTranscript,
         filePath: path.join(staticRoot, "processed", "audio_transcript.txt"),
       },
       {
@@ -182,7 +182,7 @@ function buildCandidateDocuments(taskId: TaskId, condition: TaskCondition): Task
         id: "video_transcript",
         sourceType: "video_transcript",
         label: "Video Transcript",
-        content: isPlaceholderText(dynamicVideoTranscript) ? staticSourceText : dynamicVideoTranscript,
+        content: isPlaceholderText(dynamicVideoTranscript) ? "" : dynamicVideoTranscript,
         filePath: path.join(dynamicRoot, "processed", "video_transcript.txt"),
       },
       {

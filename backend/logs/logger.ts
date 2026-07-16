@@ -9,13 +9,18 @@ export type ChatLogEntry = {
   selected_category: string;
   raw_user_query: string;
   policy_decision: string;
-  status: "allowed" | "restricted" | "redirected";
+  policy_reason?: string | null;
+  status: "allowed" | "restricted" | "redirected" | "success" | "incomplete" | "timeout" | "error";
+  response_status?: "success" | "redirected" | "incomplete" | "timeout" | "error";
   retrieved_chunk_ids: string[];
   retrieved_chunk_metadata: Array<{
     chunkId: string;
     sourceId: string;
     sourceType: string;
     chunkIndex: number;
+    chunkCount?: number;
+    documentChunkIndex?: number;
+    documentChunkCount?: number;
     score?: number;
   }>;
   assistant_response: string;
@@ -24,10 +29,17 @@ export type ChatLogEntry = {
   interaction_count: number;
   session_duration_ms: number;
   query_type_label?: string;
+  detected_support_mode?: string;
+  feedback_target?: string | null;
   redirect_reason?: string;
+  input_origin?: "typed" | "quick_reply" | "prefill_edited";
+  source_condition?: "static" | "dynamic";
+  support_condition?: "ai" | "non_ai";
+  task_id?: string;
+  episode_id?: string;
+  researcher_code?: string | null;
   source_types_used?: string[];
   visual_assets_used?: string[];
-  response_status?: string;
   incomplete_reason?: string;
 };
 
@@ -36,6 +48,10 @@ export type SessionTranscriptEntry = {
   session_id: string;
   ep_id: string;
   condition_label: string;
+  source_condition?: "static" | "dynamic";
+  support_condition?: "ai" | "non_ai";
+  task_id?: string;
+  episode_id?: string;
   timestamp: string;
   interaction_count: number;
   session_duration_ms: number;
@@ -129,7 +145,9 @@ function buildChatLogPayload(entry: ChatLogEntry, useLegacyTaskId = false): obje
     selected_category: entry.selected_category,
     raw_user_query: entry.raw_user_query,
     policy_decision: entry.policy_decision,
+    policy_reason: entry.policy_reason ?? entry.redirect_reason ?? null,
     status: entry.status,
+    response_status: entry.response_status,
     retrieved_chunk_ids: entry.retrieved_chunk_ids,
     retrieved_chunk_metadata: entry.retrieved_chunk_metadata,
     assistant_response: entry.assistant_response,
@@ -138,9 +156,18 @@ function buildChatLogPayload(entry: ChatLogEntry, useLegacyTaskId = false): obje
     interaction_count: entry.interaction_count,
     session_duration_ms: entry.session_duration_ms,
     query_type_label: entry.query_type_label,
+    detected_support_mode: entry.detected_support_mode,
+    feedback_target: entry.feedback_target ?? null,
     redirect_reason: entry.redirect_reason,
+    input_origin: entry.input_origin || "typed",
+    source_condition: entry.source_condition,
+    support_condition: entry.support_condition || "ai",
+    task_id: entry.task_id,
+    episode_id: entry.episode_id || entry.ep_id,
+    researcher_code: entry.researcher_code ?? null,
     source_types_used: entry.source_types_used || [],
     visual_assets_used: entry.visual_assets_used || [],
+    incomplete_reason: entry.incomplete_reason,
   };
 }
 
@@ -155,6 +182,10 @@ function buildSessionTranscriptPayload(
       ? { task_id: toLegacyTaskId(entry.ep_id) }
       : { ep_id: entry.ep_id }),
     condition_label: entry.condition_label,
+    source_condition: entry.source_condition,
+    support_condition: entry.support_condition || "ai",
+    task_id: entry.task_id,
+    episode_id: entry.episode_id || entry.ep_id,
     timestamp: entry.timestamp,
     interaction_count: entry.interaction_count,
     session_duration_ms: entry.session_duration_ms,

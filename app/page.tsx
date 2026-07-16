@@ -21,7 +21,11 @@ type ChatMessage = {
 type StoredTranscriptMessage = Pick<ChatMessage, "role" | "text">;
 
 type ChatApiResponse = {
+  ok?: boolean;
+  requestId?: string;
+  status?: "success" | "redirected" | "incomplete" | "timeout" | "error";
   text: string;
+  reason?: string | null;
   quickReplies?: QuickReply[];
 };
 
@@ -848,7 +852,7 @@ export default function Home() {
       return;
     }
 
-    void send(reply.value);
+    void send(reply.value, "quick_reply");
   };
 
   useEffect(() => {
@@ -1008,7 +1012,10 @@ export default function Home() {
     };
   }, [persistTranscript]);
 
-  const send = async (overrideText?: string) => {
+  const send = async (
+    overrideText?: string,
+    inputOrigin: "typed" | "quick_reply" | "prefill_edited" = "typed"
+  ) => {
     const outgoingText = overrideText ?? input;
 
     if (!outgoingText.trim() || isLoading) {
@@ -1056,20 +1063,24 @@ export default function Home() {
           query: userText,
           recentMessages: currentState.messages
             .filter((message) => message.id !== "welcome")
-            .slice(-4)
+            .slice(-12)
             .map(({ role, text }) => ({ role, text })),
           category: "Others",
           condition: selectedCondition,
           sessionId: currentState.sessionId,
           interactionCount: nextInteractionCount,
           sessionStartedAt: currentState.sessionStartedAt,
+          input_origin: inputOrigin,
         }),
         signal: controller.signal,
       });
 
       const contentType = res.headers.get("content-type") || "";
       const rawResponse = await res.text();
-      let assistantPayload: ChatApiResponse = { text: rawResponse };
+      let assistantPayload: ChatApiResponse = {
+        text: "I could not make a reply just now. Please try once more.",
+        status: "error",
+      };
 
       if (contentType.includes("application/json")) {
         try {
@@ -1079,8 +1090,13 @@ export default function Home() {
             assistantPayload = parsed;
           }
         } catch {
-          assistantPayload = { text: rawResponse };
+          assistantPayload = {
+            text: "I could not make a reply just now. Please try once more.",
+            status: "error",
+          };
         }
+      } else if (rawResponse.trim()) {
+        assistantPayload = { text: rawResponse };
       }
 
       const assistantMessage: ChatMessage = {
@@ -1111,8 +1127,8 @@ export default function Home() {
       console.error(error);
       const message =
         error instanceof Error && error.name === "AbortError"
-          ? "The request took too long. Please try one shorter question."
-          : "Error occurred.";
+          ? "잠시 응답을 만들지 못했어요. 한 번만 다시 시도해 주세요."
+          : "잠시 응답을 만들지 못했어요. 한 번만 다시 시도해 주세요.";
 
       setTaskStates((current) => ({
         ...current,
