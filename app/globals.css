@@ -213,10 +213,16 @@ body {
   transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
 }
 
-.guide-card-arrow:hover {
+.guide-card-arrow:hover:not(:disabled) {
   transform: translateY(-1px);
   border-color: #aeb4bd;
   background: #f7f8fa;
+}
+
+.guide-card-arrow:disabled,
+.guide-card-nav-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
 }
 
 .guide-card-dots {
@@ -250,6 +256,43 @@ body {
 .guide-card-dot:hover {
   transform: translateY(-1px);
   background: #8f98a6;
+}
+
+.guide-card-navigation {
+  display: grid;
+  grid-template-columns: minmax(112px, 1fr) auto minmax(112px, 1fr);
+  gap: 12px;
+  align-items: center;
+  width: min(780px, 100%);
+  margin: 14px auto 0;
+}
+
+.guide-card-navigation .guide-card-dots {
+  margin: 0;
+}
+
+.guide-card-nav-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 0.94rem;
+  font-weight: 700;
+  line-height: 1;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.guide-card-nav-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: #aeb4bd;
+  background: #f7f8fa;
 }
 
 .guide-card-slide {
@@ -725,13 +768,9 @@ body {
 }
 
 .secondary-button {
-  padding: 10px 14px;
   border: 1px solid var(--border);
-  border-radius: 8px;
   background: #fff;
   color: var(--foreground);
-  font-size: 0.95rem;
-  font-weight: 600;
   transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
 }
 
@@ -801,12 +840,11 @@ body {
 
 .chat-input {
   width: 100%;
-  flex: 1;
   min-width: 0;
   resize: none;
   min-height: 55px;
   max-height: 190px;
-  padding: 15px 16px;
+  padding: 15px 8px 15px 16px;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -824,14 +862,34 @@ body {
 .composer-inline {
   width: min(1280px, 100%);
   margin: 12px auto 0;
-  padding: 12px;
+  padding: 8px 10px 8px 14px;
   border: 1px solid #c8ccd3;
   border-radius: 30px;
   background: #fff;
   box-shadow: 0 12px 28px rgba(24, 27, 32, 0.07);
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "textarea footer";
+  align-items: center;
+  column-gap: 10px;
+}
+
+.composer-inline-multiline {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "textarea"
+    "footer";
+  align-items: stretch;
+  row-gap: 8px;
+  padding-bottom: 10px;
+}
+
+.composer-inline .chat-input {
+  grid-area: textarea;
+}
+
+.composer-inline-multiline .chat-input {
+  padding-right: 12px;
 }
 
 .example-prompt-panel {
@@ -1063,21 +1121,38 @@ body {
 }
 
 .composer-footer {
+  grid-area: footer;
   display: flex;
+  align-items: center;
   justify-content: flex-end;
-  margin-top: 10px;
+  align-self: center;
+}
+
+.composer-inline-multiline .composer-footer {
+  align-self: end;
+}
+
+.secondary-button,
+.send-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 68px;
+  height: 42px;
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .send-button {
   flex: 0 0 auto;
-  min-width: 10px;
-  padding: 10px 17px;
   border: 0;
-  border-radius: 100%;
   background: var(--accent);
   color: white;
-  font-size: 0.98rem;
-  font-weight: 700;
   transition: transform 160ms ease, opacity 160ms ease, box-shadow 160ms ease;
   box-shadow: 0 10px 20px rgba(24, 27, 32, 0.16);
 }
@@ -1453,6 +1528,12 @@ body {
   overflow-y: auto;
 }
 
+.modal-footer {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
 @media (max-width: 1024px) {
   .guide-compare-head,
   .guide-compare-cell {
@@ -1520,11 +1601,13 @@ body {
   }
 
   .send-button {
-    width: 100%;
+    min-width: 68px;
+    height: 44px;
+    min-height: 44px;
   }
 
   .composer-footer {
-    justify-content: stretch;
+    justify-content: flex-end;
   }
 
   .message-bubble {
@@ -1569,6 +1652,33 @@ body {
     display: none;
   }
 
+  .guide-card-dots-top {
+    display: none;
+  }
+
+  .guide-card-navigation {
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .guide-card-navigation .guide-card-dots {
+    justify-content: center;
+  }
+
+  .guide-card-nav-button {
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    font-size: 0;
+  }
+
+  .guide-card-nav-button span {
+    font-size: 1.15rem;
+  }
+
   .guide-card-slide {
     height: auto;
     min-height: 340px;
@@ -1590,20 +1700,30 @@ body {
   }
 
   .composer-inline {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "textarea footer";
+    align-items: center;
+    padding: 8px 9px 8px 12px;
+    border-radius: 22px;
+  }
+
+  .composer-inline-multiline {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "textarea"
+      "footer";
     align-items: stretch;
-    flex-direction: column;
-    padding: 10px;
-    border-radius: 20px;
+    row-gap: 8px;
+    padding-bottom: 10px;
   }
 
   .chat-input {
     width: 100%;
-    min-height: 88px;
+    min-height: 55px;
   }
 
   .composer-inline .send-button {
-    width: 100%;
-    min-height: 48px;
+    width: auto;
   }
 
   .message-thread {

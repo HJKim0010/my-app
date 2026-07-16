@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import type { ReactNode } from "react";
+import type { ReactNode, TouchEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type TaskId = "task1" | "task2";
@@ -687,10 +687,70 @@ function GuideGateCards({
   onChange: (index: number) => void;
 }) {
   const activeCard = GUIDE_GATE_CARDS[activeIndex];
-  const previousIndex =
-    activeIndex === 0 ? GUIDE_GATE_CARDS.length - 1 : activeIndex - 1;
-  const nextIndex =
-    activeIndex === GUIDE_GATE_CARDS.length - 1 ? 0 : activeIndex + 1;
+  const lastIndex = GUIDE_GATE_CARDS.length - 1;
+  const canGoPrevious = activeIndex > 0;
+  const canGoNext = activeIndex < lastIndex;
+  const previousIndex = Math.max(0, activeIndex - 1);
+  const nextIndex = Math.min(lastIndex, activeIndex + 1);
+  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  const goPrevious = useCallback(() => {
+    if (canGoPrevious) {
+      onChange(previousIndex);
+    }
+  }, [canGoPrevious, onChange, previousIndex]);
+
+  const goNext = useCallback(() => {
+    if (canGoNext) {
+      onChange(nextIndex);
+    }
+  }, [canGoNext, nextIndex, onChange]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "ArrowLeft") {
+        goPrevious();
+      }
+
+      if (event.key === "ArrowRight") {
+        goNext();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [goNext, goPrevious]);
+
+  const handleTouchStart = (event: TouchEvent<HTMLElement>) => {
+    const touch = event.touches[0];
+    swipeStartRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleTouchEnd = (event: TouchEvent<HTMLElement>) => {
+    const start = swipeStartRef.current;
+    swipeStartRef.current = null;
+
+    if (!start) {
+      return;
+    }
+
+    const touch = event.changedTouches[0];
+    const deltaX = touch.clientX - start.x;
+    const deltaY = touch.clientY - start.y;
+    const swipeThreshold = 54;
+
+    if (Math.abs(deltaX) < swipeThreshold || Math.abs(deltaX) <= Math.abs(deltaY)) {
+      return;
+    }
+
+    if (deltaX < 0) {
+      goNext();
+      return;
+    }
+
+    goPrevious();
+  };
+
   const renderDots = (position: "top" | "bottom") => (
     <div
       className={
@@ -722,14 +782,19 @@ function GuideGateCards({
         <button
           type="button"
           className="guide-card-arrow"
-          onClick={() => onChange(previousIndex)}
+          onClick={goPrevious}
+          disabled={!canGoPrevious}
           aria-label="Previous manual card"
           title="Previous"
         >
           &lt;
         </button>
 
-        <article className="guide-card-slide">
+        <article
+          className="guide-card-slide"
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
           <h2>
             <span>#{activeCard.eyebrow}.</span>
             {activeCard.title}
@@ -762,14 +827,37 @@ function GuideGateCards({
         <button
           type="button"
           className="guide-card-arrow"
-          onClick={() => onChange(nextIndex)}
+          onClick={goNext}
+          disabled={!canGoNext}
           aria-label="Next manual card"
           title="Next"
         >
           &gt;
         </button>
       </div>
-      {renderDots("bottom")}
+      <div className="guide-card-navigation" aria-label="Manual navigation">
+        <button
+          type="button"
+          className="guide-card-nav-button"
+          onClick={goPrevious}
+          disabled={!canGoPrevious}
+          aria-label="Previous manual card"
+        >
+          <span aria-hidden="true">←</span>
+          Previous
+        </button>
+        {renderDots("bottom")}
+        <button
+          type="button"
+          className="guide-card-nav-button"
+          onClick={goNext}
+          disabled={!canGoNext}
+          aria-label="Next manual card"
+        >
+          Next
+          <span aria-hidden="true">→</span>
+        </button>
+      </div>
     </section>
   );
 }
@@ -1113,6 +1201,7 @@ function GuideContentV2() {
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function GuideContentV3() {
   return (
     <div className="guide-copy">
@@ -1240,6 +1329,7 @@ function GuideContentV3() {
 export default function Home() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isComposerMultiline, setIsComposerMultiline] = useState(false);
   const [selectedTask, setSelectedTask] = useState<TaskId>("task1");
   const [selectedCondition, setSelectedCondition] = useState<TaskCondition>("static");
   const [taskStates, setTaskStates] = useState<Record<TaskId, TaskChatState>>(
@@ -1269,6 +1359,7 @@ export default function Home() {
     const nextHeight = Math.min(element.scrollHeight, CHAT_INPUT_MAX_HEIGHT);
     element.style.height = `${Math.max(CHAT_INPUT_BASE_HEIGHT, nextHeight)}px`;
     element.style.overflowY = element.scrollHeight > CHAT_INPUT_MAX_HEIGHT ? "auto" : "hidden";
+    setIsComposerMultiline(element.scrollHeight > CHAT_INPUT_BASE_HEIGHT + 8);
   }, []);
 
   const resetChatInputHeight = useCallback(() => {
@@ -1280,6 +1371,7 @@ export default function Home() {
 
     element.style.height = `${CHAT_INPUT_BASE_HEIGHT}px`;
     element.style.overflowY = "hidden";
+    setIsComposerMultiline(false);
   }, []);
 
   const activeTaskState = useMemo(() => taskStates[selectedTask], [selectedTask, taskStates]);
@@ -1989,7 +2081,13 @@ export default function Home() {
               ))}
               <div ref={threadEndRef} />
             </div>
-            <div className="composer-inline">
+            <div
+              className={
+                isComposerMultiline
+                  ? "composer-inline composer-inline-multiline"
+                  : "composer-inline"
+              }
+            >
               <textarea
                 id="chat-input"
                 ref={inputRef}
@@ -2023,7 +2121,7 @@ export default function Home() {
                 placeholder={CHAT_INPUT_PLACEHOLDER}
               />
 
-              {/*<div className="composer-footer">*/}
+              <div className="composer-footer">
                 <button
                   onClick={isLoading ? stopGenerating : () => void send()}
                   className={isLoading ? "send-button stop-button" : "send-button"}
@@ -2031,7 +2129,7 @@ export default function Home() {
                 >
                   {isLoading ? "Stop" : "Send"}
                 </button>
-              {/*</div>*/}
+              </div>
             </div>
           </section>
         </section>
@@ -2044,6 +2142,15 @@ export default function Home() {
               <div>
                 <h2>Quick Guide / 빠른 안내</h2>
               </div>
+            </div>
+
+            <div className="modal-guide-panel">
+              <GuideGateCards
+                activeIndex={guideGateCardIndex}
+                onChange={setGuideGateCardIndex}
+              />
+            </div>
+            <div className="modal-footer">
               <button
                 type="button"
                 className="secondary-button"
@@ -2051,10 +2158,6 @@ export default function Home() {
               >
                 Close / 닫기
               </button>
-            </div>
-
-            <div className="guide-panel modal-guide-panel">
-              <GuideContentV3 />
             </div>
           </section>
         </div>
