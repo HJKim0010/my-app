@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -48,15 +48,15 @@ const CHAT_EXAMPLE_PROMPTS = [
     labelKo: "\uC774\uC57C\uAE30 \uC774\uD574",
     en: "What does this part mean?",
     promptKo: "\uC774 \uBD80\uBD84\uC740 \uBB34\uC2A8 \uB73B\uC778\uAC00\uC694?",
-    ko: "이 부분은 무슨 뜻인가요?",
+    ko: "??遺遺꾩? 臾댁뒯 ?살씤媛??",
   },
   {
     category: "Ideation",
     label: "Find next ideas",
     labelKo: "\uC544\uC774\uB514\uC5B4 \uC5BB\uAE30",
     en: "Suggest 2 next-event ideas connected to the clue",
-    promptKo: "주어진 단서와 자연스럽게 연결되는 다음 사건 아이디어 2가지를 제안해 주세요.",
-    ko: "주어진 단서와 자연스럽게 연결되는 다음 사건 아이디어 2가지를 제안해 주세요.",
+    promptKo: "二쇱뼱吏??⑥꽌? ?먯뿰?ㅻ읇寃??곌껐?섎뒗 ?ㅼ쓬 ?ш굔 ?꾩씠?붿뼱 2媛吏瑜??쒖븞??二쇱꽭??",
+    ko: "二쇱뼱吏??⑥꽌? ?먯뿰?ㅻ읇寃??곌껐?섎뒗 ?ㅼ쓬 ?ш굔 ?꾩씠?붿뼱 2媛吏瑜??쒖븞??二쇱꽭??",
   },
   {
     category: "Organization",
@@ -64,7 +64,7 @@ const CHAT_EXAMPLE_PROMPTS = [
     labelKo: "\uAD6C\uC131 \uB3C4\uC6C0",
     en: "Help me organize clue-thought-action",
     promptKo: "\uB2E8\uC11C, \uC0DD\uAC01, \uD589\uB3D9, \uACB0\uACFC\uB97C \uC5B4\uB5A4 \uC21C\uC11C\uB85C \uC815\uB9AC\uD558\uBA74 \uC88B\uC744\uAE4C\uC694?",
-    ko: "단서-생각-행동-결과 순서로 글의 흐름을 정리하도록 도와주세요.",
+    ko: "?⑥꽌-?앷컖-?됰룞-寃곌낵 ?쒖꽌濡?湲???먮쫫???뺣━?섎룄濡??꾩?二쇱꽭??",
   },
   {
     category: "Language",
@@ -334,7 +334,7 @@ const GUIDE_COMPARE_ROWS = [
     better: '"Can you point out one awkward part in this paragraph?"',
   },
   {
-    wrong: '"응?"',
+    wrong: '"??"',
     better: '"Explain the last point again more simply."',
   },
 ] as const;
@@ -343,11 +343,11 @@ const GUIDE_GATE_CARDS = [
   {
     eyebrow: "1",
     title: "Languages",
-    titleKo: "사용 가능 언어",
+    titleKo: "?ъ슜 媛???몄뼱",
     items: [
       {
         text: "You may ask in Korean, English, or both.",
-        textKo: "질문은 한국어, 영어, 또는 둘 다 사용해도 됩니다.",
+        textKo: "吏덈Ц? ?쒓뎅?? ?곸뼱, ?먮뒗 ?????ъ슜?대룄 ?⑸땲??",
       },
     ],
   },
@@ -378,52 +378,69 @@ const GUIDE_GATE_CARDS = [
         tone: "language",
         label: "LANGUAGE / 표현 도움",
         text: '"What pattern can I use for this idea?"',
-        textKo: '"이 생각을 표현할 때 쓸 수 있는 문장 패턴은 무엇인가요?"',
+        textKo: '"이 생각을 표현할 때 쓸 수 있는 문장 틀은 무엇인가요?"',
+      },
+      {
+        tone: "feedback",
+        label: "FEEDBACK / 확인과 피드백",
+        text: '"Is this idea connected to the story?"',
+        textKo: '"이 아이디어가 원래 이야기와 잘 연결되나요?"',
+      },
+      {
+        tone: "procedural",
+        label: "PROCEDURAL / 사용 방법과 절차",
+        text: '"Can I ask in Korean?"',
+        textKo: '"한국어로 질문해도 되나요?"',
+      },
+      {
+        tone: "emphasis",
+        text: "Try many other requests you want.",
+        textKo: "그밖에 원하는 요청을 다양하게 넣어보세요.",
       },
     ],
   },
   {
     eyebrow: "3",
-    title: "Do Not Ask Like This",
+    title: "❌ Do Not Ask Like This",
     titleKo: "이렇게 묻지 마세요",
     items: [
       {
         text: '"Write the next paragraph."',
-        textKo: '"다음 문단을 써 줘."',
+        textKo: '"?ㅼ쓬 臾몃떒????以?"',
       },
       {
         text: '"Write the ending for me."',
-        textKo: '"결말을 대신 써 줘."',
+        textKo: '"寃곕쭚???????以?"',
       },
       {
         text: '"Rewrite my paragraph."',
-        textKo: '"내 문단을 다시 써 줘."',
+        textKo: '"??臾몃떒???ㅼ떆 ??以?"',
       },
       {
         text: '"Translate this sentence into English."',
-        textKo: '"이 문장을 영어로 번역해 줘."',
+        textKo: '"??臾몄옣???곸뼱濡?踰덉뿭??以?"',
       },
     ],
   },
   {
     eyebrow: "4",
     title: "Important Rules",
-    titleKo: "중요한 규칙",
+    titleKo: "以묒슂??洹쒖튃",
     items: [
       {
         text: "Ask one clear question at a time.",
-        textKo: "한 번에 한 가지씩 분명하게 질문하세요.",
+        textKo: "??踰덉뿉 ??媛吏??遺꾨챸?섍쾶 吏덈Ц?섏꽭??",
       },
       {
         text:
           "If the chatbot refuses a request, do not keep trying to get the same kind of answer in another way.",
-        textKo: "챗봇이 거절한 요청은 표현만 바꿔서 다시 시도하지 마세요.",
+        textKo: "梨쀫큸??嫄곗젅???붿껌? ?쒗쁽留?諛붽퓭???ㅼ떆 ?쒕룄?섏? 留덉꽭??",
       },
       {
         text:
           "If the reply feels unclear, ask it to explain one point again more simply.",
         textKo:
-          "짧은 반응보다는 '다시 설명해줘', '어느 부분이야?', '한 번 더 쉽게 말해줘'처럼 요청을 함께 말해주면 더 자연스럽게 도와드릴 수 있습니다.",
+          "吏㏃? 諛섏쓳蹂대떎??'?ㅼ떆 ?ㅻ챸?댁쨾', '?대뒓 遺遺꾩씠??', '??踰????쎄쾶 留먰빐以?泥섎읆 ?붿껌???④퍡 留먰빐二쇰㈃ ???먯뿰?ㅻ읇寃??꾩??쒕┫ ???덉뒿?덈떎.",
       },
     ],
   },
@@ -475,7 +492,7 @@ function GuideGateCards({
                     {item.label}
                   </span>
                 ) : null}
-                <p>
+                <p className={"tone" in item && item.tone === "emphasis" ? "guide-card-emphasis" : undefined}>
                   {item.text}
                   <br />
                   {item.textKo}
@@ -517,27 +534,26 @@ function GuideContent() {
       <div className="guide-subsection">
         <p className="guide-subtitle">1. Languages / {KO.languageTitle}</p>
         <div className="guide-subsection">
-          <p className="guide-subtitle">More Request Types / 더 물어볼 수 있는 요청</p>
+          <p className="guide-subtitle">More Request Types / ??臾쇱뼱蹂????덈뒗 ?붿껌</p>
           <ul className="guide-list guide-feature-list">
             <li>
               <span className="guide-feature-label guide-feature-label-feedback">
-                FEEDBACK / 확인과 피드백
-              </span>
+                FEEDBACK / ?뺤씤怨??쇰뱶諛?              </span>
               <br />
               <span className="guide-feature-example guide-feature-example-feedback">
-                &quot;Is this idea connected to the story?&quot; / &quot;이 아이디어가 원래 이야기와 잘 연결되나요?&quot;
+                &quot;Is this idea connected to the story?&quot; / &quot;???꾩씠?붿뼱媛 ?먮옒 ?댁빞湲곗? ???곌껐?섎굹??&quot;
               </span>
             </li>
             <li>
               <span className="guide-feature-label guide-feature-label-procedural">
-                PROCEDURAL / 사용 방법과 절차
+                PROCEDURAL / ?ъ슜 諛⑸쾿怨??덉감
               </span>
               <br />
               <span className="guide-feature-example guide-feature-example-procedural">
-                &quot;Can I ask in Korean?&quot; / &quot;한국어로 질문해도 되나요?&quot;
+                &quot;Can I ask in Korean?&quot; / &quot;?쒓뎅?대줈 吏덈Ц?대룄 ?섎굹??&quot;
               </span>
             </li>
-            <li>그밖에 원하는 요청을 다양하게 넣어보세요.</li>
+            <li>洹몃컰???먰븯???붿껌???ㅼ뼇?섍쾶 ?ｌ뼱蹂댁꽭??</li>
           </ul>
         </div>
 
@@ -549,23 +565,22 @@ function GuideContent() {
           </li>
           <li>
             <span className="guide-feature-label guide-feature-label-feedback">
-              FEEDBACK / 확인과 피드백
-            </span>
+              FEEDBACK / ?뺤씤怨??쇰뱶諛?            </span>
             <br />
             <span className="guide-feature-example guide-feature-example-feedback">
-              &quot;Is this idea connected to the story?&quot; / &quot;이 아이디어가 원래 이야기와 잘 연결되나요?&quot;
+              &quot;Is this idea connected to the story?&quot; / &quot;???꾩씠?붿뼱媛 ?먮옒 ?댁빞湲곗? ???곌껐?섎굹??&quot;
             </span>
           </li>
           <li>
             <span className="guide-feature-label guide-feature-label-procedural">
-              PROCEDURAL / 사용 방법과 절차
+              PROCEDURAL / ?ъ슜 諛⑸쾿怨??덉감
             </span>
             <br />
             <span className="guide-feature-example guide-feature-example-procedural">
-              &quot;Can I ask in Korean?&quot; / &quot;한국어로 질문해도 되나요?&quot;
+              &quot;Can I ask in Korean?&quot; / &quot;?쒓뎅?대줈 吏덈Ц?대룄 ?섎굹??&quot;
             </span>
           </li>
-          <li>그밖에 원하는 요청을 다양하게 넣어보세요.</li>
+          <li>洹몃컰???먰븯???붿껌???ㅼ뼇?섍쾶 ?ｌ뼱蹂댁꽭??</li>
         </ul>
       </div>
 
@@ -595,7 +610,7 @@ function GuideContent() {
           <li>
             Get short local feedback on flow, logic, or awkward wording
             <br />
-            &quot;Which part sounds awkward here?&quot; / &quot;이 부분에서 어색한 곳 하나만 짚어줄래?&quot;
+            &quot;Which part sounds awkward here?&quot; / &quot;??遺遺꾩뿉???댁깋??怨??섎굹留?吏싳뼱以꾨옒?&quot;
           </li>
         </ul>
       </div>
@@ -682,15 +697,15 @@ function CompactGuideNotice({ onOpenGuide }: { onOpenGuide: () => void }) {
         This chatbot can help with story understanding, next-event ideas, structure,
         expressions, and short local feedback.
         <br />
-        이야기를 이해하고, 다음 전개를 떠올리고, 구성을 정리하고, 표현을 찾고,
-        짧은 피드백을 받는 데 사용할 수 있어요.
+        ?댁빞湲곕? ?댄빐?섍퀬, ?ㅼ쓬 ?꾧컻瑜??좎삱由ш퀬, 援ъ꽦???뺣━?섍퀬, ?쒗쁽??李얘퀬,
+        吏㏃? ?쇰뱶諛깆쓣 諛쏅뒗 ???ъ슜?????덉뼱??
       </p>
       <p>
         It does not write the answer for you, rewrite the whole draft, or summarize the
         whole story.
         <br />
-        대신 문단을 써주거나, 전체 글을 다시 써주거나, 전체 줄거리를 요약해주지는
-        않아요.
+        ???臾몃떒???⑥＜嫄곕굹, ?꾩껜 湲???ㅼ떆 ?⑥＜嫄곕굹, ?꾩껜 以꾧굅由щ? ?붿빟?댁＜吏??
+        ?딆븘??
       </p>
       <div className="compact-guidance-actions">
         <button type="button" className="secondary-button" onClick={onOpenGuide}>
@@ -704,25 +719,25 @@ function CompactGuideNotice({ onOpenGuide }: { onOpenGuide: () => void }) {
 function CompactGuideNoticeV2({ onOpenGuide }: { onOpenGuide: () => void }) {
   return (
     <div className="guidance-box compact-guidance">
-      <p>이 챗봇으로 할 수 있어요:</p>
+      <p>이 챗봇으로 할 수 있는 도움:</p>
       <ul className="guide-list compact-guide-list">
         <li>이야기 이해</li>
         <li>다음 전개 아이디어</li>
-        <li>구조 정리</li>
+        <li>구성 정리</li>
         <li>표현 찾기</li>
         <li>짧은 피드백</li>
       </ul>
-      <p>이건 안 돼요:</p>
+      <p>이건 어려워요:</p>
       <ul className="guide-list compact-guide-list">
         <li>문단 대신 쓰기</li>
         <li>전체 글 다시 쓰기</li>
         <li>전체 줄거리 요약</li>
       </ul>
-      <p>헷갈리면 이렇게 물어보세요:</p>
+      <p>?룰컝由щ㈃ ?대젃寃?臾쇱뼱蹂댁꽭??</p>
       <ul className="guide-list compact-guide-list">
-        <li>&quot;방금 말 다시 쉽게 설명해줘&quot;</li>
-        <li>&quot;이 부분만 다시 말해줘&quot;</li>
-        <li>&quot;어색한 곳 하나만 짚어줘&quot;</li>
+        <li>&quot;諛⑷툑 留??ㅼ떆 ?쎄쾶 ?ㅻ챸?댁쨾&quot;</li>
+        <li>&quot;??遺遺꾨쭔 ?ㅼ떆 留먰빐以?quot;</li>
+        <li>&quot;?댁깋??怨??섎굹留?吏싳뼱以?quot;</li>
       </ul>
       <div className="compact-guidance-actions">
         <button type="button" className="secondary-button" onClick={onOpenGuide}>
@@ -765,38 +780,38 @@ function GuideContentV2() {
         <ul className="guide-list guide-feature-list">
           <li>
             <span className="guide-feature-label guide-feature-label-comprehension">
-              COMPREHENSION / 이야기 이해
+              COMPREHENSION / ?댁빞湲??댄빐
             </span>
             <br />
             <span className="guide-feature-example guide-feature-example-comprehension">
-              &quot;What does this part mean?&quot; / &quot;이 부분은 무슨 뜻인가요?&quot;
+              &quot;What does this part mean?&quot; / &quot;??遺遺꾩? 臾댁뒯 ?살씤媛??&quot;
             </span>
           </li>
           <li>
             <span className="guide-feature-label guide-feature-label-ideation">
-              IDEATION / 아이디어 얻기
+              IDEATION / ?꾩씠?붿뼱 ?산린
             </span>
             <br />
             <span className="guide-feature-example guide-feature-example-ideation">
-              &quot;What are 2 next events that use the clue?&quot; / &quot;그 단서를 사용한 다음 사건 2가지를 생각해 볼 수 있나요?&quot;
+              &quot;What are 2 next events that use the clue?&quot; / &quot;洹??⑥꽌瑜??ъ슜???ㅼ쓬 ?ш굔 2媛吏瑜??앷컖??蹂????덈굹??&quot;
             </span>
           </li>
           <li>
             <span className="guide-feature-label guide-feature-label-organization">
-              ORGANIZATION / 구성 도움
+              ORGANIZATION / 援ъ꽦 ?꾩?
             </span>
             <br />
             <span className="guide-feature-example guide-feature-example-organization">
-              &quot;How can I organize clue, thought, action, and result?&quot; / &quot;단서, 생각, 행동, 결과를 어떤 순서로 정리하면 좋을까요?&quot;
+              &quot;How can I organize clue, thought, action, and result?&quot; / &quot;?⑥꽌, ?앷컖, ?됰룞, 寃곌낵瑜??대뼡 ?쒖꽌濡??뺣━?섎㈃ 醫뗭쓣源뚯슂?&quot;
             </span>
           </li>
           <li>
             <span className="guide-feature-label guide-feature-label-language">
-              LANGUAGE / 표현 도움
+              LANGUAGE / ?쒗쁽 ?꾩?
             </span>
             <br />
             <span className="guide-feature-example guide-feature-example-language">
-              &quot;What pattern can I use for this idea?&quot; / &quot;이 생각을 표현할 때 쓸 수 있는 문장 패턴은 무엇인가요?&quot;
+              &quot;What pattern can I use for this idea?&quot; / &quot;???앷컖???쒗쁽?????????덈뒗 臾몄옣 ?⑦꽩? 臾댁뾿?멸???&quot;
             </span>
           </li>
         </ul>
@@ -805,10 +820,10 @@ function GuideContentV2() {
       <div className="guide-subsection">
         <p className="guide-subtitle">3. Do Not Ask Like This / 이렇게 묻지 마세요</p>
         <ul className="guide-list">
-          <li>&quot;Write the next paragraph.&quot; / &quot;다음 문단을 써 줘.&quot;</li>
-          <li>&quot;Write the ending for me.&quot; / &quot;결말을 대신 써 줘.&quot;</li>
-          <li>&quot;Rewrite my paragraph.&quot; / &quot;내 문단을 다시 써 줘.&quot;</li>
-          <li>&quot;Translate this sentence into English.&quot; / &quot;이 문장을 영어로 번역해 줘.&quot;</li>
+          <li>&quot;Write the next paragraph.&quot; / &quot;?ㅼ쓬 臾몃떒????以?&quot;</li>
+          <li>&quot;Write the ending for me.&quot; / &quot;寃곕쭚???????以?&quot;</li>
+          <li>&quot;Rewrite my paragraph.&quot; / &quot;??臾몃떒???ㅼ떆 ??以?&quot;</li>
+          <li>&quot;Translate this sentence into English.&quot; / &quot;??臾몄옣???곸뼱濡?踰덉뿭??以?&quot;</li>
         </ul>
       </div>
 
@@ -921,12 +936,12 @@ function GuideContentV3() {
               &quot;Can I ask in Korean?&quot; / &quot;한국어로 질문해도 되나요?&quot;
             </span>
           </li>
-          <li>그밖에 원하는 요청을 다양하게 넣어보세요.</li>
+          <li><strong>그밖에 원하는 요청을 다양하게 넣어보세요.</strong></li>
         </ul>
       </div>
 
       <div className="guide-subsection">
-        <p className="guide-subtitle">3. Do Not Ask Like This / 이렇게 묻지 마세요</p>
+        <p className="guide-subtitle">3. ❌ Do Not Ask Like This / 이렇게 묻지 마세요</p>
         <ul className="guide-list">
           <li>&quot;Write the next paragraph.&quot; / &quot;다음 문단을 써줘.&quot;</li>
           <li>&quot;Write the ending for me.&quot; / &quot;결말을 대신 써줘.&quot;</li>
@@ -1265,8 +1280,8 @@ export default function Home() {
       console.error(error);
       const message =
         error instanceof Error && error.name === "AbortError"
-          ? "잠시 응답을 만들지 못했어요. 한 번만 다시 시도해 주세요."
-          : "잠시 응답을 만들지 못했어요. 한 번만 다시 시도해 주세요.";
+          ? "?좎떆 ?묐떟??留뚮뱾吏 紐삵뻽?댁슂. ??踰덈쭔 ?ㅼ떆 ?쒕룄??二쇱꽭??"
+          : "?좎떆 ?묐떟??留뚮뱾吏 紐삵뻽?댁슂. ??踰덈쭔 ?ㅼ떆 ?쒕룄??二쇱꽭??";
 
       setTaskStates((current) => ({
         ...current,
@@ -1396,7 +1411,7 @@ export default function Home() {
           </div>
 
           <div className="guide-task-panel">
-            <p className="section-label">Choose your task / 과제 선택</p>
+            <p className="section-label">Choose your task / 怨쇱젣 ?좏깮</p>
             <div className="guide-task-switcher" role="tablist" aria-label="Task selection">
               {TASK_IDS.map((taskId) => (
                 <button
@@ -1516,7 +1531,7 @@ export default function Home() {
 
           {!hasStartedChat ? (
           <section className="chat-hero" aria-label="Chat introduction">
-            <p className="participant-caption">{displayTaskLabel} · Participant ID: {participantId}</p>
+            <p className="participant-caption">{displayTaskLabel} 쨌 Participant ID: {participantId}</p>
             <h2>How can I help with your writing?</h2>
           </section>
           ) : null}
@@ -1622,7 +1637,7 @@ export default function Home() {
 
               {/*<div className="composer-footer">*/}
                 <button onClick={() => void send()} disabled={isLoading} className="send-button">
-                  {isLoading ? "⏳" : "↑"}
+                  {isLoading ? "Sending..." : "Send"}
                 </button>
               {/*</div>*/}
             </div>
@@ -1635,14 +1650,14 @@ export default function Home() {
           <section className="modal-card" role="dialog" aria-modal="true" aria-label="Guide">
             <div className="modal-header">
               <div>
-                <h2>Quick Guide / 빠른 안내</h2>
+                <h2>Quick Guide / 鍮좊Ⅸ ?덈궡</h2>
               </div>
               <button
                 type="button"
                 className="secondary-button"
                 onClick={() => setShowGuide(false)}
               >
-                Close / 닫기
+                Close / ?リ린
               </button>
             </div>
 

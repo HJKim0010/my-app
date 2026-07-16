@@ -225,7 +225,8 @@ body {
   border: 1px solid var(--border);
   border-radius: 10px;
   background: linear-gradient(180deg, #ffffff 0%, #f8f9fb 100%);
-  overflow: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .guide-card-slide h2 {
@@ -298,11 +299,29 @@ body {
   color: #303640;
 }
 
+.guide-card-label-feedback {
+  background: #edf2f0;
+  color: #303640;
+}
+
+.guide-card-label-procedural {
+  background: #f2f0ec;
+  color: #303640;
+}
+
 .guide-card-item p {
   margin: 0;
   color: var(--foreground);
   font-size: 0.94rem;
   line-height: 1.45;
+}
+
+.guide-card-emphasis {
+  display: inline-block;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #fff7d6;
+  font-weight: 800;
 }
 
 .guide-task-panel {
