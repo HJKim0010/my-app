@@ -107,6 +107,22 @@ function isVagueHelpRequest(query: string): boolean {
   return /(help|help me|can you help|this part|which part|what part|\ub3c4\uc640\uc904|\ub3c4\uc640\uc8fc|\uc774\s*\ubd80\ubd84|\uc5b4\ub290\s*\ubd80\ubd84|\ubb50\ub97c\s*\ub3c4\uc640)/i.test(normalized);
 }
 
+function isMetaCapabilityQuestion(query: string): boolean {
+  const normalized = compactText(query).toLowerCase();
+
+  if (!normalized || normalized.length > 90) {
+    return false;
+  }
+
+  return (
+    /(can you understand|do you understand|understand me|understand what i say|will you understand|can you follow)/i.test(
+      normalized
+    ) ||
+    /(내가\s*하는\s*말|내\s*말|제가\s*하는\s*말).*(이해|알아듣|알아\s*들|알겠)/.test(normalized) ||
+    /(잘\s*)?(이해할|알아들을)\s*수\s*있/.test(normalized)
+  );
+}
+
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function buildAmbiguousReactionResponse(language: ResponseLanguage): string {
   if (language === "english") {
@@ -357,6 +373,20 @@ function buildAcknowledgmentFollowUpV2(language: ResponseLanguage): AssistantDra
   return {
     text: "좋아요. 다음에는 어떤 도움을 받을까요?",
     quickReplies: supportChoiceQuickReplies(language),
+  };
+}
+
+function buildMetaCapabilityResponse(language: ResponseLanguage): AssistantDraftResponse {
+  if (language === "english") {
+    return {
+      text:
+        "Yes, I can follow what you say. If something is unclear, I will ask a short question instead of guessing. You can ask in Korean, English, or both.",
+    };
+  }
+
+  return {
+    text:
+      "네, 이해할 수 있어요. 다만 뜻이 애매하면 제가 넘겨짚지 않고 짧게 확인 질문을 할게요. 한국어, 영어, 섞어서 질문해도 괜찮아요.",
   };
 }
 
@@ -625,6 +655,37 @@ export async function POST(request: NextRequest) {
     interactionCount,
     sessionDurationMs,
   });
+
+  if (isMetaCapabilityQuestion(query)) {
+    const response = buildMetaCapabilityResponse(responseLanguage);
+
+    await persistChatLog({
+      ...commonLog,
+      participant_id: participantId,
+      session_id: sessionId,
+      ep_id: epId,
+      condition_label: taskPackage.config.ai_condition,
+      selected_category: category,
+      raw_user_query: query,
+      policy_decision: "allowed",
+      status: "allowed",
+      response_status: "success",
+      retrieved_chunk_ids: [],
+      retrieved_chunk_metadata: [],
+      assistant_response: response.text,
+      timestamp,
+      response_length: response.text.length,
+      interaction_count: interactionCount,
+      session_duration_ms: sessionDurationMs,
+      query_type_label: "procedural",
+      detected_support_mode: "procedural",
+      user_query_type: "procedural",
+      source_types_used: [],
+      visual_assets_used: [],
+    });
+
+    return chatJsonResponse(responseFromText(response.text, requestId, "success", null));
+  }
 
   if (containsGreeting(query) && isVagueHelpRequest(query) && !isGreeting(query)) {
     const response = buildGreetingClarificationResponse(responseLanguage);

@@ -1414,7 +1414,7 @@ export default function Home() {
           </div>
 
           <div className="guide-task-panel">
-            <p className="section-label">Choose your task / 怨쇱젣 ?좏깮</p>
+            <p className="section-label">Choose your task</p>
             <div className="guide-task-switcher" role="tablist" aria-label="Task selection">
               {TASK_IDS.map((taskId) => (
                 <button
