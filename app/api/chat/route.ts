@@ -1,5 +1,6 @@
 ﻿import { NextRequest } from "next/server";
 import OpenAI from "openai";
+import type { Response as OpenAIResponse } from "openai/resources/responses/responses";
 import {
   analyzeQueryScope,
   type FeedbackTarget,
@@ -45,11 +46,26 @@ type AssistantDraftResponse = {
   quickReplies?: QuickReply[];
 };
 
+type ChatStreamEvent =
+  | {
+      type: "start";
+      requestId: string;
+    }
+  | {
+      type: "delta";
+      delta: string;
+    }
+  | {
+      type: "done";
+      payload: ChatApiResponse;
+    }
+  | {
+      type: "error";
+      payload: ChatApiResponse;
+    };
+
 function sanitizeAssistantResponse(text: string): string {
   return text
-    .replace(/\*\*/g, "")
-    .replace(/^#{1,6}\s*/gm, "")
-    .replace(/^\s*\d+\.\s+/gm, "")
     .replace(/\n{3,}/g, "\n\n")
     .replace(/[ \t]+\n/g, "\n")
     .trim();
@@ -179,6 +195,25 @@ function emptyQuickReplies(payload: Partial<ChatApiResponse>): ChatApiResponse {
 function chatJsonResponse(payload: Partial<ChatApiResponse>, status = 200): Response {
   const normalized = emptyQuickReplies(payload);
   return Response.json(normalized, { status });
+}
+
+function chatStreamResponse(
+  stream: ReadableStream<Uint8Array>,
+  status = 200
+): Response {
+  return new Response(stream, {
+    status,
+    headers: {
+      "Content-Type": "application/x-ndjson; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+    },
+  });
+}
+
+function encodeStreamEvent(event: ChatStreamEvent): Uint8Array {
+  return new TextEncoder().encode(`${JSON.stringify(event)}\n`);
 }
 
 function participantErrorMessage(language: ResponseLanguage): string {
@@ -896,139 +931,193 @@ export async function POST(request: NextRequest) {
   const model = process.env.OPENAI_MODEL || "gpt-5.4-mini";
   const timeoutMs = Number(process.env.OPENAI_TIMEOUT_MS || 45000);
 
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-    const response = await client.responses.create(
+  const openAIRequest = {
+    model,
+    instructions: buildSystemInstruction(
+      responseLanguage,
+      supportMode,
+      conversationMemory.workingContext === "user_continuation"
+    ),
+    max_output_tokens: Number(process.env.OPENAI_MAX_OUTPUT_TOKENS || 1200),
+    input: [
       {
-        model,
-        instructions: buildSystemInstruction(
-          responseLanguage,
-          supportMode,
-          conversationMemory.workingContext === "user_continuation"
-        ),
-        max_output_tokens: Number(process.env.OPENAI_MAX_OUTPUT_TOKENS || 1200),
-        input: [
+        role: "user" as const,
+        content: [
           {
-            role: "user",
-            content: [
-              {
-                type: "input_text",
-                text: buildUserInput(
-                  query,
-                  category,
-                  taskPackage,
-                  retrievedChunks,
-                  supportMode,
-                  responseLanguage,
-                  conversationMemory
-                ),
-              },
-              ...visualInputs,
-            ],
+            type: "input_text" as const,
+            text: buildUserInput(
+              query,
+              category,
+              taskPackage,
+              retrievedChunks,
+              supportMode,
+              responseLanguage,
+              conversationMemory
+            ),
           },
+          ...visualInputs,
         ],
       },
-      { signal: controller.signal }
-    );
+    ],
+  };
 
-    clearTimeout(timeout);
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const openAIController = new AbortController();
+      const timeout = setTimeout(() => openAIController.abort(), timeoutMs);
+      const abortOpenAI = () => openAIController.abort();
+      request.signal.addEventListener("abort", abortOpenAI, { once: true });
 
-    const incompleteReason =
-      response.status === "incomplete" ? response.incomplete_details?.reason : undefined;
-    const assistantResponse = sanitizeAssistantResponse(response.output_text || "");
-    const responseStatus: ChatApiResponse["status"] =
-      response.status === "incomplete" || !assistantResponse ? "incomplete" : "success";
-    const displayResponse =
-      assistantResponse || participantErrorMessage(responseLanguage);
+      const write = (event: ChatStreamEvent) => {
+        try {
+          controller.enqueue(encodeStreamEvent(event));
+        } catch {
+          openAIController.abort();
+        }
+      };
 
-    await persistChatLog({
-      ...commonLog,
-      participant_id: participantId,
-      session_id: sessionId,
-      ep_id: epId,
-      condition_label: taskPackage.config.ai_condition,
-      selected_category: category,
-      raw_user_query: query,
-      policy_decision: "allowed",
-      status: responseStatus,
-      response_status: responseStatus,
-      retrieved_chunk_ids: retrievedChunks.map((chunk) => chunk.chunkId),
-      retrieved_chunk_metadata: retrievedChunks.map((chunk) => ({
-        chunkId: chunk.chunkId,
-        sourceId: chunk.sourceId,
-        sourceType: chunk.sourceType,
-        chunkIndex: chunk.chunkIndex,
-        chunkCount: chunk.chunkCount,
-        documentChunkIndex: chunk.documentChunkIndex,
-        documentChunkCount: chunk.documentChunkCount,
-        score: chunk.score,
-      })),
-      assistant_response: displayResponse,
-      timestamp,
-      response_length: displayResponse.length,
-      interaction_count: interactionCount,
-      session_duration_ms: sessionDurationMs,
-      query_type_label: supportMode,
-      source_types_used: [...new Set(retrievedChunks.map((chunk) => chunk.sourceType))],
-      visual_assets_used: taskPackage.visualAssets
-        .slice(0, visualInputs.length)
-        .map((asset) => asset.id),
-      incomplete_reason: incompleteReason,
-    });
+      write({ type: "start", requestId });
 
-    return chatJsonResponse(
-      responseFromText(
-        displayResponse,
-        requestId,
-        responseStatus,
-        responseStatus === "incomplete" ? incompleteReason || "empty_response" : null
-      ),
-      responseStatus === "success" ? 200 : 502
-    );
-  } catch (error) {
-    const isTimeout = error instanceof Error && error.name === "AbortError";
-    const failureResponse = participantErrorMessage(responseLanguage);
+      try {
+        const responseStream = await client.responses.create(
+          {
+            ...openAIRequest,
+            stream: true,
+          },
+          { signal: openAIController.signal }
+        );
+        let streamedText = "";
+        let finalResponse: OpenAIResponse | null = null;
+        let incompleteReason: string | undefined;
 
-    await persistChatLog({
-      ...commonLog,
-      participant_id: participantId,
-      session_id: sessionId,
-      ep_id: epId,
-      condition_label: taskPackage.config.ai_condition,
-      selected_category: category,
-      raw_user_query: query,
-      policy_decision: "allowed",
-      status: isTimeout ? "timeout" : "error",
-      response_status: isTimeout ? "timeout" : "error",
-      retrieved_chunk_ids: retrievedChunks.map((chunk) => chunk.chunkId),
-      retrieved_chunk_metadata: retrievedChunks.map((chunk) => ({
-        chunkId: chunk.chunkId,
-        sourceId: chunk.sourceId,
-        sourceType: chunk.sourceType,
-        chunkIndex: chunk.chunkIndex,
-        chunkCount: chunk.chunkCount,
-        documentChunkIndex: chunk.documentChunkIndex,
-        documentChunkCount: chunk.documentChunkCount,
-        score: chunk.score,
-      })),
-      assistant_response: failureResponse,
-      timestamp,
-      response_length: failureResponse.length,
-      interaction_count: interactionCount,
-      session_duration_ms: sessionDurationMs,
-      query_type_label: supportMode,
-      source_types_used: [...new Set(retrievedChunks.map((chunk) => chunk.sourceType))],
-      visual_assets_used: taskPackage.visualAssets
-        .slice(0, visualInputs.length)
-        .map((asset) => asset.id),
-      incomplete_reason: error instanceof Error ? error.message : String(error),
-    });
+        for await (const event of responseStream) {
+          if (event.type === "response.output_text.delta") {
+            streamedText += event.delta;
+            write({ type: "delta", delta: event.delta });
+          } else if (event.type === "response.completed") {
+            finalResponse = event.response;
+          } else if (event.type === "response.incomplete") {
+            finalResponse = event.response;
+            incompleteReason = event.response.incomplete_details?.reason;
+          } else if (event.type === "response.failed") {
+            finalResponse = event.response;
+            throw new Error(event.response.error?.message || "response_failed");
+          } else if (event.type === "error") {
+            throw new Error(event.message || "response_error");
+          }
+        }
 
-    return chatJsonResponse(
-      responseFromText(failureResponse, requestId, isTimeout ? "timeout" : "error", isTimeout ? "timeout" : "error"),
-      500
-    );
-  }
+        clearTimeout(timeout);
+
+        const assistantResponse = sanitizeAssistantResponse(
+          streamedText || finalResponse?.output_text || ""
+        );
+        const responseStatus: ChatApiResponse["status"] =
+          finalResponse?.status === "incomplete" || !assistantResponse
+            ? "incomplete"
+            : "success";
+        const displayResponse = assistantResponse || participantErrorMessage(responseLanguage);
+
+        await persistChatLog({
+          ...commonLog,
+          participant_id: participantId,
+          session_id: sessionId,
+          ep_id: epId,
+          condition_label: taskPackage.config.ai_condition,
+          selected_category: category,
+          raw_user_query: query,
+          policy_decision: "allowed",
+          status: responseStatus,
+          response_status: responseStatus,
+          retrieved_chunk_ids: retrievedChunks.map((chunk) => chunk.chunkId),
+          retrieved_chunk_metadata: retrievedChunks.map((chunk) => ({
+            chunkId: chunk.chunkId,
+            sourceId: chunk.sourceId,
+            sourceType: chunk.sourceType,
+            chunkIndex: chunk.chunkIndex,
+            chunkCount: chunk.chunkCount,
+            documentChunkIndex: chunk.documentChunkIndex,
+            documentChunkCount: chunk.documentChunkCount,
+            score: chunk.score,
+          })),
+          assistant_response: displayResponse,
+          timestamp,
+          response_length: displayResponse.length,
+          interaction_count: interactionCount,
+          session_duration_ms: sessionDurationMs,
+          query_type_label: supportMode,
+          source_types_used: [...new Set(retrievedChunks.map((chunk) => chunk.sourceType))],
+          visual_assets_used: taskPackage.visualAssets
+            .slice(0, visualInputs.length)
+            .map((asset) => asset.id),
+          incomplete_reason: incompleteReason,
+        });
+
+        write({
+          type: "done",
+          payload: responseFromText(
+            displayResponse,
+            requestId,
+            responseStatus,
+            responseStatus === "incomplete" ? incompleteReason || "empty_response" : null
+          ),
+        });
+      } catch (error) {
+        clearTimeout(timeout);
+        const isTimeout = error instanceof Error && error.name === "AbortError";
+        const failureResponse = participantErrorMessage(responseLanguage);
+
+        await persistChatLog({
+          ...commonLog,
+          participant_id: participantId,
+          session_id: sessionId,
+          ep_id: epId,
+          condition_label: taskPackage.config.ai_condition,
+          selected_category: category,
+          raw_user_query: query,
+          policy_decision: "allowed",
+          status: isTimeout ? "timeout" : "error",
+          response_status: isTimeout ? "timeout" : "error",
+          retrieved_chunk_ids: retrievedChunks.map((chunk) => chunk.chunkId),
+          retrieved_chunk_metadata: retrievedChunks.map((chunk) => ({
+            chunkId: chunk.chunkId,
+            sourceId: chunk.sourceId,
+            sourceType: chunk.sourceType,
+            chunkIndex: chunk.chunkIndex,
+            chunkCount: chunk.chunkCount,
+            documentChunkIndex: chunk.documentChunkIndex,
+            documentChunkCount: chunk.documentChunkCount,
+            score: chunk.score,
+          })),
+          assistant_response: failureResponse,
+          timestamp,
+          response_length: failureResponse.length,
+          interaction_count: interactionCount,
+          session_duration_ms: sessionDurationMs,
+          query_type_label: supportMode,
+          source_types_used: [...new Set(retrievedChunks.map((chunk) => chunk.sourceType))],
+          visual_assets_used: taskPackage.visualAssets
+            .slice(0, visualInputs.length)
+            .map((asset) => asset.id),
+          incomplete_reason: error instanceof Error ? error.message : String(error),
+        });
+
+        write({
+          type: "error",
+          payload: responseFromText(
+            failureResponse,
+            requestId,
+            isTimeout ? "timeout" : "error",
+            isTimeout ? "timeout" : "error"
+          ),
+        });
+      } finally {
+        request.signal.removeEventListener("abort", abortOpenAI);
+        clearTimeout(timeout);
+        controller.close();
+      }
+    },
+  });
+
+  return chatStreamResponse(stream);
 }

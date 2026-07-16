@@ -17,6 +17,8 @@ type ChatMessage = {
   role: "user" | "assistant";
   text: string;
   quickReplies?: QuickReply[];
+  isStreaming?: boolean;
+  isError?: boolean;
 };
 
 type StoredTranscriptMessage = Pick<ChatMessage, "role" | "text">;
@@ -29,6 +31,24 @@ type ChatApiResponse = {
   reason?: string | null;
   quickReplies?: QuickReply[];
 };
+
+type ChatStreamEvent =
+  | {
+      type: "start";
+      requestId: string;
+    }
+  | {
+      type: "delta";
+      delta: string;
+    }
+  | {
+      type: "done";
+      payload: ChatApiResponse;
+    }
+  | {
+      type: "error";
+      payload: ChatApiResponse;
+    };
 
 type TaskChatState = {
   sessionId: string;
@@ -135,6 +155,28 @@ function isChatApiResponse(value: unknown): value is ChatApiResponse {
   );
 }
 
+function isChatStreamEvent(value: unknown): value is ChatStreamEvent {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const candidate = value as Record<string, unknown>;
+
+  if (candidate.type === "start") {
+    return typeof candidate.requestId === "string";
+  }
+
+  if (candidate.type === "delta") {
+    return typeof candidate.delta === "string";
+  }
+
+  if (candidate.type === "done" || candidate.type === "error") {
+    return isChatApiResponse(candidate.payload);
+  }
+
+  return false;
+}
+
 const CHAT_INPUT_PLACEHOLDER =
   "Example: Which clue should I use to continue the next part logically? / \uC608: \uB2E4\uC74C \uC804\uAC1C\uB97C \uB17C\uB9AC\uC801\uC73C\uB85C \uC774\uC5B4\uAC00\uB824\uBA74 \uC5B4\uB5A4 \uB2E8\uC11C\uB97C \uC774\uC6A9\uD558\uB294 \uAC8C \uC88B\uC744\uAE4C?";
 
@@ -146,24 +188,45 @@ function renderInlineText(text: string, keyPrefix: string): ReactNode {
       return <strong key={`${keyPrefix}-strong-${index}`}>{part.slice(2, -2)}</strong>;
     }
 
-    return <span key={`${keyPrefix}-text-${index}`}>{part}</span>;
+    return <span key={`${keyPrefix}-text-${index}`}>{part.replace(/\*\*/g, "")}</span>;
   });
 }
 
-function renderAssistantText(text: string): ReactNode {
+function renderAssistantText(text: string, isStreaming = false, isError = false): ReactNode {
   const blocks = text.split(/\n{2,}/).filter((block) => block.trim().length > 0);
+
+  if (blocks.length === 0 && isStreaming) {
+    return (
+      <div className="assistant-response-content assistant-response-streaming">
+        <span className="stream-loading" aria-label="Assistant is writing">
+          <span />
+          <span />
+          <span />
+        </span>
+      </div>
+    );
+  }
 
   if (blocks.length === 0) {
     return null;
   }
 
   return (
-    <div className="assistant-response-content">
+    <div
+      className={
+        isError
+          ? "assistant-response-content assistant-response-error"
+          : "assistant-response-content"
+      }
+    >
       {blocks.map((block, blockIndex) => {
         const lines = block.split("\n").filter((line) => line.trim().length > 0);
         const isBulletList = lines.every((line) => /^[-*]\s+/.test(line.trim()));
+        const isNumberedList = lines.every((line) => /^\d+\.\s+/.test(line.trim()));
         const singleLine = lines.length === 1 ? lines[0].trim() : "";
-        const isHeading =
+        const markdownHeading = singleLine.match(/^(#{1,6})\s+(.+)$/);
+        const partialMarkdownHeading = singleLine.match(/^#{1,6}\s*(.*)$/);
+        const isLabelHeading =
           singleLine.endsWith(":") && singleLine.length <= 90 && !singleLine.startsWith("-");
         const isQuote = lines.every((line) => line.trim().startsWith(">"));
 
@@ -176,6 +239,18 @@ function renderAssistantText(text: string): ReactNode {
                 </li>
               ))}
             </ul>
+          );
+        }
+
+        if (isNumberedList) {
+          return (
+            <ol key={`assistant-ordered-list-${blockIndex}`} className="assistant-response-list assistant-response-ordered-list">
+              {lines.map((line, lineIndex) => (
+                <li key={`assistant-ordered-list-${blockIndex}-${lineIndex}`}>
+                  {renderInlineText(line.trim().replace(/^\d+\.\s+/, ""), `oli-${blockIndex}-${lineIndex}`)}
+                </li>
+              ))}
+            </ol>
           );
         }
 
@@ -192,10 +267,16 @@ function renderAssistantText(text: string): ReactNode {
           );
         }
 
-        if (isHeading) {
+        if (markdownHeading || partialMarkdownHeading || isLabelHeading) {
+          const headingText = markdownHeading
+            ? markdownHeading[2]
+            : partialMarkdownHeading
+              ? partialMarkdownHeading[1]
+              : singleLine;
+
           return (
             <p key={`assistant-heading-${blockIndex}`} className="assistant-response-heading">
-              {renderInlineText(singleLine, `heading-${blockIndex}`)}
+              {renderInlineText(headingText, `heading-${blockIndex}`)}
             </p>
           );
         }
@@ -211,6 +292,7 @@ function renderAssistantText(text: string): ReactNode {
           </p>
         );
       })}
+      {isStreaming ? <span className="stream-cursor" aria-hidden="true" /> : null}
     </div>
   );
 }
@@ -1081,6 +1163,7 @@ export default function Home() {
   const [showAdminPanel, setShowAdminPanel] = useState(false);
   const [adminResetCode, setAdminResetCode] = useState("");
   const [adminResetMessage, setAdminResetMessage] = useState("");
+  const messageThreadRef = useRef<HTMLDivElement | null>(null);
   const threadEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const taskStatesRef = useRef(taskStates);
@@ -1088,6 +1171,7 @@ export default function Home() {
   const inFlightRequestRef = useRef<AbortController | null>(null);
   const loadingTimeoutRef = useRef<number | null>(null);
   const inputUndoStackRef = useRef<string[]>([]);
+  const shouldAutoScrollRef = useRef(true);
 
   const resizeChatInput = useCallback((element: HTMLTextAreaElement) => {
     element.style.height = `${CHAT_INPUT_BASE_HEIGHT}px`;
@@ -1184,8 +1268,24 @@ export default function Home() {
     window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
   }, [selectedTask, selectedCondition]);
 
+  const updateAutoScrollPreference = useCallback(() => {
+    const element = messageThreadRef.current;
+
+    if (!element) {
+      shouldAutoScrollRef.current = true;
+      return;
+    }
+
+    const distanceFromBottom = element.scrollHeight - element.scrollTop - element.clientHeight;
+    shouldAutoScrollRef.current = distanceFromBottom < 120;
+  }, []);
+
   useEffect(() => {
-    threadEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (!shouldAutoScrollRef.current) {
+      return;
+    }
+
+    threadEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [activeTaskState.messages, isLoading, selectedTask]);
 
   const persistTranscript = useCallback(
@@ -1296,6 +1396,15 @@ export default function Home() {
       role: "user",
       text: userText,
     };
+    const assistantMessageId = `${Date.now()}-assistant`;
+    const pendingAssistantMessage: ChatMessage = {
+      id: assistantMessageId,
+      role: "assistant",
+      text: "",
+      isStreaming: true,
+    };
+
+    shouldAutoScrollRef.current = true;
 
     setTaskStates((current) => ({
       ...current,
@@ -1303,7 +1412,7 @@ export default function Home() {
         ...current[selectedTask],
         interactionCount: nextInteractionCount,
         transcriptSaved: false,
-        messages: [...current[selectedTask].messages, userMessage],
+        messages: [...current[selectedTask].messages, userMessage, pendingAssistantMessage],
       },
     }));
 
@@ -1316,6 +1425,21 @@ export default function Home() {
     loadingTimeoutRef.current = window.setTimeout(() => {
       controller.abort();
     }, 60000);
+
+    let streamedAssistantText = "";
+
+    const updateAssistantMessage = (partial: Partial<ChatMessage>) => {
+      setTaskStates((current) => ({
+        ...current,
+        [selectedTask]: {
+          ...current[selectedTask],
+          transcriptSaved: false,
+          messages: current[selectedTask].messages.map((message) =>
+            message.id === assistantMessageId ? { ...message, ...partial } : message
+          ),
+        },
+      }));
+    };
 
     try {
       const res = await fetch("/api/chat", {
@@ -1337,18 +1461,85 @@ export default function Home() {
           interactionCount: nextInteractionCount,
           sessionStartedAt: currentState.sessionStartedAt,
           input_origin: inputOrigin,
+          stream: true,
         }),
         signal: controller.signal,
       });
 
       const contentType = res.headers.get("content-type") || "";
-      const rawResponse = await res.text();
       let assistantPayload: ChatApiResponse = {
         text: "I could not make a reply just now. Please try once more.",
         status: "error",
       };
 
-      if (contentType.includes("application/json")) {
+      if (contentType.includes("application/x-ndjson") && res.body) {
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let finalPayload: ChatApiResponse | null = null;
+
+        while (true) {
+          const { value, done } = await reader.read();
+
+          if (done) {
+            break;
+          }
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+
+          for (const line of lines) {
+            if (!line.trim()) {
+              continue;
+            }
+
+            const parsed = JSON.parse(line) as unknown;
+
+            if (!isChatStreamEvent(parsed)) {
+              continue;
+            }
+
+            if (parsed.type === "delta") {
+              streamedAssistantText += parsed.delta;
+              updateAssistantMessage({
+                text: streamedAssistantText,
+                isStreaming: true,
+              });
+            } else if (parsed.type === "done") {
+              finalPayload = parsed.payload;
+            } else if (parsed.type === "error") {
+              finalPayload = parsed.payload;
+              throw new Error(parsed.payload.reason || "stream_error");
+            }
+          }
+        }
+
+        if (buffer.trim()) {
+          const parsed = JSON.parse(buffer) as unknown;
+
+          if (isChatStreamEvent(parsed)) {
+            if (parsed.type === "delta") {
+              streamedAssistantText += parsed.delta;
+              updateAssistantMessage({
+                text: streamedAssistantText,
+                isStreaming: true,
+              });
+            } else if (parsed.type === "done" || parsed.type === "error") {
+              finalPayload = parsed.payload;
+            }
+          }
+        }
+
+        if (!finalPayload) {
+          throw new Error("stream_incomplete");
+        }
+
+        assistantPayload = finalPayload;
+      } else {
+        const rawResponse = await res.text();
+
+        if (contentType.includes("application/json")) {
         try {
           const parsed = JSON.parse(rawResponse);
 
@@ -1361,14 +1552,15 @@ export default function Home() {
             status: "error",
           };
         }
-      } else if (rawResponse.trim()) {
-        assistantPayload = { text: rawResponse };
+        } else if (rawResponse.trim()) {
+          assistantPayload = { text: rawResponse };
+        }
       }
 
       const assistantMessage: ChatMessage = {
-        id: `${Date.now()}-assistant`,
+        id: assistantMessageId,
         role: "assistant",
-        text: assistantPayload.text,
+        text: assistantPayload.text || streamedAssistantText,
         quickReplies: assistantPayload.quickReplies,
       };
       const messagesWithResponse = [...currentState.messages, userMessage, assistantMessage];
@@ -1379,37 +1571,26 @@ export default function Home() {
         messages: messagesWithResponse,
       };
 
-      setTaskStates((current) => ({
-        ...current,
-        [selectedTask]: {
-          ...current[selectedTask],
-          transcriptSaved: false,
-          messages: [...current[selectedTask].messages, assistantMessage],
-        },
-      }));
+      updateAssistantMessage({
+        text: assistantMessage.text,
+        quickReplies: assistantMessage.quickReplies,
+        isStreaming: false,
+        isError: assistantPayload.status === "error" || assistantPayload.status === "timeout",
+      });
 
       void persistTranscript(selectedTask, nextState, false);
     } catch (error) {
       console.error(error);
       const message =
         error instanceof Error && error.name === "AbortError"
-          ? "잠시 응답을 만들지 못했어요. 한 번만 다시 시도해 주세요."
-          : "잠시 응답을 만들지 못했어요. 한 번만 다시 시도해 주세요.";
+          ? "응답이 중단되었습니다. 다시 시도해 주세요."
+          : "응답이 중단되었습니다. 다시 시도해 주세요.";
 
-      setTaskStates((current) => ({
-        ...current,
-        [selectedTask]: {
-          ...current[selectedTask],
-          messages: [
-            ...current[selectedTask].messages,
-            {
-              id: `${Date.now()}-assistant-error`,
-              role: "assistant",
-              text: message,
-            },
-          ],
-        },
-      }));
+      updateAssistantMessage({
+        text: streamedAssistantText ? `${streamedAssistantText}\n\n${message}` : message,
+        isStreaming: false,
+        isError: true,
+      });
     } finally {
       if (loadingTimeoutRef.current !== null) {
         window.clearTimeout(loadingTimeoutRef.current);
@@ -1447,6 +1628,10 @@ export default function Home() {
     setGuideChecked(false);
     setShowGuide(true);
     setInput("");
+  };
+
+  const stopGenerating = () => {
+    inFlightRequestRef.current?.abort();
   };
 
   const displayTaskLabel = selectedTask === "task2" ? "EP2" : "EP1";
@@ -1679,7 +1864,11 @@ export default function Home() {
           ) : null}
 
           <section className="thread-section">
-            <div className="message-thread">
+            <div
+              ref={messageThreadRef}
+              className="message-thread"
+              onScroll={updateAutoScrollPreference}
+            >
               {activeTaskState.messages.map((message) => (
                 <div
                   key={message.id}
@@ -1700,19 +1889,13 @@ export default function Home() {
                       {message.role === "user" ? "You" : "Assistant"}
                     </div>
                     <div className="message-text">
-                      {message.role === "assistant" ? renderAssistantText(message.text) : message.text}
+                      {message.role === "assistant"
+                        ? renderAssistantText(message.text, message.isStreaming, message.isError)
+                        : message.text}
                     </div>
                   </div>
                 </div>
               ))}
-              {isLoading ? (
-                <div className="message-row message-row-assistant message-row-enter">
-                  <div className="message-bubble message-bubble-assistant">
-                    <div className="message-role">Assistant</div>
-                    <div className="message-text message-text-thinking">Thinking...</div>
-                  </div>
-                </div>
-              ) : null}
               <div ref={threadEndRef} />
             </div>
             <div className="composer-inline">
@@ -1750,8 +1933,12 @@ export default function Home() {
               />
 
               {/*<div className="composer-footer">*/}
-                <button onClick={() => void send()} disabled={isLoading} className="send-button">
-                  {isLoading ? "Sending..." : "Send"}
+                <button
+                  onClick={isLoading ? stopGenerating : () => void send()}
+                  className={isLoading ? "send-button stop-button" : "send-button"}
+                  type="button"
+                >
+                  {isLoading ? "Stop" : "Send"}
                 </button>
               {/*</div>*/}
             </div>
