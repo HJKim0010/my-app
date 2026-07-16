@@ -48,6 +48,7 @@ export type ChatLogEntry = {
   intent?: string;
   request_is_explicit?: boolean;
   requires_source_context?: boolean;
+  requires_task_context?: boolean;
   conversation_operation?:
     | "new_request"
     | "translate_previous"
@@ -57,6 +58,8 @@ export type ChatLogEntry = {
   classifier_confidence?: number;
   scope_limitations?: string[];
   sub_request_count?: number;
+  selected_task_rule_id?: string | null;
+  fallback_state?: "genuine_draft_only" | "recognized_question_missing_context" | null;
 };
 
 export type SessionTranscriptEntry = {
@@ -191,10 +194,13 @@ function buildChatLogPayload(entry: ChatLogEntry, useLegacyTaskId = false): obje
     intent: entry.intent,
     request_is_explicit: entry.request_is_explicit,
     requires_source_context: entry.requires_source_context,
+    requires_task_context: entry.requires_task_context,
     conversation_operation: entry.conversation_operation,
     classifier_confidence: entry.classifier_confidence,
     scope_limitations: entry.scope_limitations || [],
     sub_request_count: entry.sub_request_count,
+    selected_task_rule_id: entry.selected_task_rule_id ?? null,
+    fallback_state: entry.fallback_state ?? null,
   };
 }
 

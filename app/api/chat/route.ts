@@ -57,14 +57,23 @@ type RequestIntentClassification = {
   intent: string;
   request_is_explicit: boolean;
   requires_source_context: boolean;
+  requires_task_context?: boolean;
   conversation_operation: ConversationOperation;
   confidence: number;
+  selected_task_rule_id?: string | null;
   sub_requests?: Array<{
     text: string;
     requires_source_context: boolean;
     intent: string;
   }>;
 };
+
+type TaskRequirementRuleId =
+  | "word_count"
+  | "time_limit"
+  | "permitted_tools"
+  | "source_access"
+  | "submission_rules";
 
 type ChatStreamEvent =
   | {
@@ -165,9 +174,46 @@ function isMetaCapabilityQuestion(query: string): boolean {
 function hasExplicitAssistanceRequest(query: string): boolean {
   const normalized = compactText(query).toLowerCase();
 
-  return /(can you|could you|would you|please|help(?: me)?|check|feedback|review|fix|correct|revise|rewrite|translate|explain|this sentence|my sentence|this phrase|my phrase|what does|what should|what would|what can|how can|how should|why does|why is|why did|why was|which part|which clue|idea|suggest|organize|outline|natural|awkward|make sense|is this\s+(?:okay|ok|good|natural|logical|right|correct|clear|connected|related)|does this\s+(?:make sense|fit|connect|sound natural|work)|do you think|어때|어떻게|왜\s*(?:그런|이런|그렇게|이렇게|인가|일까|죠|요|해|했)|무슨\s*뜻|뭐가|뭐를|뭘|어느\s*부분|이대로|도와|봐\s*줘|봐줄|확인|피드백|검토|수정|고쳐|번역|설명|아이디어|제안|정리|구성|순서|자연스|어색|괜찮|맞아|맞나요|말이\s*되|문제|도움)/i.test(
+  return /(can you|could you|would you|please|help(?: me)?|check|feedback|review|fix|correct|revise|rewrite|translate|explain|this sentence|my sentence|this phrase|my phrase|what does|what should|what would|what can|how can|how should|why does|why is|why did|why was|which part|which clue|idea|suggest|organize|outline|natural|awkward|make sense|word count|minimum length|maximum length|time limit|dictionary|submission|is this\s+(?:okay|ok|good|natural|logical|right|correct|clear|connected|related)|does this\s+(?:make sense|fit|connect|sound natural|work)|do you think|어때|어떻게|왜\s*(?:그런|이런|그렇게|이렇게|인가|일까|죠|요|해|했)|무슨\s*뜻|뭐가|뭐를|뭘|어느\s*부분|이대로|도와|봐\s*줘|봐줄|확인|피드백|검토|수정|고쳐|번역|설명|아이디어|제안|정리|구성|순서|자연스|어색|괜찮|맞아|맞나요|말이\s*되|문제|도움|몇\s*자|몇자|몇\s*단어|단어\s*수|글자\s*수|최소\s*몇|최대\s*몇|얼마나\s*(?:써야|길게)|분량|몇\s*개\s*이상|시간|몇\s*분|사전|원문\s*다시)/i.test(
     normalized
   );
+}
+
+function normalizeKoreanSpacing(text: string): string {
+  return compactText(text)
+    .replace(/몇\s+자/g, "몇자")
+    .replace(/몇\s+단어/g, "몇단어")
+    .replace(/단어\s+수/g, "단어수")
+    .replace(/글자\s+수/g, "글자수")
+    .replace(/최소\s+몇/g, "최소몇")
+    .replace(/최대\s+몇/g, "최대몇")
+    .replace(/몇\s+개\s+이상/g, "몇개이상");
+}
+
+function detectTaskRequirementRule(query: string): TaskRequirementRuleId | null {
+  const normalized = normalizeKoreanSpacing(query).toLowerCase();
+
+  if (/(몇자|몇단어|단어수|글자수|최소몇|최대몇|얼마나\s*(?:써야|길게)|분량|몇개이상|word count|minimum length|maximum length)/i.test(normalized)) {
+    return "word_count";
+  }
+
+  if (/(시간|몇\s*분|제한\s*시간|time limit|writing time|how long)/i.test(normalized)) {
+    return "time_limit";
+  }
+
+  if (/(사전|번역기|도구|사용해도|써도|dictionary|tool|permitted tools|allowed tools)/i.test(normalized)) {
+    return "permitted_tools";
+  }
+
+  if (/(원문\s*다시|원문\s*볼|source\s*again|see the source|reread|read again)/i.test(normalized)) {
+    return "source_access";
+  }
+
+  if (/(제출|저장|submit|submission|rule|rules|규칙|안내)/i.test(normalized)) {
+    return "submission_rules";
+  }
+
+  return null;
 }
 
 function looksLikeDraftOrPassage(query: string): boolean {
@@ -326,6 +372,19 @@ function classifyCurrentRequest(
 ): RequestIntentClassification {
   const { currentRequest } = splitLearnerDraftAndRequest(query);
   const classificationTarget = currentRequest || query;
+  const taskRequirementRule = detectTaskRequirementRule(classificationTarget);
+
+  if (taskRequirementRule) {
+    return {
+      intent: "task_requirement",
+      request_is_explicit: true,
+      requires_source_context: false,
+      requires_task_context: true,
+      conversation_operation: "new_request",
+      confidence: 0.94,
+      selected_task_rule_id: taskRequirementRule,
+    };
+  }
 
   if (isDraftOnlyOrUnclearIntent(query)) {
     return {
@@ -447,8 +506,10 @@ function intentLogFields(classification: RequestIntentClassification) {
     intent: classification.intent,
     request_is_explicit: classification.request_is_explicit,
     requires_source_context: classification.requires_source_context,
+    requires_task_context: classification.requires_task_context || false,
     conversation_operation: classification.conversation_operation,
     classifier_confidence: classification.confidence,
+    selected_task_rule_id: classification.selected_task_rule_id || null,
     sub_request_count: classification.sub_requests?.length || 1,
   };
 }
@@ -471,6 +532,64 @@ function buildDraftOnlyClarificationResponse(language: ResponseLanguage): string
   return language === "english"
     ? "I’ve read your draft. What would you like help with?"
     : "작성한 내용을 확인했어요. 어떤 도움이 필요한지 알려주세요.";
+}
+
+function buildMissingContextResponse(ruleId: TaskRequirementRuleId, language: ResponseLanguage): string {
+  const koreanMessages: Record<TaskRequirementRuleId, string> = {
+    word_count:
+      "정확한 최소 분량은 현재 정보만으로는 확인할 수 없어요. 과제 안내에 나온 word limit을 확인해 주세요.",
+    time_limit:
+      "현재 대화에는 정확한 제한 시간이 없어서 확인할 수 없어요. 과제 안내의 제한 시간을 확인해 주세요.",
+    permitted_tools:
+      "현재 정보만으로는 사전이나 도구 사용이 허용되는지 확인할 수 없어요. 과제 안내의 허용 도구 항목을 확인해 주세요.",
+    source_access:
+      "현재 대화만으로는 원문 재열람이 허용되는지 확인할 수 없어요. 과제 화면의 안내를 확인해 주세요.",
+    submission_rules:
+      "현재 정보만으로는 제출 규칙을 정확히 확인할 수 없어요. 과제 안내의 제출 방법을 확인해 주세요.",
+  };
+  const englishMessages: Record<TaskRequirementRuleId, string> = {
+    word_count:
+      "I cannot confirm the exact word limit from the current context. Please check the assignment word limit.",
+    time_limit:
+      "I cannot confirm the exact time limit from the current context. Please check the assignment instructions.",
+    permitted_tools:
+      "I cannot confirm whether dictionaries or tools are allowed from the current context. Please check the permitted-tools section.",
+    source_access:
+      "I cannot confirm from the current context whether you may view the source again. Please check the task screen or instructions.",
+    submission_rules:
+      "I cannot confirm the submission rules from the current context. Please check the assignment instructions.",
+  };
+
+  return language === "english" ? englishMessages[ruleId] : koreanMessages[ruleId];
+}
+
+function hasStructuredTaskRequirementAnswer(ruleId: TaskRequirementRuleId, instruction: string): boolean {
+  return ruleId === "word_count" && /between\s+\d+\s+and\s+\d+\s+words/i.test(instruction);
+}
+
+function buildTaskRequirementResponse(
+  ruleId: TaskRequirementRuleId,
+  instruction: string,
+  language: ResponseLanguage
+): string {
+  if (ruleId === "word_count") {
+    const wordRange = instruction.match(/between\s+(\d+)\s+and\s+(\d+)\s+words/i);
+
+    if (wordRange) {
+      const [, minWords, maxWords] = wordRange;
+      return language === "english"
+        ? `It is based on English word count, not character count. Write between ${minWords} and ${maxWords} words.`
+        : `글자 수가 아니라 영어 단어 수 기준이에요. 최소 ${minWords}단어, 최대 ${maxWords}단어로 작성하면 됩니다.`;
+    }
+  }
+
+  return buildMissingContextResponse(ruleId, language);
+}
+
+function buildRecognizedQuestionMissingContextResponse(language: ResponseLanguage): string {
+  return language === "english"
+    ? "I understand the question, but I cannot confirm the exact information from the current context. Please check the assignment instructions or send the relevant detail."
+    : "질문 의도는 이해했지만 현재 정보만으로 정확히 확인할 수 없어요. 과제 안내나 필요한 맥락을 조금 더 알려주세요.";
 }
 
 function getLatestAssistantText(recentMessages: RecentMessage[]): string {
@@ -1007,7 +1126,13 @@ export async function POST(request: NextRequest) {
   };
 
   if (!requestClassification.request_is_explicit || requestClassification.confidence < 0.58) {
-    const responseText = buildDraftOnlyClarificationResponse(responseLanguage);
+    const isGenuineDraftOnly = requestClassification.intent === "draft_only";
+    const fallbackState = isGenuineDraftOnly
+      ? "genuine_draft_only"
+      : "recognized_question_missing_context";
+    const responseText = isGenuineDraftOnly
+      ? buildDraftOnlyClarificationResponse("korean")
+      : buildRecognizedQuestionMissingContextResponse(responseLanguage);
 
     await persistChatLog({
       ...commonLog,
@@ -1035,7 +1160,53 @@ export async function POST(request: NextRequest) {
       source_types_used: [],
       visual_assets_used: [],
       retrieval_executed: false,
-      retrieval_skipped_reason: requestClassification.intent,
+      retrieval_skipped_reason: fallbackState,
+      fallback_state: fallbackState,
+    });
+
+    return chatJsonResponse(responseFromText(responseText, requestId, "success", null));
+  }
+
+  if (requestClassification.intent === "task_requirement") {
+    const ruleId = requestClassification.selected_task_rule_id || "submission_rules";
+    const hasStructuredAnswer = hasStructuredTaskRequirementAnswer(
+      ruleId as TaskRequirementRuleId,
+      taskPackage.instruction
+    );
+    const responseText = buildTaskRequirementResponse(
+      ruleId as TaskRequirementRuleId,
+      taskPackage.instruction,
+      responseLanguage
+    );
+
+    await persistChatLog({
+      ...commonLog,
+      participant_id: participantId,
+      session_id: sessionId,
+      ep_id: epId,
+      condition_label: taskPackage.config.ai_condition,
+      selected_category: category,
+      raw_user_query: query,
+      policy_decision: "allowed",
+      status: "allowed",
+      response_status: "success",
+      retrieved_chunk_ids: [],
+      retrieved_chunk_metadata: [],
+      assistant_response: responseText,
+      timestamp,
+      response_length: responseText.length,
+      interaction_count: interactionCount,
+      session_duration_ms: sessionDurationMs,
+      query_type_label: "procedural",
+      detected_support_mode: "procedural",
+      user_query_type: "procedural",
+      feedback_target: null,
+      source_types_used: [],
+      visual_assets_used: [],
+      retrieval_executed: false,
+      retrieval_skipped_reason: "task_requirement",
+      selected_task_rule_id: ruleId,
+      fallback_state: hasStructuredAnswer ? null : "recognized_question_missing_context",
     });
 
     return chatJsonResponse(responseFromText(responseText, requestId, "success", null));

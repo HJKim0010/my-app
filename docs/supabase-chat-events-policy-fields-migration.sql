@@ -17,10 +17,13 @@ alter table public.chat_events
   add column if not exists intent text,
   add column if not exists request_is_explicit boolean,
   add column if not exists requires_source_context boolean,
+  add column if not exists requires_task_context boolean,
   add column if not exists conversation_operation text,
   add column if not exists classifier_confidence double precision,
   add column if not exists scope_limitations jsonb not null default '[]'::jsonb,
-  add column if not exists sub_request_count integer;
+  add column if not exists sub_request_count integer,
+  add column if not exists selected_task_rule_id text,
+  add column if not exists fallback_state text;
 
 alter table public.session_transcripts
   add column if not exists source_condition text,
@@ -94,6 +97,7 @@ begin
         'language_change_followup',
         'language_feedback',
         'source_alignment',
+        'task_requirement',
         'other'
       )
     ) not valid;
@@ -122,3 +126,9 @@ comment on column public.chat_events.classifier_confidence is
 
 comment on column public.chat_events.scope_limitations is
   'Participant-specified scope limits such as hints_only, keywords_only, no_full_sentences, no_grammar_check, or story_connection_only.';
+
+comment on column public.chat_events.requires_task_context is
+  'True when the current turn asks about structured task requirements rather than story source context.';
+
+comment on column public.chat_events.selected_task_rule_id is
+  'Structured task-rule identifier used for task requirement answers, such as word_count.';
