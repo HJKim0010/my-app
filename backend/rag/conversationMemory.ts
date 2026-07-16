@@ -113,7 +113,7 @@ function looksLikeLearnerSelectedDirection(text: string): boolean {
 function looksLikeDirectionFollowUp(text: string): boolean {
   const normalized = compactText(text);
 
-  return /(그쪽|그걸로|그렇게|그러면|근데|but|then|그래도|어쩔\s*수\s*없이|할\s*수\s*없이|가야\s*하|돌아가야|계속\s*가야|학생증.*가지러|지갑.*가지러|must go|have to go|has to go)/i.test(
+  return /(그쪽|그걸로|그렇게|그러면|근데|but|then|그래도|잡아\s*줘|잡아줘|그렇게\s*해\s*줘|그걸로\s*할게|좀\s*더\s*구체|더\s*구체|그다음은|어쩔\s*수\s*없이|할\s*수\s*없이|가야\s*하|돌아가야|계속\s*가야|학생증.*가지러|지갑.*가지러|must go|have to go|has to go)/i.test(
     normalized
   );
 }
@@ -147,7 +147,7 @@ function looksLikeShortContextualFollowUp(text: string): boolean {
     return false;
   }
 
-  return /(hint|hints|clue|help|example|pattern|more|why|how|what about|then|next|again|check|huh|what\?|but|have to go|must go|좀|힌트|도움|예시|패턴|조금|더|왜|어떻게|그럼|그러면|근데|그래도|어쩔\s*수\s*없이|할\s*수\s*없이|가야\s*하|학생증.*가지러|지갑.*가지러|다음|다시|확인|괜찮|알려줘|알려주세요|뭐라고|무슨 뜻|헐|ㅇㅇ|응\?)/i.test(
+  return /(hint|hints|clue|help|example|pattern|more|why|how|what about|then|next|again|check|huh|what\?|but|have to go|must go|좀|힌트|도움|예시|패턴|조금|더|왜|어떻게|그럼|그러면|근데|그래도|잡아\s*줘|잡아줘|그렇게\s*해\s*줘|그걸로\s*할게|좀\s*더\s*구체|더\s*구체|그다음은|어쩔\s*수\s*없이|할\s*수\s*없이|가야\s*하|학생증.*가지러|지갑.*가지러|다음|다시|확인|괜찮|알려줘|알려주세요|뭐라고|무슨 뜻|헐|ㅇㅇ|응\?)/i.test(
     normalized
   );
 }

@@ -238,7 +238,7 @@ function isMetaCapabilityQuestion(query: string): boolean {
 function hasExplicitAssistanceRequest(query: string): boolean {
   const normalized = compactText(query).toLowerCase();
 
-  return /(can you|could you|would you|please|help(?: me)?|check|feedback|review|fix|correct|revise|rewrite|translate|explain|this sentence|my sentence|this phrase|my phrase|what does|what should|what would|what can|how can|how should|why does|why is|why did|why was|which part|which clue|idea|suggest|organize|outline|natural|awkward|make sense|word count|minimum length|maximum length|time limit|dictionary|submission|is this\s+(?:okay|ok|good|natural|logical|right|correct|clear|connected|related)|does this\s+(?:make sense|fit|connect|sound natural|work)|do you think|어때|어떻게|왜\s*(?:그런|이런|그렇게|이렇게|인가|일까|죠|요|해|했)|무슨\s*뜻|뭐가|뭐를|뭘|어느\s*부분|이대로|도와|봐\s*줘|봐줄|확인|피드백|검토|수정|고쳐|번역|설명|아이디어|제안|정리|구성|순서|자연스|어색|괜찮|맞아|맞나요|말이\s*되|문제|도움|몇\s*자|몇자|몇\s*단어|단어\s*수|글자\s*수|최소\s*몇|최대\s*몇|얼마나\s*(?:써야|길게)|분량|몇\s*개\s*이상|시간|몇\s*분|사전|원문\s*다시)/i.test(
+  return /(can you|could you|would you|please|help(?: me)?|check|feedback|review|fix|correct|revise|rewrite|translate|explain|this sentence|my sentence|this phrase|my phrase|what does|what should|what would|what can|how can|how should|why does|why is|why did|why was|which part|which clue|idea|suggest|organize|outline|natural|awkward|make sense|word count|minimum length|maximum length|time limit|dictionary|submission|is this\s+(?:okay|ok|good|natural|logical|right|correct|clear|connected|related)|does this\s+(?:make sense|fit|connect|sound natural|work)|do you think|어때|어떻게|왜\s*(?:그런|이런|그렇게|이렇게|인가|일까|죠|요|해|했)|무슨\s*뜻|뭐가|뭐를|뭘|어느\s*부분|이대로|도와|봐\s*줘|봐줄|확인|피드백|검토|수정|고쳐|번역|설명|아이디어|제안|정리|구성|순서|자연스|어색|괜찮|맞아|맞나요|말이\s*되|문제|도움|잡아\s*줘|잡아줘|그렇게\s*해\s*줘|그걸로\s*할게|좀\s*더\s*구체|더\s*구체|그다음은|몇\s*자|몇자|몇\s*단어|단어\s*수|글자\s*수|최소\s*몇|최대\s*몇|얼마나\s*(?:써야|길게)|분량|몇\s*개\s*이상|시간|몇\s*분|사전|원문\s*다시)/i.test(
     normalized
   );
 }
@@ -638,7 +638,7 @@ function looksLikeContinuationFollowUp(query: string, recentMessages: RecentMess
   const normalized = normalizeRoutingText(query);
   const shortEnough = normalized.length <= 180;
   const followUpCue =
-    /(what\s*about|how\s*about|then|next|that works|sounds good|check|flow|sequence|structure|does this work|is this okay|go back|go home|return home|have to go|must go|이어가|이어지|그럼|그러면|그다음|다음|여기서|이 흐름|흐름|구성|순서|검사|봐줘|어떨까|괜찮|좋을 것|좋겠다|그게|그걸로|근데|그래도|어쩔\s*수\s*없이|할\s*수\s*없이|가야\s*하|학생증.*가지러|지갑.*가지러|집에\s*다시|집으로|돌아가|쓰러지|정신을\s*잃|노트|메모)/i.test(
+    /(what\s*about|how\s*about|then|next|that works|sounds good|check|flow|sequence|structure|does this work|is this okay|go back|go home|return home|have to go|must go|이어가|이어지|그럼|그러면|그다음|그다음은|다음|여기서|이 흐름|흐름|구성|순서|검사|봐줘|잡아\s*줘|잡아줘|그렇게\s*해\s*줘|그걸로\s*할게|좀\s*더\s*구체|더\s*구체|어떨까|괜찮|좋을 것|좋겠다|그게|그걸로|근데|그래도|어쩔\s*수\s*없이|할\s*수\s*없이|가야\s*하|학생증.*가지러|지갑.*가지러|집에\s*다시|집으로|돌아가|쓰러지|정신을\s*잃|노트|메모)/i.test(
       normalized
     );
   const hasStoryOrPlanFragment =
@@ -655,6 +655,45 @@ function looksLikeStructureFeedbackFollowUp(query: string): boolean {
   return /(flow|sequence|structure|organization|check|feedback|does this work|흐름|구성|순서|검사|피드백|봐줘|자연스럽|괜찮|말이\s*되)/i.test(
     normalized
   );
+}
+
+function acceptsPreviousEventSequenceOffer(query: string, recentMessages: RecentMessage[]): boolean {
+  const normalized = normalizeRoutingText(query);
+  const acceptsOffer = /(잡아|해\s*줘|그렇게|그걸로|응|네|그래|좋아|ㅇㅇ)/i.test(normalized);
+
+  if (!acceptsOffer) {
+    return false;
+  }
+
+  return recentMessages
+    .slice(-6)
+    .some(
+      (message) =>
+        message.role === "assistant" &&
+        /(사건|순서|흐름|event\s*sequence|3\s*steps|three\s*steps)/i.test(
+          message.text
+        )
+    );
+}
+
+function buildAcceptedEventSequenceResponse(taskId: TaskId): string {
+  if (taskId === "task2") {
+    return [
+      "1. Anna가 table 7 아래의 물건을 보고 잠깐 멈춘다.",
+      "2. 무서워서 바로 집지 않고, 주변을 확인하거나 카페 밖으로 물러난다.",
+      "3. 물건을 두고 나온 결과, 단서를 놓칠지 다시 돌아갈지 결정해야 하는 상황이 생긴다.",
+      "",
+      "이제 이 세 단계 중에서 Anna가 왜 물러나는지 한 가지 이유를 정해 다음 장면으로 이어 보세요.",
+    ].join("\n");
+  }
+
+  return [
+    "1. Jack이 지갑과 학생증이 없다는 사실을 다시 확인하고 멈칫한다.",
+    "2. 학생증이 꼭 필요하다고 판단해서, 늦더라도 집으로 돌아가거나 다른 해결 방법을 찾기로 한다.",
+    "3. 그 선택 때문에 발표에 더 늦을 위험이 커지고, Jack은 더 급하게 움직인다.",
+    "",
+    "이제 집으로 돌아갈지, 다른 해결 방법을 찾을지 하나를 골라 다음 사건으로 이어 보세요.",
+  ].join("\n");
 }
 
 function buildClarificationNeededResponse(query: string, language: ResponseLanguage): string {
@@ -1673,6 +1712,41 @@ export async function POST(request: NextRequest) {
     ...intentLogFields(requestClassification),
     scope_limitations: scopeLimitations,
   };
+
+  if (acceptsPreviousEventSequenceOffer(query, recentMessages)) {
+    const responseText = buildAcceptedEventSequenceResponse(taskId);
+
+    await persistChatLog({
+      ...commonLog,
+      participant_id: participantId,
+      session_id: sessionId,
+      ep_id: epId,
+      condition_label: taskPackage.config.ai_condition,
+      selected_category: category,
+      raw_user_query: query,
+      policy_decision: "allowed",
+      status: "allowed",
+      response_status: "success",
+      retrieved_chunk_ids: [],
+      retrieved_chunk_metadata: [],
+      assistant_response: responseText,
+      timestamp,
+      response_length: responseText.length,
+      interaction_count: interactionCount,
+      session_duration_ms: sessionDurationMs,
+      query_type_label: "organization",
+      detected_support_mode: "organization",
+      user_query_type: "organization",
+      feedback_target: null,
+      source_types_used: [],
+      visual_assets_used: [],
+      retrieval_executed: false,
+      retrieval_skipped_reason: "accepted_previous_event_sequence_offer",
+      fallback_state: null,
+    });
+
+    return chatJsonResponse(responseFromText(responseText, requestId, "success", null));
+  }
 
   if (requestClassification.intent === "clarification_needed") {
     const responseText = buildClarificationNeededResponse(query, responseLanguage);
