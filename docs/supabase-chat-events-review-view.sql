@@ -1,11 +1,11 @@
 create or replace view public.chat_events_review as
 select
   participant_id,
+  coalesce(user_query_type, detected_support_mode, query_type_label, 'other') as query_type_label,
   raw_user_query,
   assistant_response,
   policy_decision,
   status,
-  coalesce(user_query_type, detected_support_mode, query_type_label, 'other') as user_query_type,
   task_id as episode,
   selected_category,
   detected_support_mode,
