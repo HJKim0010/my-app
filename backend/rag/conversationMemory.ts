@@ -82,12 +82,29 @@ function looksLikeUserContinuation(text: string): boolean {
 
   if (
     USER_CONTINUATION_PATTERNS.some((pattern) => pattern.test(normalized)) ||
+    looksLikeLearnerSelectedDirection(normalized) ||
     (normalized.length > 80 && /(\bthen\b|\bafter that\b|\bfinally\b|그리고|그 다음|이후)/i.test(normalized))
   ) {
     return true;
   }
 
   return false;
+}
+
+function looksLikeLearnerSelectedDirection(text: string): boolean {
+  const normalized = compactText(text);
+
+  return /(go back home|return home|go home|continue to school|go to school|go back|집에\s*다시|집으로|집에\s*돌아|돌아가|되돌아|학생증.*가지러|지갑.*가지러|학교로|계속\s*가|가야\s*하|어쩔\s*수\s*없이|할\s*수\s*없이|전개|방향|흐름|사건|아이디어|어때)/i.test(
+    normalized
+  );
+}
+
+function looksLikeDirectionFollowUp(text: string): boolean {
+  const normalized = compactText(text);
+
+  return /(그쪽|그걸로|그렇게|그러면|근데|but|then|그래도|어쩔\s*수\s*없이|할\s*수\s*없이|가야\s*하|돌아가야|계속\s*가야|학생증.*가지러|지갑.*가지러|must go|have to go|has to go)/i.test(
+    normalized
+  );
 }
 
 function asksForDirectTranslation(text: string): boolean {
@@ -119,7 +136,7 @@ function looksLikeShortContextualFollowUp(text: string): boolean {
     return false;
   }
 
-  return /(hint|hints|clue|help|example|pattern|more|why|how|what about|then|next|again|check|huh|what\?|좀|힌트|도움|예시|패턴|조금|더|왜|어떻게|그럼|그러면|다음|다시|확인|괜찮|알려줘|알려주세요|뭐라고|무슨 뜻|헐|ㅇㅇ|응\?)/i.test(
+  return /(hint|hints|clue|help|example|pattern|more|why|how|what about|then|next|again|check|huh|what\?|but|have to go|must go|좀|힌트|도움|예시|패턴|조금|더|왜|어떻게|그럼|그러면|근데|그래도|어쩔\s*수\s*없이|할\s*수\s*없이|가야\s*하|학생증.*가지러|지갑.*가지러|다음|다시|확인|괜찮|알려줘|알려주세요|뭐라고|무슨 뜻|헐|ㅇㅇ|응\?)/i.test(
     normalized
   );
 }
@@ -146,7 +163,7 @@ function inferSupportContext(text: string): ActiveSupportContext {
     return "organization";
   }
 
-  if (/(idea|ideas|next event|possible|what could happen|brainstorm|clue|hint|아이디어|다음 사건|다음 전개|가능한|단서|힌트)/i.test(normalized)) {
+  if (/(idea|ideas|next event|possible|what could happen|brainstorm|clue|hint|direction|plan|go back home|return home|go home|아이디어|다음 사건|다음 전개|전개|방향|사건|계획|가능|단서|힌트|집에\s*다시|집으로|집에\s*돌아|돌아가)/i.test(normalized)) {
     return "ideas";
   }
 
@@ -179,7 +196,7 @@ function inferExplicitSupportShift(text: string): ActiveSupportContext {
     return "organization";
   }
 
-  if (/(idea|ideas|next event|possible|what could happen|brainstorm|아이디어|다음 사건|다음 전개|가능한 전개)/i.test(normalized)) {
+  if (/(idea|ideas|next event|possible|what could happen|brainstorm|go back home|return home|go home|아이디어|다음 사건|다음 전개|가능한 전개|집에\s*다시|집으로|집에\s*돌아|돌아가)/i.test(normalized)) {
     return "ideas";
   }
 
@@ -220,6 +237,10 @@ function buildRecentSummary(recentMessages: RecentMessage[]): string {
 function findContinuationFocus(query: string, lastUserText: string, previousUserText: string): string {
   if (looksLikeAcknowledgment(query)) {
     return previousUserText || lastUserText;
+  }
+
+  if (looksLikeLearnerSelectedDirection(lastUserText) && looksLikeDirectionFollowUp(query)) {
+    return compactText([lastUserText, query].filter(Boolean).join(" / follow-up: "));
   }
 
   if (looksLikeUserContinuation(query)) {

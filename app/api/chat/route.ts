@@ -638,11 +638,11 @@ function looksLikeContinuationFollowUp(query: string, recentMessages: RecentMess
   const normalized = normalizeRoutingText(query);
   const shortEnough = normalized.length <= 180;
   const followUpCue =
-    /(what\s*about|how\s*about|then|next|that works|sounds good|check|flow|sequence|structure|does this work|is this okay|이어가|이어지|그럼|그러면|그다음|다음|여기서|이 흐름|흐름|구성|순서|검사|봐줘|어떨까|괜찮|좋을 것|좋겠다|그게|그걸로|쓰러지|정신을\s*잃|노트|메모)/i.test(
+    /(what\s*about|how\s*about|then|next|that works|sounds good|check|flow|sequence|structure|does this work|is this okay|go back|go home|return home|have to go|must go|이어가|이어지|그럼|그러면|그다음|다음|여기서|이 흐름|흐름|구성|순서|검사|봐줘|어떨까|괜찮|좋을 것|좋겠다|그게|그걸로|근데|그래도|어쩔\s*수\s*없이|할\s*수\s*없이|가야\s*하|학생증.*가지러|지갑.*가지러|집에\s*다시|집으로|돌아가|쓰러지|정신을\s*잃|노트|메모)/i.test(
       normalized
     );
   const hasStoryOrPlanFragment =
-    /(jack|anna|he|she|memo|note|student id|wallet|presentation|subway|train|table|cafe|잭|애나|안나|메모|노트|학생증|지갑|발표|지하철|전철|카페|테이블)/i.test(
+    /(jack|anna|he|she|memo|note|student id|wallet|presentation|subway|train|table|cafe|home|school|잭|애나|안나|메모|노트|학생증|지갑|발표|지하철|전철|카페|테이블|집|학교)/i.test(
       normalized
     ) || normalized.split(/\s+/).length >= 4;
 
