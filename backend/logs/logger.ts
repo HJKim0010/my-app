@@ -55,6 +55,8 @@ export type ChatLogEntry = {
     | "clarify_previous"
     | "none";
   classifier_confidence?: number;
+  scope_limitations?: string[];
+  sub_request_count?: number;
 };
 
 export type SessionTranscriptEntry = {
@@ -191,6 +193,8 @@ function buildChatLogPayload(entry: ChatLogEntry, useLegacyTaskId = false): obje
     requires_source_context: entry.requires_source_context,
     conversation_operation: entry.conversation_operation,
     classifier_confidence: entry.classifier_confidence,
+    scope_limitations: entry.scope_limitations || [],
+    sub_request_count: entry.sub_request_count,
   };
 }
 

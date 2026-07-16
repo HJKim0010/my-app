@@ -59,6 +59,11 @@ type RequestIntentClassification = {
   requires_source_context: boolean;
   conversation_operation: ConversationOperation;
   confidence: number;
+  sub_requests?: Array<{
+    text: string;
+    requires_source_context: boolean;
+    intent: string;
+  }>;
 };
 
 type ChatStreamEvent =
@@ -186,7 +191,86 @@ function isDraftOnlyOrUnclearIntent(query: string): boolean {
     return false;
   }
 
-  return !hasExplicitAssistanceRequest(query);
+  const lines = query.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+  const lastExplicitIndex = lines.findLastIndex((line) => hasExplicitAssistanceRequest(line));
+
+  if (lastExplicitIndex === -1) {
+    return true;
+  }
+
+  return lastExplicitIndex < lines.length - 2;
+}
+
+function splitLearnerDraftAndRequest(query: string): { learnerDraft: string; currentRequest: string } {
+  const lines = query.split(/\n+/);
+  const requestStart = lines.findIndex((line) => hasExplicitAssistanceRequest(line));
+
+  if (requestStart > 0) {
+    return {
+      learnerDraft: lines.slice(0, requestStart).join("\n").trim(),
+      currentRequest: lines.slice(requestStart).join("\n").trim(),
+    };
+  }
+
+  return {
+    learnerDraft: looksLikeDraftOrPassage(query) ? query.trim() : "",
+    currentRequest: query.trim(),
+  };
+}
+
+function extractScopeLimitations(query: string): string[] {
+  const normalized = compactText(query).toLowerCase();
+  const limits: string[] = [];
+
+  if (/(hint only|hints only|힌트만|도움말만)/i.test(normalized)) {
+    limits.push("hints_only");
+  }
+
+  if (/(keyword only|keywords only|key words only|키워드만|단어만)/i.test(normalized)) {
+    limits.push("keywords_only");
+  }
+
+  if (/(no full sentence|no full sentences|not a full sentence|complete sentence 말고|문장으로 쓰지|완전한 문장 말고|문장 전체 말고)/i.test(normalized)) {
+    limits.push("no_full_sentences");
+  }
+
+  if (/(do not check grammar|don't check grammar|grammar 말고|문법은 보지|문법 체크 말고|문법 말고)/i.test(normalized)) {
+    limits.push("no_grammar_check");
+  }
+
+  if (/(story connection only|source connection only|focus only on story connection|원래 이야기와 맞는지만|스토리 연결만|자료 연결만|연결만 봐)/i.test(normalized)) {
+    limits.push("story_connection_only");
+  }
+
+  return [...new Set(limits)];
+}
+
+function splitSubRequests(query: string): string[] {
+  const compact = query.trim();
+  const parts = compact
+    .split(/\n+|(?:\s+(?:and also|also|plus)\s+)|(?:그리고|또|추가로)/i)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  return parts.length > 1 ? parts : [compact];
+}
+
+function hasAmbiguousErroneousSentenceRequest(query: string): boolean {
+  const normalized = compactText(query).toLowerCase();
+
+  if (!looksLikeGeneralLanguageQuestion(query)) {
+    return false;
+  }
+
+  return /(presentation disappeared|he is selected|jack decided on this problem|cold beer|he didn't care anna|memo was written|anna back to|get the folder|그가 선택되었다|발표가 사라졌|문제가 결정|신경 쓰지 않았다)/i.test(
+    normalized
+  );
+}
+
+function buildAmbiguousSentenceClarification(language: ResponseLanguage): string {
+  return language === "english"
+    ? "This sentence could mean more than one thing. What did you want to say?"
+    : "이 문장은 뜻이 여러 가지로 해석될 수 있어요. 어떤 뜻으로 말하고 싶었나요?";
 }
 
 function looksLikeProceduralQuestion(query: string): boolean {
@@ -240,6 +324,9 @@ function classifyCurrentRequest(
   recentMessages: RecentMessage[],
   supportMode: SupportMode
 ): RequestIntentClassification {
+  const { currentRequest } = splitLearnerDraftAndRequest(query);
+  const classificationTarget = currentRequest || query;
+
   if (isDraftOnlyOrUnclearIntent(query)) {
     return {
       intent: "draft_only",
@@ -250,8 +337,8 @@ function classifyCurrentRequest(
     };
   }
 
-  if (isLanguageChangeFollowUp(query, recentMessages)) {
-    const normalized = compactText(query).toLowerCase();
+  if (isLanguageChangeFollowUp(classificationTarget, recentMessages)) {
+    const normalized = compactText(classificationTarget).toLowerCase();
     const operation: ConversationOperation = /(translate|in english|영어로|번역)/i.test(normalized)
       ? "translate_previous"
       : /(뭐라고|무슨 뜻|clarify|explain)/i.test(normalized)
@@ -267,7 +354,7 @@ function classifyCurrentRequest(
     };
   }
 
-  if (!hasExplicitAssistanceRequest(query) && looksLikeDraftOrPassage(query)) {
+  if (!hasExplicitAssistanceRequest(classificationTarget) && looksLikeDraftOrPassage(query)) {
     return {
       intent: "unclear_intent",
       request_is_explicit: false,
@@ -277,7 +364,7 @@ function classifyCurrentRequest(
     };
   }
 
-  if (looksLikeProceduralQuestion(query) || isMetaCapabilityQuestion(query)) {
+  if (looksLikeProceduralQuestion(classificationTarget) || isMetaCapabilityQuestion(classificationTarget)) {
     return {
       intent: "procedural",
       request_is_explicit: true,
@@ -287,32 +374,47 @@ function classifyCurrentRequest(
     };
   }
 
-  if (looksLikeSourceContextRequest(query)) {
+  const subRequests = splitSubRequests(classificationTarget).map((text) => ({
+    text,
+    requires_source_context: looksLikeSourceContextRequest(text),
+    intent: looksLikeSourceAlignmentRequest(text)
+      ? "source_alignment"
+      : looksLikeSourceContextRequest(text)
+        ? "source_comprehension"
+        : looksLikeGeneralLanguageQuestion(text)
+          ? "language_feedback"
+          : "general_question",
+  }));
+  const sourceSubRequests = subRequests.filter((item) => item.requires_source_context);
+
+  if (sourceSubRequests.length > 0) {
     return {
-      intent: looksLikeSourceAlignmentRequest(query)
+      intent: sourceSubRequests.some((item) => item.intent === "source_alignment")
         ? "source_alignment"
         : "source_comprehension",
       request_is_explicit: true,
       requires_source_context: true,
       conversation_operation: "new_request",
       confidence: 0.84,
+      sub_requests: subRequests,
     };
   }
 
-  if (looksLikeGeneralLanguageQuestion(query) || supportMode === "language") {
+  if (looksLikeGeneralLanguageQuestion(classificationTarget) || supportMode === "language") {
     return {
       intent: supportMode === "feedback" ? "language_feedback" : "vocabulary_expression",
-      request_is_explicit: hasExplicitAssistanceRequest(query),
+      request_is_explicit: hasExplicitAssistanceRequest(classificationTarget),
       requires_source_context: false,
       conversation_operation: "new_request",
       confidence: 0.78,
+      sub_requests: subRequests,
     };
   }
 
   if (supportMode === "feedback") {
     return {
       intent: "language_feedback",
-      request_is_explicit: hasExplicitAssistanceRequest(query),
+      request_is_explicit: hasExplicitAssistanceRequest(classificationTarget),
       requires_source_context: false,
       conversation_operation: "new_request",
       confidence: 0.72,
@@ -320,10 +422,10 @@ function classifyCurrentRequest(
   }
 
   if (supportMode === "ideas" || supportMode === "organization") {
-    const sourceNeeded = looksLikeSourceContextRequest(query);
+    const sourceNeeded = looksLikeSourceContextRequest(classificationTarget);
     return {
       intent: supportMode === "ideas" ? "idea_generation" : "organization",
-      request_is_explicit: hasExplicitAssistanceRequest(query),
+      request_is_explicit: hasExplicitAssistanceRequest(classificationTarget),
       requires_source_context: sourceNeeded,
       conversation_operation: "new_request",
       confidence: sourceNeeded ? 0.8 : 0.7,
@@ -331,11 +433,12 @@ function classifyCurrentRequest(
   }
 
   return {
-    intent: hasExplicitAssistanceRequest(query) ? "general_question" : "unclear_intent",
-    request_is_explicit: hasExplicitAssistanceRequest(query),
+    intent: hasExplicitAssistanceRequest(classificationTarget) ? "general_question" : "unclear_intent",
+    request_is_explicit: hasExplicitAssistanceRequest(classificationTarget),
     requires_source_context: false,
-    conversation_operation: hasExplicitAssistanceRequest(query) ? "new_request" : "none",
-    confidence: hasExplicitAssistanceRequest(query) ? 0.62 : 0.45,
+    conversation_operation: hasExplicitAssistanceRequest(classificationTarget) ? "new_request" : "none",
+    confidence: hasExplicitAssistanceRequest(classificationTarget) ? 0.62 : 0.45,
+    sub_requests: subRequests,
   };
 }
 
@@ -346,6 +449,7 @@ function intentLogFields(classification: RequestIntentClassification) {
     requires_source_context: classification.requires_source_context,
     conversation_operation: classification.conversation_operation,
     classifier_confidence: classification.confidence,
+    sub_request_count: classification.sub_requests?.length || 1,
   };
 }
 
@@ -384,16 +488,20 @@ function isLanguageChangeFollowUp(query: string, recentMessages: RecentMessage[]
     return false;
   }
 
+  const referencesPrevious =
+    /(방금\s*답|방금|이거|이건|그거|그건|이\s*부분|그\s*부분|아까|previous answer|that part|that answer|it|that)/i.test(
+      normalized
+    );
   const asksToRestatePrevious =
     /(한국말|한국어|한글|korean|쉽게|더 쉽게|조금 쉽게|다시 설명|다시 말|풀어서|쉽게 설명|easier|simpler|more simply|explain that|explain it|say that again|rephrase)/i.test(
       normalized
     );
   const introducesNewTarget =
-    /(이 장면|그 장면|이 부분|그 부분|이 문장|그 문장|단서|스토리|story|scene|sentence|clue|table\s*\d|anna|jack|wallet|presentation|subway|source|원문|자료)/i.test(
+    /(이 장면|그 장면|이 문장|그 문장|단서|스토리|story|scene|sentence|clue|table\s*\d|anna|jack|wallet|presentation|subway|source|원문|자료)/i.test(
       normalized
     );
 
-  return asksToRestatePrevious && !introducesNewTarget;
+  return asksToRestatePrevious && (referencesPrevious || !introducesNewTarget);
 }
 
 function buildLanguageChangeInstructions(language: ResponseLanguage): string {
@@ -869,6 +977,8 @@ export async function POST(request: NextRequest) {
   const supportMode = detectSupportMode(query, category, conversationMemory);
   const responseLanguage = detectResponseLanguage(query);
   const hasConversationContext = recentMessages.length > 0;
+  const separatedTurn = splitLearnerDraftAndRequest(query);
+  const scopeLimitations = extractScopeLimitations(query);
   const requestClassification = classifyCurrentRequest(query, recentMessages, supportMode);
   const commonLog = {
     ...buildCommonLogFields({
@@ -893,6 +1003,7 @@ export async function POST(request: NextRequest) {
       sessionDurationMs,
     }),
     ...intentLogFields(requestClassification),
+    scope_limitations: scopeLimitations,
   };
 
   if (!requestClassification.request_is_explicit || requestClassification.confidence < 0.58) {
@@ -1080,6 +1191,43 @@ export async function POST(request: NextRequest) {
         isTimeout ? 504 : 500
       );
     }
+  }
+
+  if (
+    hasAmbiguousErroneousSentenceRequest(separatedTurn.currentRequest) &&
+    !requestClassification.requires_source_context
+  ) {
+    const clarification = buildAmbiguousSentenceClarification(responseLanguage);
+
+    await persistChatLog({
+      ...commonLog,
+      participant_id: participantId,
+      session_id: sessionId,
+      ep_id: epId,
+      condition_label: taskPackage.config.ai_condition,
+      selected_category: category,
+      raw_user_query: query,
+      policy_decision: "allowed",
+      status: "allowed",
+      response_status: "success",
+      retrieved_chunk_ids: [],
+      retrieved_chunk_metadata: [],
+      assistant_response: clarification,
+      timestamp,
+      response_length: clarification.length,
+      interaction_count: interactionCount,
+      session_duration_ms: sessionDurationMs,
+      query_type_label: "needs_meaning_clarification",
+      detected_support_mode: "language_feedback",
+      user_query_type: "feedback_checking",
+      feedback_target: "language",
+      source_types_used: [],
+      visual_assets_used: [],
+      retrieval_executed: false,
+      retrieval_skipped_reason: "ambiguous_learner_sentence",
+    });
+
+    return chatJsonResponse(responseFromText(clarification, requestId, "success", null));
   }
 
   if (isMetaCapabilityQuestion(query)) {
@@ -1331,7 +1479,9 @@ export async function POST(request: NextRequest) {
     requestClassification.requires_source_context &&
     requestClassification.request_is_explicit &&
     requestClassification.confidence >= 0.58;
-  const retrievalQuery = shouldRunRetrieval ? extractRetrievalQuery(query) : "";
+  const retrievalQuery = shouldRunRetrieval
+    ? extractRetrievalQuery(separatedTurn.currentRequest || query)
+    : "";
   const retrievalReason = shouldRunRetrieval
     ? `conditional_rag:${requestClassification.intent}`
     : null;
@@ -1472,9 +1622,9 @@ export async function POST(request: NextRequest) {
         role: "user" as const,
         content: [
           {
-            type: "input_text" as const,
-            text: buildUserInput(
-              query,
+              type: "input_text" as const,
+              text: buildUserInput(
+              separatedTurn.currentRequest || query,
               category,
               taskPackage,
               retrievedChunks,
@@ -1483,10 +1633,11 @@ export async function POST(request: NextRequest) {
               conversationMemory,
               {
                 includeSourceContext: shouldRunRetrieval,
-                learnerDraft:
-                  conversationMemory.workingContext === "user_continuation"
+                learnerDraft: separatedTurn.learnerDraft ||
+                  (conversationMemory.workingContext === "user_continuation"
                     ? conversationMemory.continuationFocus || query
-                    : undefined,
+                    : undefined),
+                scopeLimitations,
               }
             ),
           },

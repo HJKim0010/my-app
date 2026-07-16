@@ -11,6 +11,8 @@ select
   requires_source_context,
   conversation_operation,
   classifier_confidence,
+  scope_limitations,
+  sub_request_count,
   retrieval_executed,
   retrieval_skipped_reason,
   task_id as episode,

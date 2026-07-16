@@ -18,7 +18,9 @@ alter table public.chat_events
   add column if not exists request_is_explicit boolean,
   add column if not exists requires_source_context boolean,
   add column if not exists conversation_operation text,
-  add column if not exists classifier_confidence double precision;
+  add column if not exists classifier_confidence double precision,
+  add column if not exists scope_limitations jsonb not null default '[]'::jsonb,
+  add column if not exists sub_request_count integer;
 
 alter table public.session_transcripts
   add column if not exists source_condition text,
@@ -117,3 +119,6 @@ comment on column public.chat_events.requires_source_context is
 
 comment on column public.chat_events.classifier_confidence is
   'Confidence score from the deterministic conditional RAG intent gate.';
+
+comment on column public.chat_events.scope_limitations is
+  'Participant-specified scope limits such as hints_only, keywords_only, no_full_sentences, no_grammar_check, or story_connection_only.';
