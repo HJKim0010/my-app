@@ -49,6 +49,9 @@ export type ChatLogEntry = {
   request_is_explicit?: boolean;
   requires_source_context?: boolean;
   requires_task_context?: boolean;
+  story_request_mode?: "factual" | "interpretive" | "generative" | null;
+  requires_exact_fact?: boolean | null;
+  response_mode?: "factual_answer" | "cautious_interpretation" | "idea_options" | "standard";
   conversation_operation?:
     | "new_request"
     | "translate_previous"
@@ -196,6 +199,9 @@ function buildChatLogPayload(entry: ChatLogEntry, useLegacyTaskId = false): obje
     request_is_explicit: entry.request_is_explicit,
     requires_source_context: entry.requires_source_context,
     requires_task_context: entry.requires_task_context,
+    story_request_mode: entry.story_request_mode ?? null,
+    requires_exact_fact: entry.requires_exact_fact ?? null,
+    response_mode: entry.response_mode ?? null,
     conversation_operation: entry.conversation_operation,
     classifier_confidence: entry.classifier_confidence,
     scope_limitations: entry.scope_limitations || [],

@@ -18,6 +18,9 @@ alter table public.chat_events
   add column if not exists request_is_explicit boolean,
   add column if not exists requires_source_context boolean,
   add column if not exists requires_task_context boolean,
+  add column if not exists story_request_mode text,
+  add column if not exists requires_exact_fact boolean,
+  add column if not exists response_mode text,
   add column if not exists conversation_operation text,
   add column if not exists classifier_confidence double precision,
   add column if not exists scope_limitations jsonb not null default '[]'::jsonb,
@@ -136,3 +139,12 @@ comment on column public.chat_events.selected_task_rule_id is
 
 comment on column public.chat_events.recognized_story_entity is
   'Lightweight active-story entity used for routing source-comprehension questions.';
+
+comment on column public.chat_events.story_request_mode is
+  'Story-related request mode: factual, interpretive, or generative.';
+
+comment on column public.chat_events.requires_exact_fact is
+  'True when the turn asks for a confirmed story fact rather than an interpretation or idea.';
+
+comment on column public.chat_events.response_mode is
+  'Planned answer style such as factual_answer, cautious_interpretation, or idea_options.';

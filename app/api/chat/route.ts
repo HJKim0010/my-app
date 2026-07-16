@@ -53,11 +53,17 @@ type ConversationOperation =
   | "clarify_previous"
   | "none";
 
+type StoryRequestMode = "factual" | "interpretive" | "generative";
+type ResponseMode = "factual_answer" | "cautious_interpretation" | "idea_options" | "standard";
+
 type RequestIntentClassification = {
   intent: string;
   request_is_explicit: boolean;
   requires_source_context: boolean;
   requires_task_context?: boolean;
+  story_request_mode?: StoryRequestMode | null;
+  requires_exact_fact?: boolean;
+  response_mode?: ResponseMode;
   conversation_operation: ConversationOperation;
   confidence: number;
   selected_task_rule_id?: string | null;
@@ -67,6 +73,7 @@ type RequestIntentClassification = {
     requires_source_context: boolean;
     intent: string;
     recognized_story_entity?: string | null;
+    story_request_mode?: StoryRequestMode | null;
   }>;
 };
 
@@ -264,10 +271,59 @@ function hasStoryQuestionCue(query: string): boolean {
   const normalized = normalizeRoutingText(query);
 
   return /[?？]/.test(normalized)
-    || /(why|what|who|where|when|how|was|were|did|does|is|are)\b/i.test(normalized)
-    || /(왜|무엇때문|뭐때문|뭘하느라|이유가|이유는|어째서|어떻게|뭐였|뭐라고|누가|누구|어디|언제|무슨\s*일|무슨\s*뜻|했지|했어|했나|였지|있었어|써\s*있|적혀|바빴|서둘렀|나타났|괜찮은가|괜찮아)/i.test(
+    || /(why|what|who|where|when|how|was|were|did|does|is|are|could|might|should)\b/i.test(normalized)
+    || /(왜|무엇때문|뭐때문|뭘하느라|이유가|이유는|어째서|어떻게|어떤|뭐였|뭐라고|누가|누구|어디|언제|무슨\s*일|무슨\s*뜻|했지|했어|했나|였지|있었어|써\s*있|적혀|바빴|서둘렀|나타났|괜찮은가|괜찮아|생길\s*수|이어가|전개|아이디어)/i.test(
       normalized
     );
+}
+
+function detectStoryRequestMode(query: string, supportMode: SupportMode): StoryRequestMode | null {
+  const normalized = normalizeRoutingText(query);
+  const generativeCue =
+    /(could|might|possible|possibility|what\s*if|idea|ideas|suggest|option|next\s*(?:event|events|part|direction)|happen\s*next|continue|develop|how\s+(?:can|should)\s+i\s+continue|how\s+to\s+continue|give\s+me\s+(?:one|two|three|\d+)\s+possible)/i.test(
+      normalized
+    ) ||
+    /(어떻게\s*이어가|이어가면|이어가다|이어갈|다음\s*전개|다음에는\s*어떤|다음에\s*어떤|어떤\s*일이\s*생길\s*수|무슨\s*일이\s*생길\s*수|아이디어|가능한\s*전개|가능한\s*다음|전개\s*아이디어|다음\s*아이디어)/i.test(
+      normalized
+    );
+  const factualNextCue =
+    /(what\s+happened\s+next|what\s+actually\s+happened\s+next|actually\s+happened|실제로\s*무슨\s*일|실제로\s*어떤\s*일|다음에\s*실제로|그다음에\s*실제로|무슨\s*일이\s*있었)/i.test(
+      normalized
+    );
+  const interpretiveCue =
+    /(why\s+might|what\s+could.*(?:mean|symbolize|represent)|symbolize|symbolise|meaning|interpret|interpretation|might\s+mean|왜.*수도|왜.*것\s*같|상징|의미할\s*수|해석|가능한\s*의미)/i.test(
+      normalized
+    );
+
+  if (factualNextCue) {
+    return "factual";
+  }
+
+  if (interpretiveCue) {
+    return "interpretive";
+  }
+
+  if (generativeCue || (supportMode === "ideas" && /(next|continue|develop|다음|전개|이어|아이디어)/i.test(normalized))) {
+    return "generative";
+  }
+
+  return null;
+}
+
+function responseModeForStoryRequestMode(mode: StoryRequestMode | null | undefined): ResponseMode {
+  if (mode === "generative") {
+    return "idea_options";
+  }
+
+  if (mode === "interpretive") {
+    return "cautious_interpretation";
+  }
+
+  if (mode === "factual") {
+    return "factual_answer";
+  }
+
+  return "standard";
 }
 
 function findStoryEntity(query: string, taskId: TaskId, recentMessages: RecentMessage[] = []): string | null {
@@ -366,22 +422,33 @@ function looksLikeActiveStoryQuestion(
 function requiresStoryKnowledgeForRouting(
   query: string,
   taskId: TaskId,
-  recentMessages: RecentMessage[] = []
-): { requiresStoryKnowledge: boolean; entity: string | null } {
+  recentMessages: RecentMessage[] = [],
+  supportMode: SupportMode = "comprehension"
+): { requiresStoryKnowledge: boolean; entity: string | null; storyRequestMode: StoryRequestMode | null } {
+  const storyRequestMode = detectStoryRequestMode(query, supportMode);
   const storyQuestion = looksLikeActiveStoryQuestion(query, taskId, recentMessages);
 
+  if (storyRequestMode) {
+    return { requiresStoryKnowledge: true, entity: storyQuestion.entity, storyRequestMode };
+  }
+
   if (storyQuestion.requiresSource) {
-    return { requiresStoryKnowledge: true, entity: storyQuestion.entity };
+    return {
+      requiresStoryKnowledge: true,
+      entity: storyQuestion.entity,
+      storyRequestMode: storyRequestMode || "factual",
+    };
   }
 
   if (looksLikeSourceContextRequest(query)) {
     return {
       requiresStoryKnowledge: true,
       entity: findStoryEntity(query, taskId, recentMessages),
+      storyRequestMode: storyRequestMode || (looksLikeSourceAlignmentRequest(query) ? "interpretive" : "factual"),
     };
   }
 
-  return { requiresStoryKnowledge: false, entity: storyQuestion.entity };
+  return { requiresStoryKnowledge: false, entity: storyQuestion.entity, storyRequestMode };
 }
 
 function detectTaskRequirementRule(query: string): TaskRequirementRuleId | null {
@@ -616,14 +683,19 @@ function classifyCurrentRequest(
     const storyKnowledge = requiresStoryKnowledgeForRouting(
       classificationTarget,
       taskId,
-      recentMessages
+      recentMessages,
+      supportMode
     );
+    const storyRequestMode = storyKnowledge.storyRequestMode || "interpretive";
 
     return {
       intent: "source_alignment",
       request_is_explicit: true,
       requires_source_context: true,
       requires_task_context: false,
+      story_request_mode: storyRequestMode,
+      requires_exact_fact: false,
+      response_mode: responseModeForStoryRequestMode(storyRequestMode),
       conversation_operation: "new_request",
       confidence: 0.86,
       recognized_story_entity: storyKnowledge.entity,
@@ -647,20 +719,27 @@ function classifyCurrentRequest(
   const storyKnowledgeRoute = requiresStoryKnowledgeForRouting(
     classificationTarget,
     taskId,
-    recentMessages
+    recentMessages,
+    supportMode
   );
 
   if (storyKnowledgeRoute.requiresStoryKnowledge) {
+    const storyRequestMode = storyKnowledgeRoute.storyRequestMode || "factual";
     return {
       intent:
-        supportMode === "ideas"
+        storyRequestMode === "generative"
           ? "idea_generation"
-          : supportMode === "organization"
+          : storyRequestMode === "factual" || storyRequestMode === "interpretive"
+            ? "source_comprehension"
+            : supportMode === "organization"
             ? "organization"
             : "source_comprehension",
       request_is_explicit: true,
       requires_source_context: true,
       requires_task_context: false,
+      story_request_mode: storyRequestMode,
+      requires_exact_fact: storyRequestMode === "factual",
+      response_mode: responseModeForStoryRequestMode(storyRequestMode),
       conversation_operation: "new_request",
       confidence: 0.86,
       recognized_story_entity: storyKnowledgeRoute.entity,
@@ -690,14 +769,18 @@ function classifyCurrentRequest(
   const subRequests = splitSubRequests(classificationTarget).map((text) => ({
     text,
     ...(() => {
-      const storyKnowledge = requiresStoryKnowledgeForRouting(text, taskId, recentMessages);
+      const storyKnowledge = requiresStoryKnowledgeForRouting(text, taskId, recentMessages, supportMode);
+      const storyRequestMode = storyKnowledge.storyRequestMode;
 
       return {
         requires_source_context: storyKnowledge.requiresStoryKnowledge,
         recognized_story_entity: storyKnowledge.entity,
+        story_request_mode: storyRequestMode,
         intent: looksLikeSourceAlignmentRequest(text)
           ? "source_alignment"
-          : storyKnowledge.requiresStoryKnowledge
+          : storyKnowledge.requiresStoryKnowledge && storyRequestMode === "generative"
+            ? "idea_generation"
+            : storyKnowledge.requiresStoryKnowledge
             ? "source_comprehension"
             : looksLikeGeneralLanguageQuestion(text)
               ? "language_feedback"
@@ -708,12 +791,22 @@ function classifyCurrentRequest(
   const sourceSubRequests = subRequests.filter((item) => item.requires_source_context);
 
   if (sourceSubRequests.length > 0) {
+    const storyRequestMode =
+      sourceSubRequests.find((item) => item.story_request_mode === "generative")?.story_request_mode ||
+      sourceSubRequests.find((item) => item.story_request_mode === "interpretive")?.story_request_mode ||
+      sourceSubRequests.find((item) => item.story_request_mode === "factual")?.story_request_mode ||
+      "factual";
     return {
       intent: sourceSubRequests.some((item) => item.intent === "source_alignment")
         ? "source_alignment"
+        : storyRequestMode === "generative"
+          ? "idea_generation"
         : "source_comprehension",
       request_is_explicit: true,
       requires_source_context: true,
+      story_request_mode: storyRequestMode,
+      requires_exact_fact: storyRequestMode === "factual",
+      response_mode: responseModeForStoryRequestMode(storyRequestMode),
       conversation_operation: "new_request",
       confidence: 0.84,
       recognized_story_entity:
@@ -744,11 +837,16 @@ function classifyCurrentRequest(
   }
 
   if (supportMode === "ideas" || supportMode === "organization") {
-    const sourceNeeded = looksLikeSourceContextRequest(classificationTarget);
+    const storyKnowledge = requiresStoryKnowledgeForRouting(classificationTarget, taskId, recentMessages, supportMode);
+    const sourceNeeded = storyKnowledge.requiresStoryKnowledge;
+    const storyRequestMode = storyKnowledge.storyRequestMode || (sourceNeeded ? "generative" : null);
     return {
       intent: supportMode === "ideas" ? "idea_generation" : "organization",
       request_is_explicit: hasExplicitAssistanceRequest(classificationTarget),
       requires_source_context: sourceNeeded,
+      story_request_mode: storyRequestMode,
+      requires_exact_fact: storyRequestMode === "factual",
+      response_mode: responseModeForStoryRequestMode(storyRequestMode),
       conversation_operation: "new_request",
       confidence: sourceNeeded ? 0.8 : 0.7,
     };
@@ -770,6 +868,9 @@ function intentLogFields(classification: RequestIntentClassification) {
     request_is_explicit: classification.request_is_explicit,
     requires_source_context: classification.requires_source_context,
     requires_task_context: classification.requires_task_context || false,
+    story_request_mode: classification.story_request_mode || null,
+    requires_exact_fact: classification.requires_exact_fact ?? null,
+    response_mode: classification.response_mode || "standard",
     conversation_operation: classification.conversation_operation,
     classifier_confidence: classification.confidence,
     selected_task_rule_id: classification.selected_task_rule_id || null,
@@ -887,6 +988,46 @@ function buildRetrievalUnavailableResponse(language: ResponseLanguage): string {
   return language === "english"
     ? "I could not load the current story information. Please try again in a moment."
     : "현재 이야기 정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.";
+}
+
+function buildDraftBasedIdeaFallback(learnerDraft: string, language: ResponseLanguage): AssistantDraftResponse {
+  if (!learnerDraft.trim()) {
+    return {
+      text:
+        language === "english"
+          ? "I could not load the story context. Please send a short part of your draft or the story detail you want to continue from."
+          : "이야기 맥락을 불러오지 못했어요. 이어가고 싶은 초안 일부나 기준이 되는 장면을 짧게 보내주세요.",
+      quickReplies: [],
+    };
+  }
+
+  if (language === "english") {
+    return {
+      text: [
+        "I could not load the original story context, so these are based only on your draft:",
+        "",
+        "- **Character reaction** -> show what the character notices or feels next",
+        "- **Small clue** -> let the character find one object or message",
+        "- **Decision point** -> make the character choose whether to follow the clue",
+        "",
+        "Treat these as draft-based possibilities, not confirmed story facts.",
+      ].join("\n"),
+      quickReplies: [],
+    };
+  }
+
+  return {
+    text: [
+      "원래 이야기 맥락을 불러오지 못해서, 아래는 **네 초안만 바탕으로 한 가능성**이에요.",
+      "",
+      "- **인물 반응** -> 인물이 다음에 무엇을 느끼거나 알아차리는지 보여주기",
+      "- **작은 단서** -> 물건이나 메시지 하나를 발견하게 하기",
+      "- **선택의 순간** -> 그 단서를 따라갈지 말지 고민하게 하기",
+      "",
+      "이건 확정된 이야기 사실이 아니라 초안 기반 아이디어예요.",
+    ].join("\n"),
+    quickReplies: [],
+  };
 }
 
 function getLatestAssistantText(recentMessages: RecentMessage[]): string {
@@ -2057,8 +2198,13 @@ export async function POST(request: NextRequest) {
     !conversationMemory.activeSupportContext
   ) {
     const noSourceEvidence = requestClassification.requires_source_context;
+    const generativeNoSource =
+      requestClassification.story_request_mode === "generative" ||
+      requestClassification.response_mode === "idea_options";
     const boundedResponse = noSourceEvidence
-      ? {
+      ? generativeNoSource
+        ? buildDraftBasedIdeaFallback(separatedTurn.learnerDraft, responseLanguage)
+        : {
           text: buildNoSourceEvidenceResponse(
             query,
             requestClassification.recognized_story_entity,
@@ -2095,7 +2241,11 @@ export async function POST(request: NextRequest) {
       visual_assets_used: [],
       retrieval_executed: true,
       retrieval_reason: retrievalReason,
-      retrieval_skipped_reason: noSourceEvidence ? "no_relevant_source_evidence" : undefined,
+      retrieval_skipped_reason: noSourceEvidence
+        ? generativeNoSource
+          ? "no_source_context_for_ideation"
+          : "no_relevant_source_evidence"
+        : undefined,
     });
 
     return chatJsonResponse(
@@ -2162,6 +2312,9 @@ export async function POST(request: NextRequest) {
                     ? conversationMemory.continuationFocus || query
                     : undefined),
                 scopeLimitations,
+                storyRequestMode: requestClassification.story_request_mode,
+                requiresExactFact: requestClassification.requires_exact_fact,
+                responseMode: requestClassification.response_mode,
               }
             ),
           },

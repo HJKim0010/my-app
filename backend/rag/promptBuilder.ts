@@ -502,7 +502,14 @@ export function buildUserInput(
   mode: SupportMode,
   language: ResponseLanguage,
   memory?: ConversationMemory,
-  options: { includeSourceContext?: boolean; learnerDraft?: string; scopeLimitations?: string[] } = {}
+  options: {
+    includeSourceContext?: boolean;
+    learnerDraft?: string;
+    scopeLimitations?: string[];
+    storyRequestMode?: "factual" | "interpretive" | "generative" | null;
+    requiresExactFact?: boolean;
+    responseMode?: "factual_answer" | "cautious_interpretation" | "idea_options" | "standard";
+  } = {}
 ): string {
   const includeSourceContext = options.includeSourceContext ?? retrievedChunks.length > 0;
   const chunksText =
@@ -521,6 +528,27 @@ export function buildUserInput(
     buildModeInstruction(mode),
     buildSentenceSupportInstruction(query),
     buildContextFollowUpInstruction(memory),
+    options.storyRequestMode === "generative"
+      ? [
+          "Story request mode: generative ideation.",
+          "Use retrieved story context to stay aligned with available characters, events, and unresolved clues.",
+          "Provide 2 or 3 distinct possible directions as possibilities, not confirmed story facts.",
+          "Prefer keywords, event chains, or short planning notes. Do not write a full continuation paragraph.",
+          "Do not use a missing-exact-fact fallback for ideation; the story normally does not specify what happens next.",
+        ].join("\n")
+      : options.storyRequestMode === "interpretive"
+        ? [
+            "Story request mode: interpretive.",
+            "Use retrieved story evidence first, then offer a cautious interpretation.",
+            "Label interpretation clearly and do not present it as an explicit story fact.",
+          ].join("\n")
+        : options.storyRequestMode === "factual"
+          ? [
+              "Story request mode: factual.",
+              "Answer confirmed story facts directly from RETRIEVED_SOURCE_CONTEXT.",
+              "If the retrieved story does not specify the answer, say that clearly instead of inventing.",
+            ].join("\n")
+          : "",
     options.scopeLimitations?.length
       ? `Scope limitations from the learner: ${options.scopeLimitations.join(", ")}. Obey these limits even if other support would be useful.`
       : "",
@@ -534,6 +562,9 @@ export function buildUserInput(
     `Support mode: ${mode}`,
     `Response language: ${language}`,
     `Working context: ${memory?.workingContext || "source"}`,
+    `Story request mode: ${options.storyRequestMode || "(None)"}`,
+    `Requires exact fact: ${options.requiresExactFact === undefined ? "(Unknown)" : options.requiresExactFact ? "yes" : "no"}`,
+    `Response mode: ${options.responseMode || "standard"}`,
     `Active support context: ${memory?.activeSupportContext || "(None)"}`,
     `Contextual follow-up: ${memory?.isContextualFollowUp ? "yes" : "no"}`,
     "",
