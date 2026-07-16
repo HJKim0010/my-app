@@ -1636,7 +1636,6 @@ export default function Home() {
           query: userText,
           recentMessages: currentState.messages
             .filter((message) => message.id !== "welcome")
-            .slice(-12)
             .map(({ role, text }) => ({ role, text })),
           category: "Others",
           condition: selectedCondition,

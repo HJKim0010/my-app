@@ -23,6 +23,8 @@ export type ActiveSupportContext =
 
 export type ConversationMemory = {
   recentSummary: string;
+  fullHistorySummary: string;
+  messageCount: number;
   activeEntities: string[];
   activeScene: StorySegment | null;
   lastUserFocus: string;
@@ -32,7 +34,9 @@ export type ConversationMemory = {
   isContextualFollowUp: boolean;
 };
 
-const MAX_MESSAGES = 12;
+const MAX_RECENT_MESSAGES = 12;
+const MAX_ANCHOR_MESSAGES = 8;
+const MAX_HISTORY_LINE_LENGTH = 220;
 const VAGUE_REFERENCE_PATTERNS = [
   /\b(it|that|this|inside|there|they|them)\b/i,
   /(그거|그건|이거|이건|저거|저건|아까|방금|전에|그 부분|이 부분|그 문장|그 아이디어|그 전개)/,
@@ -49,6 +53,13 @@ const USER_CONTINUATION_PATTERNS = [
 
 function compactText(text: string): string {
   return text.replace(/\s+/g, " ").trim();
+}
+
+function compactHistoryText(text: string): string {
+  const compacted = compactText(text);
+  return compacted.length > MAX_HISTORY_LINE_LENGTH
+    ? `${compacted.slice(0, MAX_HISTORY_LINE_LENGTH - 1)}…`
+    : compacted;
 }
 
 function extractTopEntities(taskId: TaskId, text: string, limit = 4): string[] {
@@ -225,13 +236,62 @@ function shouldKeepPreviousContext(
   return activeSupportContext === "sentence_translation" && explicitShift === "language";
 }
 
+function formatHistoryLine(message: RecentMessage): string {
+  return `${message.role === "user" ? "User" : "Assistant"}: ${compactHistoryText(message.text)}`;
+}
+
+function looksLikeDurableMemoryAnchor(text: string): boolean {
+  const normalized = compactText(text);
+
+  return /(my idea|selected direction|possible direction|plan|flow|sequence|decision|go back home|return home|student id|wallet|memo|note|내 아이디어|내가 원하는|선택한|방향|계획|흐름|순서|결정|집에\s*다시|집으로|돌아가|학생증|지갑|메모|노트|발표|table\s*7|테이블\s*7)/i.test(
+    normalized
+  );
+}
+
+function uniqueMessages(messages: RecentMessage[]): RecentMessage[] {
+  const seen = new Set<string>();
+  const result: RecentMessage[] = [];
+
+  for (const message of messages) {
+    const key = `${message.role}:${compactText(message.text)}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    result.push(message);
+  }
+
+  return result;
+}
+
 function buildRecentSummary(recentMessages: RecentMessage[]): string {
-  return recentMessages
-    .slice(-MAX_MESSAGES)
-    .map(
-      (message) => `${message.role === "user" ? "User" : "Assistant"}: ${compactText(message.text)}`
-    )
-    .join("\n");
+  return recentMessages.slice(-MAX_RECENT_MESSAGES).map(formatHistoryLine).join("\n");
+}
+
+function buildFullHistorySummary(recentMessages: RecentMessage[]): string {
+  if (recentMessages.length <= MAX_RECENT_MESSAGES) {
+    return buildRecentSummary(recentMessages);
+  }
+
+  const firstMessages = recentMessages.slice(0, 4);
+  const recentSlice = recentMessages.slice(-MAX_RECENT_MESSAGES);
+  const recentSet = new Set(recentSlice);
+  const anchorMessages = recentMessages
+    .slice(4, -MAX_RECENT_MESSAGES)
+    .filter((message) => message.role === "user" || looksLikeDurableMemoryAnchor(message.text))
+    .filter((message) => looksLikeDurableMemoryAnchor(message.text))
+    .slice(-MAX_ANCHOR_MESSAGES);
+  const compacted = uniqueMessages([
+    ...firstMessages,
+    ...anchorMessages.filter((message) => !recentSet.has(message)),
+    ...recentSlice,
+  ]);
+
+  return [
+    `Full conversation memory is available from ${recentMessages.length} prior messages.`,
+    "The lines below preserve the beginning, durable learner-selected ideas, and the most recent turns.",
+    ...compacted.map(formatHistoryLine),
+  ].join("\n");
 }
 
 function findContinuationFocus(query: string, lastUserText: string, previousUserText: string): string {
@@ -261,6 +321,7 @@ export function buildConversationMemory(
 ): ConversationMemory {
   const normalizedQuery = normalizeLexiconText(query);
   const summary = buildRecentSummary(recentMessages);
+  const fullHistorySummary = buildFullHistorySummary(recentMessages);
   const recentUserMessages = recentMessages.filter((message) => message.role === "user");
   const recentAssistantMessages = recentMessages.filter((message) => message.role === "assistant");
   const lastUserText = compactText(recentUserMessages[recentUserMessages.length - 1]?.text || "");
@@ -285,14 +346,14 @@ export function buildConversationMemory(
   const activeEntities = [
     ...new Set([
       ...extractTopEntities(taskId, entitySourceText, 5),
-      ...extractTopEntities(taskId, summary, 3),
+      ...extractTopEntities(taskId, fullHistorySummary, 3),
     ]),
   ].slice(0, 6);
 
   const activeScene =
     detectScene(taskId, query) ||
     detectScene(taskId, lastUserText) ||
-    detectScene(taskId, summary) ||
+    detectScene(taskId, fullHistorySummary) ||
     null;
 
   const lastUserFocus =
@@ -309,6 +370,8 @@ export function buildConversationMemory(
 
   return {
     recentSummary: summary || "(No recent conversation context)",
+    fullHistorySummary: fullHistorySummary || "(No prior conversation context)",
+    messageCount: recentMessages.length,
     activeEntities,
     activeScene,
     lastUserFocus: lastUserFocus || compactText(query),
