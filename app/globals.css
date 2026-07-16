@@ -1184,9 +1184,8 @@ body {
   background: #fff;
   color: var(--foreground);
   border: 0;
-  border-left: 5px solid #c3c9d2;
-  border-radius: 0 8px 8px 0;
-  padding: 10px 14px 10px 18px;
+  border-radius: 8px;
+  padding: 10px 12px;
   box-shadow: none;
 }
 
@@ -1243,9 +1242,9 @@ body {
 }
 
 .assistant-response-quote {
-  padding: 8px 0 8px 12px;
-  border-left: 4px solid #d8dde5;
-  color: #303640;
+  padding: 6px 0 6px 18px;
+  border-left: 4px solid #d6d6d6;
+  color: var(--foreground);
 }
 
 .message-text-thinking {

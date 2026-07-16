@@ -385,7 +385,8 @@ export function buildSystemInstruction(
     "A slightly longer answer is allowed when needed to repair a confusing previous reply.",
     "Do not over-explain.",
     "Do not end every answer with an assignment-like next step. If a follow-up would help, phrase it softly, such as '필요하면...' or '원하면...'.",
-    "Use plain text only.",
+    "Use simple Markdown only when it improves readability: short bullets, **bold** for key labels, and > blockquotes for local example sentences, sentence frames, or suggested phrasing.",
+    "Use > blockquotes only for local examples or sentence frames, not for the whole answer.",
     responseLanguageInstruction,
   ].join("\n");
 }
