@@ -596,6 +596,47 @@ function looksLikeGeneralLanguageQuestion(query: string): boolean {
   );
 }
 
+function looksLikeVagueStoryComprehensionRequest(query: string): boolean {
+  const normalized = normalizeRoutingText(query);
+  const mentionsStory = /(story|reading|source|episode|text|이야기|스토리|원문|자료|내용)/i.test(normalized);
+  const vagueUnderstanding =
+    /(do not understand|don't understand|confused|lost|hard to follow|이해(?:를)?\s*못|잘\s*모르겠|모르겠|헷갈|어려워|어려운|감이\s*안|제대로\s*이해)/i.test(
+      normalized
+    );
+
+  return mentionsStory && vagueUnderstanding && !findStoryEntity(query, "task1") && !findStoryEntity(query, "task2");
+}
+
+function looksLikeAmbiguousNextRequest(query: string): boolean {
+  const normalized = normalizeRoutingText(query);
+
+  if (detectStoryRequestMode(query, "comprehension")) {
+    return false;
+  }
+
+  return /(what\s+happens\s+next|what\s+happen\s+next|what\s+next|다음에\s*(?:뭐|뭐가|무슨|어떤)\s*(?:일|일이)?\s*(?:일어나|생겨|나와)|그다음에\s*(?:뭐|뭐가|무슨|어떤))/i.test(
+    normalized
+  );
+}
+
+function buildClarificationNeededResponse(query: string, language: ResponseLanguage): string {
+  if (looksLikeAmbiguousNextRequest(query)) {
+    return language === "english"
+      ? "Do you mean what actually happens in the original story, or possible ideas for how to continue it?"
+      : "원래 이야기에서 실제로 다음에 나온 일을 묻는 건가요, 아니면 이어쓰기 아이디어를 원하는 건가요?";
+  }
+
+  if (looksLikeVagueStoryComprehensionRequest(query)) {
+    return language === "english"
+      ? "Is the overall story flow confusing, or is there a specific scene, clue, or character you want me to explain?"
+      : "전체 흐름이 헷갈린 건가요, 아니면 특정 장면이나 단서가 헷갈린 건가요?";
+  }
+
+  return language === "english"
+    ? "I want to answer the right thing. Are you asking about the original story, your own idea, or language/expression?"
+    : "정확히 도와주고 싶어요. 원래 이야기 내용, 네 아이디어와의 연결, 아니면 표현/문법 중 무엇을 보고 싶은 건가요?";
+}
+
 function looksLikeSourceAlignmentRequest(query: string): boolean {
   const normalized = compactText(query).toLowerCase();
 
@@ -676,6 +717,21 @@ function classifyCurrentRequest(
       requires_source_context: false,
       conversation_operation: operation,
       confidence: 0.92,
+    };
+  }
+
+  if (
+    looksLikeVagueStoryComprehensionRequest(classificationTarget) ||
+    looksLikeAmbiguousNextRequest(classificationTarget)
+  ) {
+    return {
+      intent: "clarification_needed",
+      request_is_explicit: true,
+      requires_source_context: false,
+      requires_task_context: false,
+      response_mode: "standard",
+      conversation_operation: "none",
+      confidence: 0.69,
     };
   }
 
@@ -949,12 +1005,6 @@ function buildTaskRequirementResponse(
   }
 
   return buildMissingContextResponse(ruleId, language);
-}
-
-function buildRecognizedQuestionMissingContextResponse(language: ResponseLanguage): string {
-  return language === "english"
-    ? "I understand the question, but I cannot confirm the exact information from the current context. Please check the assignment instructions or send the relevant detail."
-    : "질문 의도는 이해했지만 현재 정보만으로 정확히 확인할 수 없어요. 과제 안내나 필요한 맥락을 조금 더 알려주세요.";
 }
 
 function buildNoSourceEvidenceResponse(
@@ -1563,14 +1613,49 @@ export async function POST(request: NextRequest) {
     scope_limitations: scopeLimitations,
   };
 
+  if (requestClassification.intent === "clarification_needed") {
+    const responseText = buildClarificationNeededResponse(query, responseLanguage);
+
+    await persistChatLog({
+      ...commonLog,
+      participant_id: participantId,
+      session_id: sessionId,
+      ep_id: epId,
+      condition_label: taskPackage.config.ai_condition,
+      selected_category: category,
+      raw_user_query: query,
+      policy_decision: "allowed",
+      status: "allowed",
+      response_status: "success",
+      retrieved_chunk_ids: [],
+      retrieved_chunk_metadata: [],
+      assistant_response: responseText,
+      timestamp,
+      response_length: responseText.length,
+      interaction_count: interactionCount,
+      session_duration_ms: sessionDurationMs,
+      query_type_label: "clarification_needed",
+      detected_support_mode: "clarification_needed",
+      user_query_type: "clarification_needed",
+      feedback_target: null,
+      source_types_used: [],
+      visual_assets_used: [],
+      retrieval_executed: false,
+      retrieval_skipped_reason: "clarification_needed",
+      fallback_state: "clarification_needed",
+    });
+
+    return chatJsonResponse(responseFromText(responseText, requestId, "success", null));
+  }
+
   if (!requestClassification.request_is_explicit || requestClassification.confidence < 0.58) {
     const isGenuineDraftOnly = requestClassification.intent === "draft_only";
     const fallbackState = isGenuineDraftOnly
       ? "genuine_draft_only"
-      : "recognized_question_missing_context";
+      : "clarification_needed";
     const responseText = isGenuineDraftOnly
       ? buildDraftOnlyClarificationResponse("korean")
-      : buildRecognizedQuestionMissingContextResponse(responseLanguage);
+      : buildClarificationNeededResponse(query, responseLanguage);
 
     await persistChatLog({
       ...commonLog,

@@ -62,7 +62,11 @@ export type ChatLogEntry = {
   scope_limitations?: string[];
   sub_request_count?: number;
   selected_task_rule_id?: string | null;
-  fallback_state?: "genuine_draft_only" | "recognized_question_missing_context" | null;
+  fallback_state?:
+    | "genuine_draft_only"
+    | "recognized_question_missing_context"
+    | "clarification_needed"
+    | null;
   recognized_story_entity?: string | null;
 };
 
