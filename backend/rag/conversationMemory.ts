@@ -1,4 +1,4 @@
-import {
+﻿import {
   detectLexiconSegments,
   findMatchingLexiconEntries,
   normalizeLexiconText,
@@ -35,16 +35,16 @@ export type ConversationMemory = {
 const MAX_MESSAGES = 12;
 const VAGUE_REFERENCE_PATTERNS = [
   /\b(it|that|this|inside|there|they|them)\b/i,
-  /(그거|그것|이거|이것|저거|저것|아까|방금|전에|위에|그 부분|이 부분|그 문장|그 아이디어|그 전개)/,
+  /(그거|그건|이거|이건|저거|저건|아까|방금|전에|그 부분|이 부분|그 문장|그 아이디어|그 전개)/,
 ];
 const ACKNOWLEDGMENT_PATTERNS = [
   /^(yes|yeah|yep|ok|okay|sure|right|got it)$/i,
-  /^(응|ㅇㅇ|네|맞아|그래|알겠어|좋아)$/i,
+  /^(ㅇㅇ|응|응\?|네|넵|예|그래|맞아|맞아요|알겠어|알겠어요|좋아|좋아요)$/i,
 ] as const;
 const USER_CONTINUATION_PATTERNS = [
-  /(my continuation|my idea|based on what i wrote|based on my idea)/i,
-  /(내가 만든 이야기|내가 만든 내용|내가 짠 전개|내가 쓴 글|내 전개|뒷이야기)/,
-  /(자료 얘기 그만해|source 말고|내가 만든 거라니까|그냥 내 전개 봐줘)/,
+  /(my continuation|my idea|my writing|my draft|what i wrote|based on what i wrote|based on my idea)/i,
+  /(내가 만든 이야기|내가 만든 내용|내가 쓴 전개|내가 쓴 글|내 글|내 작문|내 라이팅|내 초안|내 아이디어|그냥 내 전개|이어쓰기)/,
+  /(자료 말고|원문 말고|source 말고|내가 만든 거라|내가 원하는 전개)/,
 ] as const;
 
 function compactText(text: string): string {
@@ -96,9 +96,11 @@ function asksForDirectTranslation(text: string): boolean {
 
 function looksLikeKoreanSentence(text: string): boolean {
   const koreanChars = text.match(/[\uac00-\ud7a3]/g)?.length ?? 0;
-  return koreanChars >= 6 && /[\s.!?。]|(\ub2e4|\ub2e4\.|\uc694|\uc5b4|\ud574|\ud588\ub2e4|\ud588\uc5b4|\ud588\uc694)/.test(text);
+  return (
+    koreanChars >= 6 &&
+    /[\s.!?。！？]|(다|다\.|요|어|해|했다|했어|했어요)$/.test(text)
+  );
 }
-
 function looksLikeSentenceTranslationRequest(text: string): boolean {
   return asksForDirectTranslation(text) && looksLikeKoreanSentence(text);
 }
@@ -110,7 +112,6 @@ function looksLikeTranslationRedirect(text: string): boolean {
     /문장 전체|핵심 패턴|영어로 바꿔주지/.test(text)
   );
 }
-
 function looksLikeShortContextualFollowUp(text: string): boolean {
   const normalized = compactText(text);
 
@@ -122,7 +123,6 @@ function looksLikeShortContextualFollowUp(text: string): boolean {
     normalized
   );
 }
-
 function inferSupportContext(text: string): ActiveSupportContext {
   const normalized = compactText(text).toLowerCase();
 
@@ -134,49 +134,28 @@ function inferSupportContext(text: string): ActiveSupportContext {
     return "sentence_translation";
   }
 
-  if (
-    /(feedback|check|grammar|awkward|logical|logic|natural|revise|문법|어색|논리|자연|피드백|확인|괜찮)/i.test(
-      normalized
-    )
-  ) {
+  if (/(feedback|check|grammar|awkward|logical|logic|natural|revise|문법|어색|논리|자연|피드백|확인|괜찮|내 글|내 작문|내 라이팅|내 초안)/i.test(normalized)) {
     return "feedback";
   }
 
-  if (
-    /(translate|in english|how do i say|pattern|sentence structure|word|expression|vocabulary|phrase|영어로|번역|표현|단어|패턴|문장 구조)/i.test(
-      normalized
-    )
-  ) {
+  if (/(translate|in english|how do i say|pattern|sentence structure|word|expression|vocabulary|phrase|영어로|번역|표현|단어|패턴|문장 구조)/i.test(normalized)) {
     return "language";
   }
 
-  if (
-    /(organize|organization|structure|outline|flow|sequence|order|beginning|middle|end|구성|구조|흐름|순서|정리|처음|중간|끝)/i.test(
-      normalized
-    )
-  ) {
+  if (/(organize|organization|structure|outline|flow|sequence|order|beginning|middle|end|구성|구조|흐름|순서|정리|처음|중간|끝)/i.test(normalized)) {
     return "organization";
   }
 
-  if (
-    /(idea|ideas|next event|possible|what could happen|brainstorm|clue|hint|아이디어|다음 사건|다음 전개|가능한|단서|힌트)/i.test(
-      normalized
-    )
-  ) {
+  if (/(idea|ideas|next event|possible|what could happen|brainstorm|clue|hint|아이디어|다음 사건|다음 전개|가능한|단서|힌트)/i.test(normalized)) {
     return "ideas";
   }
 
-  if (
-    /(understand|meaning|what does|which part|scene|story detail|이해|무슨 뜻|어느 부분|장면|내용|단서가 뭐)/i.test(
-      normalized
-    )
-  ) {
+  if (/(understand|meaning|what does|which part|scene|story detail|이해|무슨 뜻|어느 부분|장면|내용|단서가 뭐)/i.test(normalized)) {
     return "comprehension";
   }
 
   return null;
 }
-
 function inferExplicitSupportShift(text: string): ActiveSupportContext {
   const normalized = compactText(text).toLowerCase();
 
@@ -192,7 +171,7 @@ function inferExplicitSupportShift(text: string): ActiveSupportContext {
     return "language";
   }
 
-  if (/(feedback|check|grammar|awkward|logical|logic|natural|문법|어색|논리|자연|피드백|확인해)/i.test(normalized)) {
+  if (/(feedback|check|grammar|awkward|logical|logic|natural|문법|어색|논리|자연|피드백|확인해|내 글|내 작문|내 라이팅|내 초안)/i.test(normalized)) {
     return "feedback";
   }
 
@@ -210,7 +189,6 @@ function inferExplicitSupportShift(text: string): ActiveSupportContext {
 
   return null;
 }
-
 function shouldKeepPreviousContext(
   activeSupportContext: ActiveSupportContext,
   explicitShift: ActiveSupportContext

@@ -189,6 +189,7 @@ function isValidParticipantId(value: string): boolean {
   return /^P\d{2,}$/i.test(value);
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function buildWelcomeMessage(): ChatMessage {
   return {
     id: "welcome",
@@ -519,6 +520,7 @@ function GuideGateCards({
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function GuideContent() {
   return (
     <div className="guide-copy">
@@ -695,6 +697,7 @@ function GuideContent() {
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function CompactGuideNotice({ onOpenGuide }: { onOpenGuide: () => void }) {
   return (
     <div className="guidance-box compact-guidance">
@@ -719,6 +722,7 @@ function CompactGuideNotice({ onOpenGuide }: { onOpenGuide: () => void }) {
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function CompactGuideNoticeV2({ onOpenGuide }: { onOpenGuide: () => void }) {
   return (
     <div className="guidance-box compact-guidance">

@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+﻿import { NextRequest } from "next/server";
 import OpenAI from "openai";
 import {
   analyzeQueryScope,
@@ -77,6 +77,7 @@ function isAmbiguousShortReaction(query: string): boolean {
   }
 
   return /^(what\?|huh\?|hm\?|hmm\?)$/i.test(normalized)
+    || /^(뭐라고|뭐라고\?|무슨 뜻|헐|음|응\?|ㅇㅇ)[!?.~\s]*$/i.test(normalized)
     || PURE_SHORT_PUNCTUATION_PATTERN.test(normalized);
 }
 
@@ -115,59 +116,14 @@ function isMetaCapabilityQuestion(query: string): boolean {
   }
 
   return (
-    /(can you understand|do you understand|understand me|understand what i say|will you understand|can you follow)/i.test(
+    /(can you understand|do you understand|understand me|understand what i say|will you understand|can you follow|can you keep up)/i.test(
       normalized
     ) ||
-    /(내가\s*하는\s*말|내\s*말|제가\s*하는\s*말).*(이해|알아듣|알아\s*들|알겠)/.test(normalized) ||
+    /(내가\s*하는\s*말|내\s*말|제가\s*하는\s*말).*(이해|알아듣|알아\s*들|알겠)/.test(
+      normalized
+    ) ||
     /(잘\s*)?(이해할|알아들을)\s*수\s*있/.test(normalized)
   );
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function buildAmbiguousReactionResponse(language: ResponseLanguage): string {
-  if (language === "english") {
-    return "I am not fully sure what you mean yet. If you mean a reaction to my last answer, tell me what felt odd, or choose one: plot, structure, expression, or feedback.";
-  }
-
-  return "무슨 뜻인지 아직 정확히 모르겠어요. 방금 제 답변에 대한 반응이라면 어느 부분이 이상했는지 말해주거나, 전개 / 구성 / 표현 / 피드백 중 하나를 골라 주세요.";
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function buildGreetingResponse(language: ResponseLanguage): string {
-  if (language === "english") {
-    return "Hello! Are you ready to work on your writing? I can help with ideas, structure, expressions, or understanding a specific part. What would you like help with?";
-  }
-
-  return "안녕하세요! writing을 할 준비가 되었나요? 아이디어, 구성, 표현, 또는 특정 부분 이해까지 여러 가지 방법으로 도와드릴 수 있어요. 어떤 걸 도와드릴까요?";
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function buildAcknowledgmentFollowUp(
-  language: ResponseLanguage,
-  mode: SupportMode,
-  workingContext: "source" | "user_continuation"
-): string {
-  if (language === "english") {
-    if (workingContext === "user_continuation") {
-      return "I understand. What would you like to work on next: plot, structure, expression, or feedback?";
-    }
-
-    if (mode === "comprehension") {
-      return "I understand. What would you like next: one more story detail, the next event, the structure, or an expression?";
-    }
-
-    return "I understand. What would you like next: idea development, structure, expression, or feedback?";
-  }
-
-  if (workingContext === "user_continuation") {
-    return "알겠어요. 다음은 전개, 구성, 표현, 피드백 중 뭐부터 볼까요?";
-  }
-
-  if (mode === "comprehension") {
-    return "알겠어요. 다음은 자료 확인, 전개, 구성, 표현 중 뭐부터 볼까요?";
-  }
-
-  return "알겠어요. 다음은 전개, 구성, 표현, 피드백 중 뭐부터 볼까요?";
 }
 
 function shouldAskTargetClarification(
@@ -193,49 +149,20 @@ function shouldAskTargetClarification(
   return false;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function buildTargetClarificationResponse(
-  language: ResponseLanguage,
-  mode: SupportMode
-): string {
-  if (language === "english") {
-    if (mode === "comprehension") {
-      return "Please name one scene, action, object, or line first, and I will explain that part.";
-    }
-
-    return "Please show me one short part of your idea or draft first, and I will help from there.";
-  }
-
-  if (mode === "comprehension") {
-    return "먼저 어느 장면, 행동, 물건, 문장을 말하는지 짚어 주세요. 그 부분만 짧게 설명해드릴게요.";
-  }
-
-  return "먼저 네가 만든 내용이나 초안의 짧은 부분 하나만 보여 주세요. 그 기준으로 바로 도와드릴게요.";
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function buildNoChunkResponse(
-  mode: SupportMode,
-  language: ResponseLanguage,
+function shouldAskForUserDraftBeforeSource(
+  query: string,
   workingContext: "source" | "user_continuation"
-): string {
-  if (language === "english") {
-    if (workingContext === "user_continuation") {
-      return mode === "feedback"
-        ? "I need one short part of your continuation or draft to give feedback. Paste one part, and I will check the flow, language, or logic."
-        : "I need one short part of your continuation idea first. Share one scene or a few lines, and I can help with the next event, structure, or expression.";
-    }
-
-    return "I need one clearer target first. If you name one scene, clue, action, or line from the story, reading, or video, I can help from that point.";
+): boolean {
+  if (workingContext !== "user_continuation") {
+    return false;
   }
 
-  if (workingContext === "user_continuation") {
-    return mode === "feedback"
-      ? "피드백을 하려면 네가 만든 초안이나 전개 일부가 필요해요. 짧은 부분 하나를 보내주면 흐름, 표현, 문법, 논리를 봐드릴게요."
-      : "먼저 네가 만든 전개나 아이디어의 짧은 부분 하나가 필요해요. 한 장면이나 몇 줄만 보여주면 다음 전개, 구성, 표현을 도와드릴게요.";
+  const normalized = compactText(query);
+  if (normalized.length >= 80) {
+    return false;
   }
 
-  return "먼저 어느 장면이나 단서를 말하는지 조금만 더 분명하게 알려 주세요. 한 장면, 행동, 물건, 문장 중 하나만 짚어 주면 그 기준으로 도와드릴게요.";
+  return /(내 글|내 작문|내 라이팅|내 초안|my writing|my draft|what i wrote)/i.test(normalized);
 }
 
 function emptyQuickReplies(payload: Partial<ChatApiResponse>): ChatApiResponse {
@@ -245,7 +172,7 @@ function emptyQuickReplies(payload: Partial<ChatApiResponse>): ChatApiResponse {
     status: payload.status ?? "success",
     text: payload.text ?? "",
     reason: payload.reason ?? null,
-    quickReplies: payload.quickReplies ?? [],
+    quickReplies: [],
   };
 }
 
@@ -274,39 +201,18 @@ function responseFromText(
   reason: string | null = null,
   quickReplies: QuickReply[] = []
 ): ChatApiResponse {
-  return { ok: status === "success" || status === "redirected", requestId, status, text, reason, quickReplies };
+  void quickReplies;
+  return { ok: status === "success" || status === "redirected", requestId, status, text, reason, quickReplies: [] };
 }
 
-function confirmationQuickReplies(language: ResponseLanguage): QuickReply[] {
-  if (language === "english") {
-    return [
-      { label: "Yes", value: "Yes. Please help me in that direction.", action: "send" },
-      { label: "Different", value: "No. What I mean is ", action: "prefill" },
-      { label: "I'll type", action: "focus" },
-    ];
-  }
-
-  return [
-    { label: "맞아요", value: "맞아요. 그 방향으로 도와주세요.", action: "send" },
-    { label: "다른 방향", value: "아니에요. 제가 원하는 건 ", action: "prefill" },
-    { label: "직접 입력", action: "focus" },
-  ];
+function confirmationQuickReplies(_language: ResponseLanguage): QuickReply[] {
+  void _language;
+  return [];
 }
 
-function supportChoiceQuickReplies(language: ResponseLanguage): QuickReply[] {
-  if (language === "english") {
-    return [
-      { label: "Plot", value: "Please help me with the plot.", action: "send" },
-      { label: "Structure", value: "Please help me organize the structure.", action: "send" },
-      { label: "Expression", value: "Please help me with expressions.", action: "send" },
-    ];
-  }
-
-  return [
-    { label: "전개", value: "다음 전개를 도와주세요.", action: "send" },
-    { label: "구성", value: "글의 구성을 도와주세요.", action: "send" },
-    { label: "표현", value: "표현을 더 자연스럽게 도와주세요.", action: "send" },
-  ];
+function supportChoiceQuickReplies(_language: ResponseLanguage): QuickReply[] {
+  void _language;
+  return [];
 }
 
 function buildAmbiguousReactionResponseV2(language: ResponseLanguage): AssistantDraftResponse {
@@ -318,7 +224,7 @@ function buildAmbiguousReactionResponseV2(language: ResponseLanguage): Assistant
   }
 
   return {
-    text: "아직 뜻을 정확히 잡기 어려워요. 방금 제 답변이 헷갈렸다는 뜻인가요?",
+    text: "아직 뜻을 정확히 잡기 어려워요. 방금 답변이 헷갈렸다는 뜻인가요?",
     quickReplies: confirmationQuickReplies(language),
   };
 }
@@ -333,7 +239,7 @@ function buildGreetingResponseV2(language: ResponseLanguage): AssistantDraftResp
   }
 
   return {
-    text: "안녕하세요! 글쓰기에서 어떤 도움을 받고 싶나요?",
+    text: "안녕하세요. 글쓰기에서 어떤 도움을 받고 싶나요?",
     quickReplies: supportChoiceQuickReplies(language),
   };
 }
@@ -346,7 +252,7 @@ function buildGreetingClarificationResponse(language: ResponseLanguage): Assista
   }
 
   return {
-    text: "안녕하세요. 어떤 부분을 도와드릴까요? 아래 빠른 답변 버튼을 눌러도 되고, 질문을 직접 입력해도 좋아요.",
+    text: "안녕하세요. 어떤 부분을 도와드릴까요? 질문을 직접 입력해도 좋아요.",
   };
 }
 
@@ -358,7 +264,7 @@ function buildCalmGreetingResponse(language: ResponseLanguage): AssistantDraftRe
   }
 
   return {
-    text: "안녕하세요. 어떤 부분을 도와드릴까요? 아래 빠른 답변 버튼을 눌러도 되고, 질문을 직접 입력해도 좋아요.",
+    text: "안녕하세요. 어떤 부분을 도와드릴까요? 질문을 직접 입력해도 좋아요.",
   };
 }
 
@@ -415,16 +321,12 @@ function buildTargetClarificationResponseV2(
   if (mode === "comprehension") {
     return {
       text: "어느 부분을 설명하면 좋을까요? 장면, 행동, 물건, 문장 중 하나를 알려주세요.",
-      quickReplies: [
-        { label: "장면", value: "이 장면을 설명해주세요: ", action: "prefill" },
-        { label: "물건", value: "이 물건을 설명해주세요: ", action: "prefill" },
-        { label: "직접 입력", action: "focus" },
-      ],
+      quickReplies: [],
     };
   }
 
   return {
-    text: "아이디어나 초안의 짧은 부분을 먼저 보여주세요. 그 부분부터 같이 다듬어볼게요.",
+    text: "아이디어나 초안의 짧은 부분을 먼저 보여주세요. 그 부분부터 같이 살펴볼게요.",
     quickReplies: confirmationQuickReplies(language),
   };
 }
@@ -457,21 +359,17 @@ function buildNoChunkResponseV2(
 
   if (workingContext === "user_continuation") {
     return {
-      text:
-        mode === "feedback"
-          ? "피드백을 하려면 이어쓰기나 초안의 짧은 부분이 필요해요."
-          : "먼저 이어쓰기 아이디어나 초안의 짧은 부분을 보여주세요.",
+        text:
+          mode === "feedback"
+            ? "피드백을 하려면 이어쓰기 초안의 짧은 부분이 필요해요."
+            : "먼저 이어쓰기 아이디어나 초안의 짧은 부분을 보여주세요.",
       quickReplies: confirmationQuickReplies(language),
     };
   }
 
   return {
     text: "먼저 어떤 부분을 보고 싶은지 알려주세요. 장면, 단서, 행동, 문장 중 하나를 골라도 좋아요.",
-    quickReplies: [
-      { label: "장면", value: "이 장면을 설명해주세요: ", action: "prefill" },
-      { label: "단서", value: "이 단서를 어떻게 쓰면 좋을까요: ", action: "prefill" },
-      { label: "직접 입력", action: "focus" },
-    ],
+    quickReplies: [],
   };
 }
 
@@ -815,18 +713,7 @@ export async function POST(request: NextRequest) {
       status: "redirected",
       text: redirected,
       reason: restrictionReason ?? "sentence_generation",
-      quickReplies:
-        responseLanguage === "english"
-          ? [
-              { label: "Outline", value: "Please help me make a short outline.", action: "send" },
-              { label: "Ideas", value: "Please suggest possible next events.", action: "send" },
-              { label: "Frame", value: "Please help me make a sentence frame for: ", action: "prefill" },
-            ]
-          : [
-              { label: "개요", value: "짧은 개요를 만드는 걸 도와주세요.", action: "send" },
-              { label: "아이디어", value: "가능한 다음 사건을 제안해주세요.", action: "send" },
-              { label: "문장 틀", value: "이 내용을 쓸 수 있는 문장 틀을 도와주세요: ", action: "prefill" },
-            ],
+      quickReplies: [],
     };
 
     await persistChatLog({
@@ -861,6 +748,37 @@ export async function POST(request: NextRequest) {
     });
 
     return chatJsonResponse(redirectPayload);
+  }
+
+  if (shouldAskForUserDraftBeforeSource(query, conversationMemory.workingContext)) {
+    const draftNeeded = buildNoChunkResponseV2("feedback", responseLanguage, "user_continuation");
+
+    await persistChatLog({
+      ...commonLog,
+      participant_id: participantId,
+      session_id: sessionId,
+      ep_id: epId,
+      condition_label: taskPackage.config.ai_condition,
+      selected_category: category,
+      raw_user_query: query,
+      policy_decision: "allowed",
+      status: "allowed",
+      response_status: "success",
+      retrieved_chunk_ids: [],
+      retrieved_chunk_metadata: [],
+      assistant_response: draftNeeded.text,
+      timestamp,
+      response_length: draftNeeded.text.length,
+      interaction_count: interactionCount,
+      session_duration_ms: sessionDurationMs,
+      query_type_label: "feedback",
+      detected_support_mode: "feedback_checking",
+      user_query_type: "feedback_checking",
+      source_types_used: [],
+      visual_assets_used: [],
+    });
+
+    return chatJsonResponse(responseFromText(draftNeeded.text, requestId, "success", null));
   }
 
   const retrievedChunks = retrieveTaskChunks(
