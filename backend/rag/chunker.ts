@@ -17,11 +17,9 @@ const MAX_CHUNK_LENGTH = 500;
 const OVERLAP_SENTENCES = 1;
 
 function splitSentences(text: string): string[] {
-  return (
-    text
-      .replace(/\r/g, "")
-      .match(/[^.!?。！？\n]+[.!?。！？]?/gu) || [text]
-  )
+  const normalized = text.replace(/\r/g, "");
+
+  return (normalized.match(/[^.!?。！？]+(?:[.!?。！？]+["'”’)]*)?|[^.!?。！？]+$/gu) || [normalized])
     .map((sentence) => sentence.trim())
     .filter(Boolean);
 }

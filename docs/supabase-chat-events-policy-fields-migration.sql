@@ -23,7 +23,8 @@ alter table public.chat_events
   add column if not exists scope_limitations jsonb not null default '[]'::jsonb,
   add column if not exists sub_request_count integer,
   add column if not exists selected_task_rule_id text,
-  add column if not exists fallback_state text;
+  add column if not exists fallback_state text,
+  add column if not exists recognized_story_entity text;
 
 alter table public.session_transcripts
   add column if not exists source_condition text,
@@ -132,3 +133,6 @@ comment on column public.chat_events.requires_task_context is
 
 comment on column public.chat_events.selected_task_rule_id is
   'Structured task-rule identifier used for task requirement answers, such as word_count.';
+
+comment on column public.chat_events.recognized_story_entity is
+  'Lightweight active-story entity used for routing source-comprehension questions.';

@@ -61,10 +61,12 @@ type RequestIntentClassification = {
   conversation_operation: ConversationOperation;
   confidence: number;
   selected_task_rule_id?: string | null;
+  recognized_story_entity?: string | null;
   sub_requests?: Array<{
     text: string;
     requires_source_context: boolean;
     intent: string;
+    recognized_story_entity?: string | null;
   }>;
 };
 
@@ -74,6 +76,61 @@ type TaskRequirementRuleId =
   | "permitted_tools"
   | "source_access"
   | "submission_rules";
+
+type StoryEntityRegistry = {
+  characters: Record<string, string[]>;
+  key_objects: Record<string, string[]>;
+  key_locations: Record<string, string[]>;
+  key_events: Record<string, string[]>;
+};
+
+const STORY_ENTITY_REGISTRY: Record<TaskId, StoryEntityRegistry> = {
+  task1: {
+    characters: {
+      Jack: ["jack", "잭"],
+      woman: ["woman", "lady", "stranger", "여자", "여성", "그 여자"],
+      team: ["team", "teammates", "팀", "팀원"],
+    },
+    key_objects: {
+      presentation: ["presentation", "slides", "slide", "project", "발표", "슬라이드", "프로젝트"],
+      message: ["message", "folded paper", "paper", "note", "memo", "메모", "쪽지", "종이", "메시지"],
+      student_id: ["student id", "id card", "student card", "학생증"],
+      wallet: ["wallet", "지갑"],
+      phone: ["phone", "notes", "휴대폰", "폰", "노트"],
+      alarm: ["alarm", "alarms", "clock", "알람", "시계"],
+    },
+    key_locations: {
+      subway: ["subway", "train", "station", "platform", "last station", "지하철", "기차", "역", "플랫폼", "마지막 역"],
+      classroom: ["classroom", "class", "학교", "교실"],
+    },
+    key_events: {
+      hurry_late: ["hurry", "in a hurry", "rush", "rushed", "busy", "late", "서두르", "급했", "바빴", "바빳", "늦었"],
+      presentation_worry: ["worried", "worry", "final grade", "graduation", "걱정", "성적", "졸업"],
+      arm_caught: ["caught his arm", "caught jack", "helped him stand", "팔을 잡", "붙잡", "도와"],
+    },
+  },
+  task2: {
+    characters: {
+      Anna: ["anna", "애나", "안나"],
+      man: ["man", "stranger", "그 남자", "남자"],
+    },
+    key_objects: {
+      box: ["box", "package", "small box", "상자", "소포", "패키지"],
+      black_book: ["black book", "book", "검은 책", "책"],
+      note: ["note", "memo", "message", "메모", "쪽지", "메시지"],
+      taped_object: ["taped", "under the table", "something taped", "테이프", "붙어", "테이블 아래"],
+    },
+    key_locations: {
+      cafe: ["cafe", "coffee shop", "카페"],
+      table7: ["table 7", "table seven", "7번 테이블", "테이블 7", "7번"],
+    },
+    key_events: {
+      fear: ["afraid", "scared", "fear", "heart started", "무서", "두려", "심장", "놀라"],
+      curiosity: ["curious", "strange", "궁금", "이상"],
+      waiting: ["waited", "left the cafe", "기다", "떠났"],
+    },
+  },
+};
 
 type ChatStreamEvent =
   | {
@@ -188,6 +245,122 @@ function normalizeKoreanSpacing(text: string): string {
     .replace(/최소\s+몇/g, "최소몇")
     .replace(/최대\s+몇/g, "최대몇")
     .replace(/몇\s+개\s+이상/g, "몇개이상");
+}
+
+function normalizeRoutingText(text: string): string {
+  return normalizeKoreanSpacing(text)
+    .toLowerCase()
+    .replace(/바빳/g, "바빴")
+    .replace(/무엇\s*때문/g, "무엇때문")
+    .replace(/뭐\s*때문/g, "뭐때문")
+    .replace(/뭘\s*하느라/g, "뭘하느라");
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function hasStoryQuestionCue(query: string): boolean {
+  const normalized = normalizeRoutingText(query);
+
+  return /[?？]/.test(normalized)
+    || /(why|what|who|where|when|how|was|were|did|does|is|are)\b/i.test(normalized)
+    || /(왜|무엇때문|뭐때문|뭘하느라|이유가|이유는|어째서|어떻게|뭐였|뭐라고|누가|누구|어디|언제|무슨\s*일|무슨\s*뜻|했지|했어|했나|였지|있었어|써\s*있|적혀|바빴|서둘렀|나타났|괜찮은가|괜찮아)/i.test(
+      normalized
+    );
+}
+
+function findStoryEntity(query: string, taskId: TaskId, recentMessages: RecentMessage[] = []): string | null {
+  const registry = STORY_ENTITY_REGISTRY[taskId];
+  const normalizedQuery = normalizeRoutingText(query);
+  const haystacks = [
+    normalizedQuery,
+    ...recentMessages
+      .slice(-4)
+      .map((message) => normalizeRoutingText(message.text))
+      .filter(Boolean),
+  ];
+  const groups = [
+    registry.characters,
+    registry.key_objects,
+    registry.key_locations,
+    registry.key_events,
+  ];
+
+  for (const group of groups) {
+    for (const [canonical, aliases] of Object.entries(group)) {
+      for (const alias of aliases) {
+        const normalizedAlias = normalizeRoutingText(alias);
+
+        if (!normalizedAlias) {
+          continue;
+        }
+
+        const asciiAlias = /^[a-z0-9_\-\s]+$/i.test(normalizedAlias);
+        const pattern = asciiAlias
+          ? new RegExp(`(?:^|[^a-z0-9])${escapeRegExp(normalizedAlias)}(?:$|[^a-z0-9])`, "i")
+          : new RegExp(escapeRegExp(normalizedAlias), "i");
+
+        if (haystacks.some((text) => pattern.test(text))) {
+          return canonical;
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+function getStoryEntityAliases(taskId: TaskId, entity: string | null | undefined): string[] {
+  if (!entity) {
+    return [];
+  }
+
+  const registry = STORY_ENTITY_REGISTRY[taskId];
+  const groups = [
+    registry.characters,
+    registry.key_objects,
+    registry.key_locations,
+    registry.key_events,
+  ];
+
+  for (const group of groups) {
+    const aliases = group[entity];
+
+    if (aliases) {
+      return aliases;
+    }
+  }
+
+  return [];
+}
+
+function buildRetrievalQuery(
+  query: string,
+  taskId: TaskId,
+  classification: RequestIntentClassification
+): string {
+  const baseQuery = extractRetrievalQuery(query);
+  const entityAliases = getStoryEntityAliases(taskId, classification.recognized_story_entity)
+    .filter((alias) => alias.length <= 40)
+    .slice(0, 12)
+    .join(" ");
+
+  return compactText(`${baseQuery} ${entityAliases}`).slice(0, 700);
+}
+
+function looksLikeActiveStoryQuestion(
+  query: string,
+  taskId: TaskId,
+  recentMessages: RecentMessage[] = []
+): { requiresSource: boolean; entity: string | null } {
+  const entity = findStoryEntity(query, taskId, recentMessages);
+
+  if (!entity || !hasStoryQuestionCue(query)) {
+    return { requiresSource: false, entity };
+  }
+
+  return { requiresSource: true, entity };
 }
 
 function detectTaskRequirementRule(query: string): TaskRequirementRuleId | null {
@@ -367,6 +540,7 @@ function looksLikeSourceContextRequest(query: string): boolean {
 
 function classifyCurrentRequest(
   query: string,
+  taskId: TaskId,
   recentMessages: RecentMessage[],
   supportMode: SupportMode
 ): RequestIntentClassification {
@@ -413,6 +587,24 @@ function classifyCurrentRequest(
     };
   }
 
+  const activeStoryQuestion = looksLikeActiveStoryQuestion(
+    classificationTarget,
+    taskId,
+    recentMessages
+  );
+
+  if (activeStoryQuestion.requiresSource) {
+    return {
+      intent: "source_comprehension",
+      request_is_explicit: true,
+      requires_source_context: true,
+      requires_task_context: false,
+      conversation_operation: "new_request",
+      confidence: 0.86,
+      recognized_story_entity: activeStoryQuestion.entity,
+    };
+  }
+
   if (!hasExplicitAssistanceRequest(classificationTarget) && looksLikeDraftOrPassage(query)) {
     return {
       intent: "unclear_intent",
@@ -435,14 +627,22 @@ function classifyCurrentRequest(
 
   const subRequests = splitSubRequests(classificationTarget).map((text) => ({
     text,
-    requires_source_context: looksLikeSourceContextRequest(text),
-    intent: looksLikeSourceAlignmentRequest(text)
-      ? "source_alignment"
-      : looksLikeSourceContextRequest(text)
-        ? "source_comprehension"
-        : looksLikeGeneralLanguageQuestion(text)
-          ? "language_feedback"
-          : "general_question",
+    ...(() => {
+      const storyQuestion = looksLikeActiveStoryQuestion(text, taskId, recentMessages);
+      const requiresSource = looksLikeSourceContextRequest(text) || storyQuestion.requiresSource;
+
+      return {
+        requires_source_context: requiresSource,
+        recognized_story_entity: storyQuestion.entity,
+        intent: looksLikeSourceAlignmentRequest(text)
+          ? "source_alignment"
+          : requiresSource
+            ? "source_comprehension"
+            : looksLikeGeneralLanguageQuestion(text)
+              ? "language_feedback"
+              : "general_question",
+      };
+    })(),
   }));
   const sourceSubRequests = subRequests.filter((item) => item.requires_source_context);
 
@@ -455,6 +655,8 @@ function classifyCurrentRequest(
       requires_source_context: true,
       conversation_operation: "new_request",
       confidence: 0.84,
+      recognized_story_entity:
+        sourceSubRequests.find((item) => item.recognized_story_entity)?.recognized_story_entity || null,
       sub_requests: subRequests,
     };
   }
@@ -510,6 +712,7 @@ function intentLogFields(classification: RequestIntentClassification) {
     conversation_operation: classification.conversation_operation,
     classifier_confidence: classification.confidence,
     selected_task_rule_id: classification.selected_task_rule_id || null,
+    recognized_story_entity: classification.recognized_story_entity || null,
     sub_request_count: classification.sub_requests?.length || 1,
   };
 }
@@ -590,6 +793,24 @@ function buildRecognizedQuestionMissingContextResponse(language: ResponseLanguag
   return language === "english"
     ? "I understand the question, but I cannot confirm the exact information from the current context. Please check the assignment instructions or send the relevant detail."
     : "질문 의도는 이해했지만 현재 정보만으로 정확히 확인할 수 없어요. 과제 안내나 필요한 맥락을 조금 더 알려주세요.";
+}
+
+function buildNoSourceEvidenceResponse(entity: string | null | undefined, language: ResponseLanguage): string {
+  if (language === "english") {
+    return entity
+      ? `I cannot clearly confirm that information about ${entity} from the current story.`
+      : "I cannot clearly confirm that information from the current story.";
+  }
+
+  return entity
+    ? `현재 이야기에서 ${entity}에 대한 정보를 명확히 확인할 수 없어요.`
+    : "현재 이야기에서 그 정보를 명확히 확인할 수 없어요.";
+}
+
+function buildRetrievalUnavailableResponse(language: ResponseLanguage): string {
+  return language === "english"
+    ? "I could not load the current story information. Please try again in a moment."
+    : "현재 이야기 정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.";
 }
 
 function getLatestAssistantText(recentMessages: RecentMessage[]): string {
@@ -1098,7 +1319,7 @@ export async function POST(request: NextRequest) {
   const hasConversationContext = recentMessages.length > 0;
   const separatedTurn = splitLearnerDraftAndRequest(query);
   const scopeLimitations = extractScopeLimitations(query);
-  const requestClassification = classifyCurrentRequest(query, recentMessages, supportMode);
+  const requestClassification = classifyCurrentRequest(query, taskId, recentMessages, supportMode);
   const commonLog = {
     ...buildCommonLogFields({
       participantId,
@@ -1651,11 +1872,12 @@ export async function POST(request: NextRequest) {
     requestClassification.request_is_explicit &&
     requestClassification.confidence >= 0.58;
   const retrievalQuery = shouldRunRetrieval
-    ? extractRetrievalQuery(separatedTurn.currentRequest || query)
+    ? buildRetrievalQuery(separatedTurn.currentRequest || query, taskId, requestClassification)
     : "";
   const retrievalReason = shouldRunRetrieval
     ? `conditional_rag:${requestClassification.intent}`
     : null;
+  const retrievalLimit = requestClassification.intent === "source_comprehension" ? 5 : 3;
   const retrievalSkippedReason = shouldRunRetrieval
     ? null
     : requestClassification.intent === "language_change"
@@ -1664,9 +1886,53 @@ export async function POST(request: NextRequest) {
           requestClassification.intent === "unclear_intent"
         ? requestClassification.intent
         : "source_context_not_required";
-  const retrievedChunks = shouldRunRetrieval
-    ? retrieveTaskChunks(taskId, retrievalQuery, taskPackage, 3, true, conversationMemory)
-    : [];
+  let retrievalFailed = false;
+  const retrievedChunks = (() => {
+    if (!shouldRunRetrieval) {
+      return [];
+    }
+
+    try {
+      return retrieveTaskChunks(taskId, retrievalQuery, taskPackage, retrievalLimit, true, conversationMemory);
+    } catch (error) {
+      console.error("Failed to retrieve task chunks", error);
+      retrievalFailed = true;
+      return [];
+    }
+  })();
+
+  if (shouldRunRetrieval && retrievalFailed) {
+    const text = buildRetrievalUnavailableResponse(responseLanguage);
+
+    await persistChatLog({
+      ...commonLog,
+      participant_id: participantId,
+      session_id: sessionId,
+      ep_id: epId,
+      condition_label: taskPackage.config.ai_condition,
+      selected_category: category,
+      raw_user_query: query,
+      policy_decision: "allowed",
+      status: "error",
+      response_status: "error",
+      retrieved_chunk_ids: [],
+      retrieved_chunk_metadata: [],
+      assistant_response: text,
+      timestamp,
+      response_length: text.length,
+      interaction_count: interactionCount,
+      session_duration_ms: sessionDurationMs,
+      query_type_label: requestClassification.intent,
+      source_types_used: [],
+      visual_assets_used: [],
+      retrieval_executed: false,
+      retrieval_reason: retrievalReason,
+      retrieval_skipped_reason: "retrieval_error",
+      incomplete_reason: "retrieval_error",
+    });
+
+    return chatJsonResponse(responseFromText(text, requestId, "error", "service_unavailable"), 500);
+  }
 
   if (
     shouldRunRetrieval &&
@@ -1714,11 +1980,22 @@ export async function POST(request: NextRequest) {
     !conversationMemory.isContextualFollowUp &&
     !conversationMemory.activeSupportContext
   ) {
-    const boundedResponse = buildNoChunkResponseV2(
-      supportMode,
-      responseLanguage,
-      conversationMemory.workingContext
-    );
+    const noSourceEvidence =
+      requestClassification.intent === "source_comprehension" ||
+      requestClassification.intent === "source_alignment";
+    const boundedResponse = noSourceEvidence
+      ? {
+          text: buildNoSourceEvidenceResponse(
+            requestClassification.recognized_story_entity,
+            responseLanguage
+          ),
+          quickReplies: [],
+        }
+      : buildNoChunkResponseV2(
+          supportMode,
+          responseLanguage,
+          conversationMemory.workingContext
+        );
 
     await persistChatLog({
       ...commonLog,
@@ -1743,6 +2020,7 @@ export async function POST(request: NextRequest) {
       visual_assets_used: [],
       retrieval_executed: true,
       retrieval_reason: retrievalReason,
+      retrieval_skipped_reason: noSourceEvidence ? "no_relevant_source_evidence" : undefined,
     });
 
     return chatJsonResponse(

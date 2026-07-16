@@ -16,6 +16,7 @@ select
   sub_request_count,
   selected_task_rule_id,
   fallback_state,
+  recognized_story_entity,
   retrieval_executed,
   retrieval_skipped_reason,
   task_id as episode,

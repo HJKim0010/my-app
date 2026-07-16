@@ -60,6 +60,7 @@ export type ChatLogEntry = {
   sub_request_count?: number;
   selected_task_rule_id?: string | null;
   fallback_state?: "genuine_draft_only" | "recognized_question_missing_context" | null;
+  recognized_story_entity?: string | null;
 };
 
 export type SessionTranscriptEntry = {
@@ -201,6 +202,7 @@ function buildChatLogPayload(entry: ChatLogEntry, useLegacyTaskId = false): obje
     sub_request_count: entry.sub_request_count,
     selected_task_rule_id: entry.selected_task_rule_id ?? null,
     fallback_state: entry.fallback_state ?? null,
+    recognized_story_entity: entry.recognized_story_entity ?? null,
   };
 }
 
