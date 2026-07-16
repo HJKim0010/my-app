@@ -189,30 +189,13 @@ function isValidParticipantId(value: string): boolean {
   return /^P\d{2,}$/i.test(value);
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function buildWelcomeMessage(): ChatMessage {
-  return {
-    id: "welcome",
-    role: "assistant",
-    text: "Hello! Are you ready to work on your writing? I can help with ideas, structure, expressions, or understanding a specific part. What would you like help with?",
-  };
-}
-
-function buildCurrentWelcomeMessage(): ChatMessage {
-  return {
-    id: "welcome",
-    role: "assistant",
-    text: "Hello! Are you ready to work on your writing? I can help with ideas, structure, expressions, or understanding a specific part. What would you like help with?",
-  };
-}
-
 function createTaskState(): TaskChatState {
   return {
     sessionId: crypto.randomUUID(),
     sessionStartedAt: Date.now(),
     interactionCount: 0,
     transcriptSaved: false,
-    messages: [buildCurrentWelcomeMessage()],
+    messages: [],
   };
 }
 
@@ -305,16 +288,9 @@ function hydrateTaskStates(raw: string | null): Record<TaskId, TaskChatState> {
         messages: hydratedMessages,
       };
 
-      if (next[taskId].messages.length === 0) {
-        next[taskId].messages = [buildCurrentWelcomeMessage()];
-        continue;
-      }
-
       const firstMessage = next[taskId].messages[0];
       if (firstMessage?.id === "welcome" && firstMessage.role === "assistant") {
-        next[taskId].messages[0] = buildCurrentWelcomeMessage();
-      } else {
-        next[taskId].messages = [buildCurrentWelcomeMessage(), ...next[taskId].messages];
+        next[taskId].messages = next[taskId].messages.slice(1);
       }
     }
 
@@ -357,7 +333,7 @@ const GUIDE_GATE_CARDS = [
   },
   {
     eyebrow: "2",
-    title: "Ask Like This",
+    title: "✅ Ask Like This",
     titleKo: "이렇게 물어보세요",
     items: [
       {
@@ -515,6 +491,23 @@ function GuideGateCards({
         >
           &gt;
         </button>
+      </div>
+      <div
+        className="guide-card-dots"
+        aria-label={`Manual card ${activeIndex + 1} of ${GUIDE_GATE_CARDS.length}`}
+      >
+        {GUIDE_GATE_CARDS.map((card, index) => (
+          <button
+            key={card.eyebrow}
+            type="button"
+            className={
+              index === activeIndex ? "guide-card-dot guide-card-dot-active" : "guide-card-dot"
+            }
+            onClick={() => onChange(index)}
+            aria-label={`Go to manual card ${index + 1}`}
+            aria-current={index === activeIndex ? "true" : undefined}
+          />
+        ))}
       </div>
     </section>
   );

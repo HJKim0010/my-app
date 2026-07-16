@@ -606,7 +606,9 @@ export async function POST(request: NextRequest) {
       response_length: response.text.length,
       interaction_count: interactionCount,
       session_duration_ms: sessionDurationMs,
-      query_type_label: "greeting_needs_clarification",
+      query_type_label: "others",
+      detected_support_mode: "other",
+      user_query_type: "others",
       source_types_used: [],
       visual_assets_used: [],
     });
@@ -635,7 +637,9 @@ export async function POST(request: NextRequest) {
       response_length: response.text.length,
       interaction_count: interactionCount,
       session_duration_ms: sessionDurationMs,
-      query_type_label: "greeting",
+      query_type_label: "others",
+      detected_support_mode: "other",
+      user_query_type: "others",
       source_types_used: [],
       visual_assets_used: [],
     });
