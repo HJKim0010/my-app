@@ -457,6 +457,16 @@ body {
   color: #303640;
 }
 
+.guide-feature-label-feedback {
+  background: #edf2f0;
+  color: #303640;
+}
+
+.guide-feature-label-procedural {
+  background: #f2f0ec;
+  color: #303640;
+}
+
 .guide-feature-example {
   font-weight: 600;
 }
@@ -474,6 +484,11 @@ body {
 }
 
 .guide-feature-example-language {
+  color: #303640;
+}
+
+.guide-feature-example-feedback,
+.guide-feature-example-procedural {
   color: #303640;
 }
 

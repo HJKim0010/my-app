@@ -516,12 +516,56 @@ function GuideContent() {
 
       <div className="guide-subsection">
         <p className="guide-subtitle">1. Languages / {KO.languageTitle}</p>
+        <div className="guide-subsection">
+          <p className="guide-subtitle">More Request Types / 더 물어볼 수 있는 요청</p>
+          <ul className="guide-list guide-feature-list">
+            <li>
+              <span className="guide-feature-label guide-feature-label-feedback">
+                FEEDBACK / 확인과 피드백
+              </span>
+              <br />
+              <span className="guide-feature-example guide-feature-example-feedback">
+                &quot;Is this idea connected to the story?&quot; / &quot;이 아이디어가 원래 이야기와 잘 연결되나요?&quot;
+              </span>
+            </li>
+            <li>
+              <span className="guide-feature-label guide-feature-label-procedural">
+                PROCEDURAL / 사용 방법과 절차
+              </span>
+              <br />
+              <span className="guide-feature-example guide-feature-example-procedural">
+                &quot;Can I ask in Korean?&quot; / &quot;한국어로 질문해도 되나요?&quot;
+              </span>
+            </li>
+            <li>그밖에 원하는 요청을 다양하게 넣어보세요.</li>
+          </ul>
+        </div>
+
         <ul className="guide-list">
           <li>
             You may ask in Korean, English, or both.
             <br />
             {KO.lang}
           </li>
+          <li>
+            <span className="guide-feature-label guide-feature-label-feedback">
+              FEEDBACK / 확인과 피드백
+            </span>
+            <br />
+            <span className="guide-feature-example guide-feature-example-feedback">
+              &quot;Is this idea connected to the story?&quot; / &quot;이 아이디어가 원래 이야기와 잘 연결되나요?&quot;
+            </span>
+          </li>
+          <li>
+            <span className="guide-feature-label guide-feature-label-procedural">
+              PROCEDURAL / 사용 방법과 절차
+            </span>
+            <br />
+            <span className="guide-feature-example guide-feature-example-procedural">
+              &quot;Can I ask in Korean?&quot; / &quot;한국어로 질문해도 되나요?&quot;
+            </span>
+          </li>
+          <li>그밖에 원하는 요청을 다양하게 넣어보세요.</li>
         </ul>
       </div>
 
@@ -689,6 +733,7 @@ function CompactGuideNoticeV2({ onOpenGuide }: { onOpenGuide: () => void }) {
   );
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function GuideContentV2() {
   return (
     <div className="guide-copy">
@@ -792,6 +837,130 @@ function GuideContentV2() {
   );
 }
 
+function GuideContentV3() {
+  return (
+    <div className="guide-copy">
+      <p>
+        This chatbot is not a tool that writes for you. It helps you understand the
+        story, think of ideas, plan your writing, get language help, and check small
+        parts of your own work.
+        <br />
+        {KO.intro}
+      </p>
+      <p>
+        AI supports your thinking, but you must write the continuation yourself.
+        <br />
+        {KO.support}
+      </p>
+
+      <div className="guide-subsection">
+        <p className="guide-subtitle">1. Languages / {KO.languageTitle}</p>
+        <ul className="guide-list">
+          <li>
+            You may ask in Korean, English, or both.
+            <br />
+            {KO.lang}
+          </li>
+        </ul>
+      </div>
+
+      <div className="guide-subsection">
+        <p className="guide-subtitle">2. Ask Like This / 이렇게 물어보세요</p>
+        <ul className="guide-list guide-feature-list">
+          <li>
+            <span className="guide-feature-label guide-feature-label-comprehension">
+              COMPREHENSION / 이야기 이해
+            </span>
+            <br />
+            <span className="guide-feature-example guide-feature-example-comprehension">
+              &quot;What does this part mean?&quot; / &quot;이 부분은 무슨 뜻인가요?&quot;
+            </span>
+          </li>
+          <li>
+            <span className="guide-feature-label guide-feature-label-ideation">
+              IDEA GENERATION / 아이디어 얻기
+            </span>
+            <br />
+            <span className="guide-feature-example guide-feature-example-ideation">
+              &quot;What are 2 next events that use the clue?&quot; / &quot;그 단서를 사용한 다음 사건 2가지를 생각해 볼 수 있나요?&quot;
+            </span>
+          </li>
+          <li>
+            <span className="guide-feature-label guide-feature-label-organization">
+              ORGANIZATION / 구성 도움
+            </span>
+            <br />
+            <span className="guide-feature-example guide-feature-example-organization">
+              &quot;How can I organize clue, thought, action, and result?&quot; / &quot;단서, 생각, 행동, 결과를 어떤 순서로 정리하면 좋을까요?&quot;
+            </span>
+          </li>
+          <li>
+            <span className="guide-feature-label guide-feature-label-language">
+              VOCABULARY &amp; EXPRESSION / 단어와 표현 도움
+            </span>
+            <br />
+            <span className="guide-feature-example guide-feature-example-language">
+              &quot;What pattern can I use for this idea?&quot; / &quot;이 생각을 표현할 때 쓸 수 있는 문장 틀은 무엇인가요?&quot;
+            </span>
+          </li>
+          <li>
+            <span className="guide-feature-label guide-feature-label-feedback">
+              FEEDBACK / 확인과 피드백
+            </span>
+            <br />
+            <span className="guide-feature-example guide-feature-example-feedback">
+              &quot;Is this idea connected to the story?&quot; / &quot;이 아이디어가 원래 이야기와 잘 연결되나요?&quot;
+            </span>
+          </li>
+          <li>
+            <span className="guide-feature-label guide-feature-label-procedural">
+              PROCEDURAL / 사용 방법과 절차
+            </span>
+            <br />
+            <span className="guide-feature-example guide-feature-example-procedural">
+              &quot;Can I ask in Korean?&quot; / &quot;한국어로 질문해도 되나요?&quot;
+            </span>
+          </li>
+          <li>그밖에 원하는 요청을 다양하게 넣어보세요.</li>
+        </ul>
+      </div>
+
+      <div className="guide-subsection">
+        <p className="guide-subtitle">3. Do Not Ask Like This / 이렇게 묻지 마세요</p>
+        <ul className="guide-list">
+          <li>&quot;Write the next paragraph.&quot; / &quot;다음 문단을 써줘.&quot;</li>
+          <li>&quot;Write the ending for me.&quot; / &quot;결말을 대신 써줘.&quot;</li>
+          <li>&quot;Rewrite my paragraph.&quot; / &quot;내 문단을 다시 써줘.&quot;</li>
+          <li>&quot;Translate this sentence into English.&quot; / &quot;이 문장을 영어로 번역해줘.&quot;</li>
+          <li>&quot;Give me a score.&quot; / &quot;이 글은 몇 점이야?&quot;</li>
+        </ul>
+      </div>
+
+      <div className="guide-subsection">
+        <p className="guide-subtitle">4. Important Rules / {KO.rulesTitle}</p>
+        <ul className="guide-list">
+          <li>
+            Ask one clear question at a time.
+            <br />
+            {KO.one}
+          </li>
+          <li>
+            If the chatbot refuses a request, do not keep trying to get the same kind of
+            answer in another way.
+            <br />
+            {KO.refuse}
+          </li>
+          <li>
+            If the reply feels unclear, ask it to explain one point again more simply.
+            <br />
+            {KO.shortReaction}
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -823,37 +992,6 @@ export default function Home() {
     [participantInput]
   );
   const isParticipantReady = isValidParticipantId(normalizedParticipantInput);
-
-  const handleExamplePrompt = (prompt: string) => {
-    if (input.trim()) {
-      inputUndoStackRef.current.push(input);
-    }
-
-    setInput(prompt);
-  };
-
-  const handleQuickReply = (reply: QuickReply) => {
-    if (isLoading) {
-      return;
-    }
-
-    if (reply.action === "prefill" && reply.value) {
-      if (input.trim()) {
-        inputUndoStackRef.current.push(input);
-      }
-
-      setInput(reply.value);
-      window.setTimeout(() => inputRef.current?.focus(), 0);
-      return;
-    }
-
-    if (reply.action === "focus" || !reply.value) {
-      window.setTimeout(() => inputRef.current?.focus(), 0);
-      return;
-    }
-
-    void send(reply.value, "quick_reply");
-  };
 
   useEffect(() => {
     taskStatesRef.current = taskStates;
@@ -1434,21 +1572,6 @@ export default function Home() {
                       {message.role === "user" ? "You" : "Assistant"}
                     </div>
                     <div className="message-text">{message.text}</div>
-                    {message.role === "assistant" && message.quickReplies?.length ? (
-                      <div className="quick-reply-list" aria-label="Suggested replies">
-                        {message.quickReplies.map((reply, index) => (
-                          <button
-                            key={`${message.id}-reply-${index}`}
-                            type="button"
-                            className="quick-reply-button"
-                            onClick={() => handleQuickReply(reply)}
-                            disabled={isLoading}
-                          >
-                            {reply.label}
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
                   </div>
                 </div>
               ))}
@@ -1503,24 +1626,6 @@ export default function Home() {
                 </button>
               {/*</div>*/}
             </div>
-            <div className="example-prompt-panel example-prompt-panel-thread" aria-label="Question examples">
-              <div className="example-prompt-list">
-                {CHAT_EXAMPLE_PROMPTS.map((example) => (
-                  <button
-                    key={example.en}
-                    type="button"
-                    className={`example-prompt-button example-prompt-button-${example.category.toLowerCase()}`}
-                    onClick={() => handleExamplePrompt(example.promptKo)}
-                  >
-                    <span className={`example-prompt-chip example-prompt-chip-${example.category.toLowerCase()}`}>
-                      {example.category}
-                    </span>
-                    <span className="example-prompt-button-en">{example.label}</span>
-                    <span className="example-prompt-button-ko">{example.labelKo}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
           </section>
         </section>
       )}
@@ -1542,7 +1647,7 @@ export default function Home() {
             </div>
 
             <div className="guide-panel modal-guide-panel">
-              <GuideContentV2 />
+              <GuideContentV3 />
             </div>
           </section>
         </div>

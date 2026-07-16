@@ -18,49 +18,72 @@ alter table public.session_transcripts
   add column if not exists task_id text,
   add column if not exists episode_id text;
 
-alter table public.chat_events
-  add constraint chat_events_response_status_check
-  check (
-    response_status is null
-    or response_status in ('success', 'redirected', 'incomplete', 'timeout', 'error')
-  ) not valid;
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'chat_events_response_status_check'
+  ) then
+    alter table public.chat_events
+      add constraint chat_events_response_status_check
+      check (
+        response_status is null
+        or response_status in ('success', 'redirected', 'incomplete', 'timeout', 'error')
+      ) not valid;
+  end if;
 
-alter table public.chat_events
-  add constraint chat_events_input_origin_check
-  check (
-    input_origin is null
-    or input_origin in ('typed', 'quick_reply', 'prefill_edited')
-  ) not valid;
+  if not exists (
+    select 1 from pg_constraint where conname = 'chat_events_input_origin_check'
+  ) then
+    alter table public.chat_events
+      add constraint chat_events_input_origin_check
+      check (
+        input_origin is null
+        or input_origin in ('typed', 'quick_reply', 'prefill_edited')
+      ) not valid;
+  end if;
 
-alter table public.chat_events
-  add constraint chat_events_source_condition_check
-  check (
-    source_condition is null
-    or source_condition in ('static', 'dynamic')
-  ) not valid;
+  if not exists (
+    select 1 from pg_constraint where conname = 'chat_events_source_condition_check'
+  ) then
+    alter table public.chat_events
+      add constraint chat_events_source_condition_check
+      check (
+        source_condition is null
+        or source_condition in ('static', 'dynamic')
+      ) not valid;
+  end if;
 
-alter table public.chat_events
-  add constraint chat_events_support_condition_check
-  check (
-    support_condition is null
-    or support_condition in ('ai', 'non_ai')
-  ) not valid;
+  if not exists (
+    select 1 from pg_constraint where conname = 'chat_events_support_condition_check'
+  ) then
+    alter table public.chat_events
+      add constraint chat_events_support_condition_check
+      check (
+        support_condition is null
+        or support_condition in ('ai', 'non_ai')
+      ) not valid;
+  end if;
 
-alter table public.chat_events
-  add constraint chat_events_user_query_type_check
-  check (
-    user_query_type is null
-    or user_query_type in (
-      'comprehension',
-      'idea_generation',
-      'organization',
-      'vocabulary_expression',
-      'feedback_checking',
-      'procedural',
-      'restricted',
-      'other'
-    )
-  ) not valid;
+  if not exists (
+    select 1 from pg_constraint where conname = 'chat_events_user_query_type_check'
+  ) then
+    alter table public.chat_events
+      add constraint chat_events_user_query_type_check
+      check (
+        user_query_type is null
+        or user_query_type in (
+          'comprehension',
+          'idea_generation',
+          'organization',
+          'vocabulary_expression',
+          'feedback_checking',
+          'procedural',
+          'restricted',
+          'other'
+        )
+      ) not valid;
+  end if;
+end $$;
 
 comment on column public.chat_events.researcher_code is
   'Nullable post-hoc researcher coding field. Do not auto-fill or backfill from application logic.';
