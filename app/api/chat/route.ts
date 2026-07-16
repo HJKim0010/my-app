@@ -142,6 +142,44 @@ function isMetaCapabilityQuestion(query: string): boolean {
   );
 }
 
+function hasExplicitAssistanceRequest(query: string): boolean {
+  const normalized = compactText(query).toLowerCase();
+
+  return /(can you|could you|would you|please|help|check|feedback|review|fix|correct|revise|rewrite|translate|explain|what|how|why|which|idea|suggest|organize|outline|natural|awkward|make sense|is this|does this|do you think|어때|어떻게|왜|무슨|뭐|어느|이대로|도와|봐\s*줘|봐줄|확인|피드백|검토|수정|고쳐|번역|설명|아이디어|제안|정리|구성|순서|자연스|어색|괜찮|맞아|맞나요|말이\s*되|문제|도움)/i.test(
+    normalized
+  );
+}
+
+function looksLikeDraftOrPassage(query: string): boolean {
+  const trimmed = query.trim();
+  const normalized = compactText(query);
+  const lines = trimmed.split(/\n+/).filter((line) => line.trim().length > 0);
+  const sentenceMarks = trimmed.match(/[.!?。！？]/g)?.length ?? 0;
+  const wordCount = normalized.split(/\s+/).filter(Boolean).length;
+  const koreanChars = trimmed.match(/[\uac00-\ud7a3]/g)?.length ?? 0;
+
+  return (
+    lines.length >= 3 ||
+    sentenceMarks >= 3 ||
+    wordCount >= 45 ||
+    (koreanChars >= 45 && normalized.length >= 80)
+  );
+}
+
+function isDraftOnlyOrUnclearIntent(query: string): boolean {
+  if (!looksLikeDraftOrPassage(query)) {
+    return false;
+  }
+
+  return !hasExplicitAssistanceRequest(query);
+}
+
+function buildDraftOnlyClarificationResponse(language: ResponseLanguage): string {
+  return language === "english"
+    ? "I’ve read your draft. What would you like help with?"
+    : "작성한 내용을 확인했어요. 어떤 도움이 필요한지 알려주세요.";
+}
+
 function shouldAskTargetClarification(
   query: string,
   mode: SupportMode,
@@ -588,6 +626,38 @@ export async function POST(request: NextRequest) {
     interactionCount,
     sessionDurationMs,
   });
+
+  if (isDraftOnlyOrUnclearIntent(query)) {
+    const responseText = buildDraftOnlyClarificationResponse(responseLanguage);
+
+    await persistChatLog({
+      ...commonLog,
+      participant_id: participantId,
+      session_id: sessionId,
+      ep_id: epId,
+      condition_label: taskPackage.config.ai_condition,
+      selected_category: category,
+      raw_user_query: query,
+      policy_decision: "allowed",
+      status: "allowed",
+      response_status: "success",
+      retrieved_chunk_ids: [],
+      retrieved_chunk_metadata: [],
+      assistant_response: responseText,
+      timestamp,
+      response_length: responseText.length,
+      interaction_count: interactionCount,
+      session_duration_ms: sessionDurationMs,
+      query_type_label: "draft_only/unclear_intent",
+      detected_support_mode: "draft_only/unclear_intent",
+      user_query_type: "draft_only/unclear_intent",
+      feedback_target: null,
+      source_types_used: [],
+      visual_assets_used: [],
+    });
+
+    return chatJsonResponse(responseFromText(responseText, requestId, "success", null));
+  }
 
   if (isMetaCapabilityQuestion(query)) {
     const response = buildMetaCapabilityResponse(responseLanguage);
