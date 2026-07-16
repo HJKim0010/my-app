@@ -1,6 +1,7 @@
 alter table public.chat_events
   add column if not exists policy_reason text,
   add column if not exists response_status text,
+  add column if not exists user_query_type text,
   add column if not exists detected_support_mode text,
   add column if not exists feedback_target text,
   add column if not exists input_origin text,
@@ -45,5 +46,24 @@ alter table public.chat_events
     or support_condition in ('ai', 'non_ai')
   ) not valid;
 
+alter table public.chat_events
+  add constraint chat_events_user_query_type_check
+  check (
+    user_query_type is null
+    or user_query_type in (
+      'comprehension',
+      'idea_generation',
+      'organization',
+      'vocabulary_expression',
+      'feedback_checking',
+      'procedural',
+      'restricted',
+      'other'
+    )
+  ) not valid;
+
 comment on column public.chat_events.researcher_code is
   'Nullable post-hoc researcher coding field. Do not auto-fill or backfill from application logic.';
+
+comment on column public.chat_events.user_query_type is
+  'Runtime user query type detected by the chatbot. Use as application metadata, not as final researcher coding.';

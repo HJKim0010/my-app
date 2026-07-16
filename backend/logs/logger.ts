@@ -29,6 +29,7 @@ export type ChatLogEntry = {
   interaction_count: number;
   session_duration_ms: number;
   query_type_label?: string;
+  user_query_type?: string;
   detected_support_mode?: string;
   feedback_target?: string | null;
   redirect_reason?: string;
@@ -156,6 +157,7 @@ function buildChatLogPayload(entry: ChatLogEntry, useLegacyTaskId = false): obje
     interaction_count: entry.interaction_count,
     session_duration_ms: entry.session_duration_ms,
     query_type_label: entry.query_type_label,
+    user_query_type: entry.user_query_type || entry.detected_support_mode || entry.query_type_label,
     detected_support_mode: entry.detected_support_mode,
     feedback_target: entry.feedback_target ?? null,
     redirect_reason: entry.redirect_reason,

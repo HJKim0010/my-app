@@ -500,6 +500,7 @@ function buildCommonLogFields(params: {
   | "source_condition"
   | "support_condition"
   | "detected_support_mode"
+  | "user_query_type"
   | "feedback_target"
   | "timestamp"
   | "interaction_count"
@@ -521,6 +522,7 @@ function buildCommonLogFields(params: {
     source_condition: params.condition,
     support_condition: "ai",
     detected_support_mode: params.detectedSupportMode,
+    user_query_type: params.detectedSupportMode,
     feedback_target: params.feedbackTarget,
     timestamp: params.timestamp,
     interaction_count: params.interactionCount,
@@ -791,6 +793,7 @@ export async function POST(request: NextRequest) {
       source_condition: condition,
       support_condition: "ai",
       detected_support_mode: "restricted",
+      user_query_type: "restricted",
       feedback_target: policyAnalysis.feedbackTarget,
       source_types_used: [],
       visual_assets_used: [],
