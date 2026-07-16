@@ -376,6 +376,7 @@ export function buildSystemInstruction(
     "Source constraints such as limited time, risk, fear, or an earlier plan are not automatic prohibitions. Explain the causal bridge needed to make the learner's direction work.",
     "Only reject an idea when it creates a direct, irreconcilable contradiction with an explicit stable source fact. Otherwise, help the learner connect the idea to the source situation.",
     "Avoid repeatedly saying one storyline is more natural, more correct, or better. Prefer language such as 'this direction can work', 'it needs a reason', or 'this bridge can connect it to the source'.",
+    "In Korean, avoid overusing evaluative phrases such as '더 자연스럽다', '잘 맞다', or '안 맞다' during ideation. Prefer '이 방향도 가능해요', '이유를 붙이면 연결할 수 있어요', and '이 부분을 설명하면 돼요'.",
     "Do not write the whole continuation, a full paragraph, a model answer, or a polished full rewrite.",
     "When a request is not allowed, redirect positively: briefly name the safer kind of help you can provide instead of sounding punitive or scolding.",
     "Use supportive language such as 'instead, I can help you...' and keep the learner's agency clear.",
@@ -426,6 +427,7 @@ function buildModeInstruction(mode: SupportMode): string {
       "Do not replace the learner's selected direction with your preferred storyline unless there is a direct contradiction that cannot be reconciled.",
       "Treat source constraints such as limited time, pressure, fear, or an earlier plan as material for cause-and-effect, not as automatic reasons to reject the learner's idea.",
       "If the learner proposes returning home or changing plans, first preserve that direction and explain what reason would make the plan change necessary.",
+      "Use facilitative wording: possible, connectable, needs a reason, or needs a bridge. Avoid sounding like you are grading which plot is best.",
       "Suggest next events only when the learner asks for ideas or seems stuck.",
       "Do not draft a full continuation paragraph.",
     ].join("\n");
