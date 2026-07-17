@@ -13,6 +13,7 @@ export type PlannerDialogueAct =
   | "draft_submission"
   | "feedback_request"
   | "accept_previous_offer"
+  | "select_previous_option"
   | "reject_previous_suggestion"
   | "correct_previous_interpretation"
   | "complete_missing_answer"
@@ -24,6 +25,7 @@ export type PlannerDialogueAct =
 
 export type PlannerConversationOperation =
   | "new_request"
+  | "continue_previous"
   | "complete_missing_answer"
   | "accept_previous_offer"
   | "repair_previous_omission"
@@ -56,6 +58,8 @@ export type ConversationPlannerOutput = {
   planner_status: "ok" | "fallback";
   planner_latency_ms: number;
   fallback_reason: string | null;
+  selected_option_index: number | null;
+  selected_option_meaning: string | null;
 };
 
 const MAX_TURN_CHARS = 220;
@@ -77,8 +81,161 @@ function lastMessage(recentMessages: RecentMessage[], role: RecentMessage["role"
   return truncateTurn([...recentMessages].reverse().find((message) => message.role === role)?.text || "");
 }
 
+function lastMessageFull(recentMessages: RecentMessage[], role: RecentMessage["role"]): string {
+  return [...recentMessages].reverse().find((message) => message.role === role)?.text || "";
+}
+
 function recentRawTurns(recentMessages: RecentMessage[]): string[] {
   return recentMessages.slice(-8).map((message) => `${message.role}: ${truncateTurn(message.text)}`);
+}
+
+type OfferedOption = {
+  index: number;
+  label: string;
+  description: string;
+};
+
+function cleanOptionText(text: string): string {
+  return compactText(
+    text
+      .replace(/^\s*(?:#{1,4}\s*)?\d+\s*[\).:-]?\s*/g, "")
+      .replace(/^\s*[-*]\s*/g, "")
+      .replace(/\*\*/g, "")
+  );
+}
+
+export function extractOfferedOptions(assistantText: string): OfferedOption[] {
+  const lines = assistantText.split(/\r?\n/);
+  const options: OfferedOption[] = [];
+  let current: OfferedOption | null = null;
+
+  for (const line of lines) {
+    const optionMatch = line.match(/^\s*(?:#{1,4}\s*)?(\d+)\s*[\).:-]\s*(.+?)\s*$/);
+
+    if (optionMatch) {
+      if (current) {
+        options.push({
+          ...current,
+          description: compactText(current.description),
+        });
+      }
+
+      const index = Number(optionMatch[1]);
+      const label = cleanOptionText(optionMatch[2]);
+      current = {
+        index,
+        label,
+        description: label,
+      };
+      continue;
+    }
+
+    if (current && /^\s*[-*]\s+/.test(line)) {
+      current.description = compactText(`${current.description} ${cleanOptionText(line)}`);
+    }
+  }
+
+  if (current) {
+    options.push({
+      ...current,
+      description: compactText(current.description),
+    });
+  }
+
+  return options.filter((option) => option.index > 0 && option.description.length > 0);
+}
+
+function detectOrdinalSelection(query: string, optionCount: number): number | null {
+  const normalized = normalize(query);
+
+  if (!normalized || optionCount < 1) {
+    return null;
+  }
+
+  const ordinalMatch =
+    normalized.match(/\b([1-9])\s*(?:번|번째|st|nd|rd|th|option)\b/i) ||
+    normalized.match(/\b(?:option\s*)?([1-9])\b/i);
+
+  if (ordinalMatch) {
+    const index = Number(ordinalMatch[1]);
+    return index >= 1 && index <= optionCount ? index : null;
+  }
+
+  if (/(첫\s*번째|첫번째|첫\s*번|1번|first)/i.test(normalized)) {
+    return optionCount >= 1 ? 1 : null;
+  }
+
+  if (/(두\s*번째|두번째|둘\s*째|2번|second)/i.test(normalized)) {
+    return optionCount >= 2 ? 2 : null;
+  }
+
+  if (/(세\s*번째|세번째|셋\s*째|3번|third)/i.test(normalized)) {
+    return optionCount >= 3 ? 3 : null;
+  }
+
+  if (/(마지막|last|그중\s*마지막|끝\s*에\s*있는)/i.test(normalized)) {
+    return optionCount;
+  }
+
+  return null;
+}
+
+function scoreSemanticOptionMatch(query: string, option: OfferedOption): number {
+  const normalizedQuery = normalize(query);
+  const normalizedOption = normalize(`${option.label} ${option.description}`);
+  let score = 0;
+
+  const semanticGroups = [
+    ["망설", "hesitat", "decide later", "나중에", "시간 압박", "time pressure", "increasing"],
+    ["일찍", "내리", "get off", "early", "hurry to school", "학교"],
+    ["믿", "message", "메시지", "train", "stay on the train", "기차", "지하철"],
+    ["help", "도움", "staff", "직원", "ask for help"],
+    ["wallet", "student id", "지갑", "학생증", "id"],
+  ];
+
+  for (const group of semanticGroups) {
+    const queryHit = group.some((term) => normalizedQuery.includes(term));
+    const optionHit = group.some((term) => normalizedOption.includes(term));
+
+    if (queryHit && optionHit) {
+      score += 3;
+    }
+  }
+
+  for (const token of normalizedQuery.split(/[^a-z0-9가-힣]+/i).filter((part) => part.length >= 2)) {
+    if (normalizedOption.includes(token)) {
+      score += 1;
+    }
+  }
+
+  return score;
+}
+
+export function resolvePreviousOptionSelection(
+  query: string,
+  previousAssistant: string
+): OfferedOption | null {
+  const options = extractOfferedOptions(previousAssistant);
+
+  if (options.length === 0) {
+    return null;
+  }
+
+  const ordinalIndex = detectOrdinalSelection(query, options.length);
+
+  if (ordinalIndex) {
+    return options.find((option) => option.index === ordinalIndex) || null;
+  }
+
+  const ranked = options
+    .map((option) => ({ option, score: scoreSemanticOptionMatch(query, option) }))
+    .sort((a, b) => b.score - a.score);
+
+  if (ranked[0]?.score >= 3 && ranked[0].score > (ranked[1]?.score || 0)) {
+    return ranked[0].option;
+  }
+
+  return null;
 }
 
 function detectsAcceptance(query: string): boolean {
@@ -223,8 +380,10 @@ export function planConversationTurn(params: {
     const query = params.query;
     const recentMessages = params.recentMessages;
     const previousAssistant = lastMessage(recentMessages, "assistant");
+    const previousAssistantFull = lastMessageFull(recentMessages, "assistant");
     const previousUser = lastMessage(recentMessages, "user");
-    const previousOffer = extractPreviousOffer(previousAssistant);
+    const previousOffer = extractPreviousOffer(previousAssistantFull || previousAssistant);
+    const selectedOption = resolvePreviousOptionSelection(query, previousAssistantFull || previousAssistant);
     const unansweredItems = extractUnansweredItems(query, recentMessages);
     const acceptedOffer = detectsAcceptance(query) ? previousOffer : null;
     const isRepairAfterOmission =
@@ -250,7 +409,14 @@ export function planConversationTurn(params: {
     const clarificationNeeded = false;
     let progressPushAllowed = false;
 
-    if (isMetaFeedback) {
+    if (selectedOption) {
+      dialogueAct = "select_previous_option";
+      operation = "continue_previous";
+      requestedOutputs = [`selected_option_${selectedOption.index}`];
+      sourceNeeded = true;
+      responseScope = "concise_support";
+      progressPushAllowed = true;
+    } else if (isMetaFeedback) {
       dialogueAct = "assistant_directed_feedback";
       operation = "adjust_assistant_behavior";
       requestedOutputs = ["acknowledge style feedback", "state adjustment"];
@@ -326,7 +492,7 @@ export function planConversationTurn(params: {
         previousOffer ? `previous_offer:${previousOffer}` : "",
       ].filter(Boolean),
       requested_outputs: requestedOutputs,
-      active_learner_direction: activeDirection,
+      active_learner_direction: selectedOption?.description || activeDirection,
       accepted_suggestions: acceptedOffer ? [acceptedOffer] : [],
       rejected_directions: isCorrection ? [previousAssistant || previousUser].filter(Boolean) : [],
       unanswered_items: unansweredItems,
@@ -339,6 +505,8 @@ export function planConversationTurn(params: {
       planner_status: "ok",
       planner_latency_ms: Date.now() - started,
       fallback_reason: null,
+      selected_option_index: selectedOption?.index || null,
+      selected_option_meaning: selectedOption?.description || null,
     };
   } catch (error) {
     return {
@@ -360,8 +528,41 @@ export function planConversationTurn(params: {
       planner_status: "fallback",
       planner_latency_ms: Date.now() - started,
       fallback_reason: error instanceof Error ? error.message : String(error),
+      selected_option_index: null,
+      selected_option_meaning: null,
     };
   }
+}
+
+export function buildSelectedPreviousOptionResponse(
+  selectedOption: Pick<OfferedOption, "index" | "description">,
+  taskId: TaskId
+): string {
+  const description = selectedOption.description;
+  const ordinal = selectedOption.index === 1 ? "첫 번째" : selectedOption.index === 2 ? "두 번째" : `${selectedOption.index}번째`;
+  const isHesitation = /(망설|hesitat|decide later|시간 압박|time pressure|increasing)/i.test(description);
+
+  if (isHesitation) {
+    return [
+      `좋아요. **${ordinal} 방향**, 즉 **시간 압박 속에서 바로 결정하지 못하고 망설이는 전개**로 가면 됩니다.`,
+      "",
+      "- Jack이 메시지를 믿어야 할지, 학교로 빨리 가야 할지 계속 갈등합니다.",
+      "- 역이 몇 개 지나가면서 발표 시간은 더 가까워지고 긴장이 커집니다.",
+      "- 마지막에는 더 이상 미룰 수 없는 순간이 와서 Jack이 한 가지 선택을 하게 만들면 좋아요.",
+      "",
+      "이 방향은 Jack의 발표 압박과 이상한 메시지를 둘 다 살릴 수 있어요.",
+    ].join("\n");
+  }
+
+  return [
+    `좋아요. **${ordinal} 방향**으로 가면 됩니다.`,
+    "",
+    `선택한 방향: ${description}`,
+    "",
+    taskId === "task2"
+      ? "이제 Anna의 선택이 어떤 단서나 위험으로 이어지는지만 정하면 흐름이 자연스러워요."
+      : "이제 Jack의 선택이 발표 압박, 시간 지연, 또는 메시지의 의미와 어떻게 연결되는지만 정하면 됩니다.",
+  ].join("\n");
 }
 
 export function buildConcreteSaviorIdeasResponse(taskId: TaskId): string {

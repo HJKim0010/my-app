@@ -59,6 +59,7 @@ export type ChatLogEntry = {
   response_mode?: "factual_answer" | "cautious_interpretation" | "idea_options" | "standard";
   conversation_operation?:
     | "new_request"
+    | "continue_previous"
     | "translate_previous"
     | "simplify_previous"
     | "clarify_previous"
@@ -94,6 +95,8 @@ export type ChatLogEntry = {
   planner_fallback_reason?: string | null;
   planner_progress_push_allowed?: boolean;
   planner_style_updates?: string[];
+  planner_selected_option_index?: number | null;
+  planner_selected_option_meaning?: string | null;
 };
 
 export type SessionTranscriptEntry = {
@@ -279,6 +282,8 @@ export function buildChatLogPayload(
     planner_fallback_reason: entry.planner_fallback_reason ?? null,
     planner_progress_push_allowed: entry.planner_progress_push_allowed,
     planner_style_updates: entry.planner_style_updates || [],
+    planner_selected_option_index: entry.planner_selected_option_index ?? null,
+    planner_selected_option_meaning: entry.planner_selected_option_meaning ?? null,
   };
 }
 

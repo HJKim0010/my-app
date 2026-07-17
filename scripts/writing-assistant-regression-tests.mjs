@@ -28,7 +28,10 @@ import {
 } from "../backend/rag/conversationalAlignment.ts";
 import {
   buildConcreteSaviorIdeasResponse,
+  buildSelectedPreviousOptionResponse,
+  extractOfferedOptions,
   planConversationTurn,
+  resolvePreviousOptionSelection,
 } from "../backend/rag/conversationPlanner.ts";
 
 const previousCafeTurn = [
@@ -374,4 +377,43 @@ const bareDraftPlan = planConversationTurn({
 assert.equal(bareDraftPlan.dialogue_act, "draft_submission");
 assert.ok(bareDraftPlan.requested_outputs.includes("corrected version"));
 
-console.log("Writing assistant regression tests passed: A-AB plus planner/alignment/RAG/logging checks");
+// AC. Previous-option ordinal and semantic references resolve against the last assistant option list.
+const previousOptionList = [
+  "1. Trust the message and stay on the train.",
+  "2. Get off early and hurry to school.",
+  "3. Hesitate for several stops and decide later under increasing time pressure.",
+].join("\n");
+const offeredOptions = extractOfferedOptions(previousOptionList);
+assert.equal(offeredOptions.length, 3);
+assert.equal(resolvePreviousOptionSelection("세번째로 가자.", previousOptionList)?.index, 3);
+assert.equal(resolvePreviousOptionSelection("3번으로 할게.", previousOptionList)?.index, 3);
+assert.equal(resolvePreviousOptionSelection("마지막 방향이 좋아.", previousOptionList)?.index, 3);
+assert.equal(resolvePreviousOptionSelection("Let's go with the hesitation option.", previousOptionList)?.index, 3);
+const thirdOptionPlan = planConversationTurn({
+  query: "세번째로 가자.",
+  taskId: "task1",
+  recentMessages: [{ role: "assistant", text: previousOptionList }],
+});
+assert.equal(thirdOptionPlan.dialogue_act, "select_previous_option");
+assert.equal(thirdOptionPlan.conversation_operation, "continue_previous");
+assert.equal(thirdOptionPlan.selected_option_index, 3);
+assert.ok(thirdOptionPlan.selected_option_meaning.includes("Hesitate"));
+assert.equal(thirdOptionPlan.clarification_needed, false);
+assert.equal(thirdOptionPlan.progress_push_allowed, true);
+const selectedOptionResponse = buildSelectedPreviousOptionResponse(
+  { index: 3, description: thirdOptionPlan.selected_option_meaning },
+  "task1"
+);
+assert.ok(selectedOptionResponse.includes("3번째 방향"));
+assert.ok(selectedOptionResponse.includes("망설이는 전개"));
+assert.ok(!selectedOptionResponse.includes("집으로 돌아"));
+
+// AD. EP1 source-accuracy assertions are explicitly in the generation policy.
+const ep1AccuracyPolicy = buildSystemInstruction("english", "ideas", false);
+assert.ok(ep1AccuracyPolicy.includes("Jack's team depends on him"));
+assert.ok(ep1AccuracyPolicy.includes("No teaching assistant is mentioned"));
+assert.ok(ep1AccuracyPolicy.includes("Jack already has his bag and laptop"));
+assert.ok(ep1AccuracyPolicy.includes("forgot or left behind his wallet and student ID"));
+assert.ok(ep1AccuracyPolicy.includes("do not say he lost them"));
+
+console.log("Writing assistant regression tests passed: A-AD plus planner/alignment/RAG/logging checks");

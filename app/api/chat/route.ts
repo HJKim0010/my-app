@@ -20,6 +20,7 @@ import {
 } from "@/backend/rag/conversationalAlignment";
 import {
   buildConcreteSaviorIdeasResponse,
+  buildSelectedPreviousOptionResponse,
   planConversationTurn,
   type ConversationPlannerOutput,
 } from "@/backend/rag/conversationPlanner";
@@ -76,6 +77,7 @@ type AssistantDraftResponse = {
 
 type ConversationOperation =
   | "new_request"
+  | "continue_previous"
   | "translate_previous"
   | "simplify_previous"
   | "clarify_previous"
@@ -1191,6 +1193,8 @@ function plannerLogFields(planner: ConversationPlannerOutput) {
     planner_fallback_reason: planner.fallback_reason,
     planner_progress_push_allowed: planner.progress_push_allowed,
     planner_style_updates: planner.style_updates,
+    planner_selected_option_index: planner.selected_option_index,
+    planner_selected_option_meaning: planner.selected_option_meaning,
   };
 }
 
@@ -1946,6 +1950,71 @@ export async function POST(request: NextRequest) {
       policyDecision === "restricted" &&
       (restrictionReason === "sentence_generation" || restrictionReason === "draft_rewrite"),
   };
+
+  if (
+    conversationPlan.conversation_operation === "continue_previous" &&
+    conversationPlan.selected_option_index &&
+    conversationPlan.selected_option_meaning
+  ) {
+    const responseText = buildSelectedPreviousOptionResponse(
+      {
+        index: conversationPlan.selected_option_index,
+        description: conversationPlan.selected_option_meaning,
+      },
+      taskId
+    );
+    const canonicalChunks = retrieveCanonicalSourceContext(taskId, taskPackage);
+
+    await persistChatLog({
+      ...commonLog,
+      participant_id: participantId,
+      session_id: sessionId,
+      ep_id: epId,
+      condition_label: taskPackage.config.ai_condition,
+      selected_category: category,
+      raw_user_query: query,
+      policy_decision: "allowed",
+      status: "allowed",
+      response_status: "success",
+      retrieved_chunk_ids: canonicalChunks.map((chunk) => chunk.chunkId),
+      retrieved_chunk_metadata: canonicalChunks.map((chunk) => ({
+        chunkId: chunk.chunkId,
+        sourceId: chunk.sourceId,
+        sourceType: chunk.sourceType,
+        chunkIndex: chunk.chunkIndex,
+        chunkCount: chunk.chunkCount,
+        documentChunkIndex: chunk.documentChunkIndex,
+        documentChunkCount: chunk.documentChunkCount,
+        score: chunk.score,
+      })),
+      assistant_response: responseText,
+      timestamp,
+      response_length: responseText.length,
+      interaction_count: interactionCount,
+      session_duration_ms: sessionDurationMs,
+      query_type_label: "idea_generation",
+      detected_support_mode: "idea_generation",
+      user_query_type: "select_previous_option",
+      feedback_target: null,
+      source_types_used: [...new Set(canonicalChunks.map((chunk) => chunk.sourceType))],
+      visual_assets_used: [],
+      retrieval_executed: true,
+      retrieval_reason: "select_previous_option:canonical",
+      retrieval_skipped_reason: null,
+      source_context_strategy: "canonical",
+      intent: "select_previous_option",
+      request_is_explicit: true,
+      requires_source_context: true,
+      requires_task_context: true,
+      story_request_mode: "generative",
+      response_mode: "idea_options",
+      conversation_operation: "continue_previous",
+      classifier_confidence: 0.94,
+      fallback_state: null,
+    });
+
+    return chatJsonResponse(responseFromText(responseText, requestId, "success", null));
+  }
 
   if (conversationPlan.conversation_operation === "adjust_assistant_behavior") {
     const responseText = buildAssistantMetaFeedbackResponse(query, responseLanguage);

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   buildConcreteSaviorIdeasResponse,
+  buildSelectedPreviousOptionResponse,
   planConversationTurn,
 } from "../backend/rag/conversationPlanner.ts";
 import { analyzeQueryScope } from "../backend/policy/classifier.ts";
@@ -106,6 +107,33 @@ const scenarios = [
     },
   },
   {
+    name: "Scenario J: previous-option ordinal selection",
+    taskId: "task1",
+    turns: [
+      {
+        role: "assistant",
+        text: [
+          "1. Trust the message and stay on the train.",
+          "2. Get off early and hurry to school.",
+          "3. Hesitate for several stops and decide later under increasing time pressure.",
+        ].join("\n"),
+      },
+    ],
+    input: "세번째로 가자.",
+    expected: ["select_previous_option", "selected_option_3", "delayed decision"],
+    check(plan, response) {
+      assert.equal(plan.dialogue_act, "select_previous_option");
+      assert.equal(plan.conversation_operation, "continue_previous");
+      assert.equal(plan.selected_option_index, 3);
+      assert.ok(plan.selected_option_meaning.includes("Hesitate"));
+      assert.equal(plan.clarification_needed, false);
+      assert.equal(plan.progress_push_allowed, true);
+      assert.ok(response.includes("3번째 방향"));
+      assert.ok(response.includes("망설이는 전개"));
+      assert.ok(!response.includes("집으로 돌아"));
+    },
+  },
+  {
     name: "Scenario I: ghostwriting boundary",
     taskId: "task1",
     turns: [],
@@ -128,6 +156,11 @@ for (const scenario of scenarios) {
   });
   const response = scenario.expected.includes("concrete_savior_ideas")
     ? buildConcreteSaviorIdeasResponse(scenario.taskId)
+    : scenario.expected.includes("selected_option_3")
+      ? buildSelectedPreviousOptionResponse(
+          { index: plan.selected_option_index, description: plan.selected_option_meaning },
+          scenario.taskId
+        )
     : "";
   scenario.check(plan, response);
   report.push({
