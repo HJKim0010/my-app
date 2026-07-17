@@ -17,6 +17,10 @@ import {
   looksLikeNewCurrentLanguageIntent,
   shouldTreatAsContinuationFollowUp,
 } from "@/backend/rag/contextPriority";
+import {
+  detectIncompleteAnswerRepair,
+  type MissingAnswerSlot,
+} from "@/backend/rag/incompleteAnswerRepair";
 import { loadTaskPackage, type TaskCondition, type TaskId } from "@/backend/rag/loader";
 import {
   buildSystemInstruction,
@@ -34,6 +38,7 @@ import {
 import {
   detectMainCharacterNameRequest,
   getMainCharacterName,
+  getMainCharacterStatusSummary,
 } from "@/backend/rag/storyMetadata";
 
 export const maxDuration = 60;
@@ -804,7 +809,41 @@ function classifyCurrentRequest(
 ): RequestIntentClassification {
   const { currentRequest } = splitLearnerDraftAndRequest(query);
   const classificationTarget = currentRequest || query;
+  const incompleteAnswerRepair = detectIncompleteAnswerRepair(classificationTarget, recentMessages);
   const taskRequirementRule = detectTaskRequirementRule(classificationTarget);
+
+  if (incompleteAnswerRepair) {
+    const storyRequestMode =
+      incompleteAnswerRepair.slot === "reason" ? "interpretive" : "factual";
+
+    return {
+      intent: "incomplete_answer_repair",
+      request_is_explicit: true,
+      requires_source_context: true,
+      requires_task_context: false,
+      story_request_mode: storyRequestMode,
+      requires_exact_fact: storyRequestMode === "factual",
+      response_mode:
+        storyRequestMode === "interpretive" ? "cautious_interpretation" : "factual_answer",
+      conversation_operation: "clarify_previous",
+      confidence: 0.94,
+      recognized_story_entity:
+        findStoryEntity(
+          `${incompleteAnswerRepair.previousUserText}\n${incompleteAnswerRepair.previousAssistantText}`,
+          taskId,
+          recentMessages
+        ) || getMainCharacterName(taskId),
+      sub_requests: [
+        {
+          text: classificationTarget,
+          requires_source_context: true,
+          intent: "incomplete_answer_repair",
+          recognized_story_entity: getMainCharacterName(taskId),
+          story_request_mode: storyRequestMode,
+        },
+      ],
+    };
+  }
 
   if (taskRequirementRule) {
     return {
@@ -1215,6 +1254,22 @@ function buildNoSourceEvidenceResponse(
   return entity
     ? `현재 이야기에서 ${entity}에 대한 정보를 명확히 확인할 수 없어요.`
     : "현재 이야기에서 그 정보를 명확히 확인할 수 없어요.";
+}
+
+function buildIncompleteAnswerRepairResponse(
+  taskId: TaskId,
+  slot: MissingAnswerSlot,
+  language: ResponseLanguage
+): string {
+  if (slot === "status") {
+    return getMainCharacterStatusSummary(taskId, language);
+  }
+
+  if (language === "english") {
+    return "You're right. I missed that part. I'll answer the missing part directly from the story context.";
+  }
+
+  return "맞아요. 그 부분을 빠뜨렸어요. 빠진 부분만 바로 보충할게요.";
 }
 
 function looksLikeExactSourceDetailRequest(query: string): boolean {
@@ -1843,6 +1898,61 @@ export async function POST(request: NextRequest) {
       policyDecision === "restricted" &&
       (restrictionReason === "sentence_generation" || restrictionReason === "draft_rewrite"),
   };
+  const incompleteAnswerRepair = detectIncompleteAnswerRepair(
+    separatedTurn.currentRequest || query,
+    recentMessages
+  );
+
+  if (incompleteAnswerRepair?.slot === "status") {
+    const responseText = buildIncompleteAnswerRepairResponse(
+      taskId,
+      incompleteAnswerRepair.slot,
+      responseLanguage
+    );
+    const canonicalChunks = retrieveCanonicalSourceContext(taskId, taskPackage);
+
+    await persistChatLog({
+      ...commonLog,
+      participant_id: participantId,
+      session_id: sessionId,
+      ep_id: epId,
+      condition_label: taskPackage.config.ai_condition,
+      selected_category: category,
+      raw_user_query: query,
+      policy_decision: "allowed",
+      status: "allowed",
+      response_status: "success",
+      retrieved_chunk_ids: canonicalChunks.map((chunk) => chunk.chunkId),
+      retrieved_chunk_metadata: canonicalChunks.map((chunk) => ({
+        chunkId: chunk.chunkId,
+        sourceId: chunk.sourceId,
+        sourceType: chunk.sourceType,
+        chunkIndex: chunk.chunkIndex,
+        chunkCount: chunk.chunkCount,
+        documentChunkIndex: chunk.documentChunkIndex,
+        documentChunkCount: chunk.documentChunkCount,
+        score: chunk.score,
+      })),
+      assistant_response: responseText,
+      timestamp,
+      response_length: responseText.length,
+      interaction_count: interactionCount,
+      session_duration_ms: sessionDurationMs,
+      query_type_label: "incomplete_answer_repair",
+      detected_support_mode: "comprehension",
+      user_query_type: "incomplete_answer_repair",
+      feedback_target: null,
+      source_types_used: [...new Set(canonicalChunks.map((chunk) => chunk.sourceType))],
+      visual_assets_used: [],
+      retrieval_executed: true,
+      retrieval_reason: "incomplete_answer_repair:canonical",
+      retrieval_skipped_reason: null,
+      fallback_state: null,
+      recognized_story_entity: getMainCharacterName(taskId),
+    });
+
+    return chatJsonResponse(responseFromText(responseText, requestId, "success", null));
+  }
 
   if (acceptsPreviousEventSequenceOffer(query, recentMessages)) {
     const responseText = buildAcceptedEventSequenceResponse(taskId);

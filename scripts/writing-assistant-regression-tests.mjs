@@ -13,8 +13,10 @@ import {
 import {
   detectMainCharacterNameRequest,
   getMainCharacterName,
+  getMainCharacterStatusSummary,
 } from "../backend/rag/storyMetadata.ts";
 import { buildChatLogPayload } from "../backend/logs/logger.ts";
+import { detectIncompleteAnswerRepair } from "../backend/rag/incompleteAnswerRepair.ts";
 
 const previousCafeTurn = [
   { role: "user", text: "카페를 떠나는 표현은?" },
@@ -201,4 +203,30 @@ assert.ok(!("source_context_strategy" in compatibilityPayload));
 assert.ok(!("policy_reason" in compatibilityPayload));
 assert.ok(!("response_status" in compatibilityPayload));
 
-console.log("Writing assistant regression tests passed: A-P plus RAG/logging checks");
+// Q. Incomplete multi-part answer repair: short keyword completes the omitted slot.
+const incompleteMultiPartHistory = [
+  { role: "user", text: "주인공 이름이랑 신분은?" },
+  { role: "assistant", text: "주인공은 Jack입니다." },
+];
+const repair = detectIncompleteAnswerRepair("신분은!", incompleteMultiPartHistory);
+assert.equal(repair?.slot, "status");
+assert.equal(repair?.previousUserText, "주인공 이름이랑 신분은?");
+assert.equal(
+  getMainCharacterStatusSummary("task1", "korean").includes("Jack은 학생입니다"),
+  true
+);
+assert.equal(
+  getMainCharacterStatusSummary("task1", "korean").includes("대학생으로 볼 수 있어요"),
+  true
+);
+assert.ok(
+  buildSystemInstruction("korean", "comprehension", true).includes(
+    "complete the omitted slot directly"
+  )
+);
+assert.equal(detectIncompleteAnswerRepair("신분은!", [
+  { role: "user", text: "주인공 이름이랑 신분은?" },
+  { role: "assistant", text: "주인공은 Jack이고 학생입니다." },
+]), null);
+
+console.log("Writing assistant regression tests passed: A-Q plus RAG/logging/repair checks");
