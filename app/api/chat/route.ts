@@ -37,6 +37,7 @@ import {
 } from "@/backend/rag/retriever";
 import {
   detectMainCharacterNameRequest,
+  detectMainCharacterNameAndStatusRequest,
   getMainCharacterName,
   getMainCharacterStatusSummary,
 } from "@/backend/rag/storyMetadata";
@@ -2106,6 +2107,58 @@ export async function POST(request: NextRequest) {
       retrieval_skipped_reason: "task_requirement",
       selected_task_rule_id: ruleId,
       fallback_state: hasStructuredAnswer ? null : "recognized_question_missing_context",
+    });
+
+    return chatJsonResponse(responseFromText(responseText, requestId, "success", null));
+  }
+
+  if (detectMainCharacterNameAndStatusRequest(query)) {
+    const name = getMainCharacterName(taskId);
+    const status = getMainCharacterStatusSummary(taskId, responseLanguage);
+    const responseText =
+      responseLanguage === "english"
+        ? `The main character is ${name}. ${status}`
+        : `주인공은 ${name}입니다. ${status}`;
+    const canonicalChunks = retrieveCanonicalSourceContext(taskId, taskPackage);
+
+    await persistChatLog({
+      ...commonLog,
+      participant_id: participantId,
+      session_id: sessionId,
+      ep_id: epId,
+      condition_label: taskPackage.config.ai_condition,
+      selected_category: category,
+      raw_user_query: query,
+      policy_decision: "allowed",
+      status: "allowed",
+      response_status: "success",
+      retrieved_chunk_ids: canonicalChunks.map((chunk) => chunk.chunkId),
+      retrieved_chunk_metadata: canonicalChunks.map((chunk) => ({
+        chunkId: chunk.chunkId,
+        sourceId: chunk.sourceId,
+        sourceType: chunk.sourceType,
+        chunkIndex: chunk.chunkIndex,
+        chunkCount: chunk.chunkCount,
+        documentChunkIndex: chunk.documentChunkIndex,
+        documentChunkCount: chunk.documentChunkCount,
+        score: chunk.score,
+      })),
+      assistant_response: responseText,
+      timestamp,
+      response_length: responseText.length,
+      interaction_count: interactionCount,
+      session_duration_ms: sessionDurationMs,
+      query_type_label: "source_comprehension",
+      detected_support_mode: "comprehension",
+      user_query_type: "source_comprehension",
+      feedback_target: null,
+      source_types_used: [...new Set(canonicalChunks.map((chunk) => chunk.sourceType))],
+      visual_assets_used: [],
+      retrieval_executed: true,
+      retrieval_reason: "main_character_metadata:canonical",
+      retrieval_skipped_reason: null,
+      fallback_state: null,
+      recognized_story_entity: name,
     });
 
     return chatJsonResponse(responseFromText(responseText, requestId, "success", null));

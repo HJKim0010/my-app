@@ -19,6 +19,18 @@ export function getMainCharacterStatusSummary(
     : "Anna는 주인공이고, 긴 공부를 마친 뒤 laptop과 notebook을 챙기는 인물이에요. 원문이 정확한 신분을 단정하진 않지만, 학생이거나 공부하는 사람으로 볼 수 있어요.";
 }
 
+export function detectMainCharacterStatusRequest(query: string): boolean {
+  const normalized = normalizeRoutingText(query);
+
+  return /(main\s*character|protagonist|hero|heroine|주인공|중심\s*인물|jack|anna).*(status|identity|role|job|occupation|student|신분|정체|직업|학생)|(?:status|identity|role|job|occupation|student|신분|정체|직업|학생).*(main\s*character|protagonist|hero|heroine|주인공|중심\s*인물|jack|anna)/i.test(
+    normalized
+  );
+}
+
+export function detectMainCharacterNameAndStatusRequest(query: string): boolean {
+  return detectMainCharacterNameRequest(query) && detectMainCharacterStatusRequest(query);
+}
+
 function normalizeRoutingText(text: string): string {
   return text.replace(/\s+/g, " ").trim().toLowerCase();
 }

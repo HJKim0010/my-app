@@ -12,6 +12,7 @@ import {
 } from "../backend/rag/contextPriority.ts";
 import {
   detectMainCharacterNameRequest,
+  detectMainCharacterNameAndStatusRequest,
   getMainCharacterName,
   getMainCharacterStatusSummary,
 } from "../backend/rag/storyMetadata.ts";
@@ -72,6 +73,12 @@ assert.equal(detectMainCharacterNameRequest("주인공 이름을 알려줘."), t
 assert.equal(detectMainCharacterNameRequest("Who is the main character?"), true);
 assert.equal(getMainCharacterName("task1"), "Jack");
 assert.equal(getMainCharacterName("task2"), "Anna");
+
+// H3 / Test A. Multi-part protagonist question asks for both name and status.
+assert.equal(detectMainCharacterNameAndStatusRequest("주인공 이름이랑 신분은?"), true);
+const protagonistStatus = getMainCharacterStatusSummary("task1", "korean");
+assert.ok(protagonistStatus.includes("Jack은 학생입니다"));
+assert.ok(protagonistStatus.includes("대학생으로 볼 수 있어요"));
 
 // I. Full paragraph ghostwriting remains restricted.
 const paragraphRequest = "이 설정으로 다음 문단을 영어로 4문장 써줘.";
@@ -229,4 +236,20 @@ assert.equal(detectIncompleteAnswerRepair("신분은!", [
   { role: "assistant", text: "주인공은 Jack이고 학생입니다." },
 ]), null);
 
-console.log("Writing assistant regression tests passed: A-Q plus RAG/logging/repair checks");
+// R. Learner correction and rejection should replace the previous assistant focus.
+const correctionPolicy = buildSystemInstruction("korean", "ideas", true);
+assert.ok(correctionPolicy.includes("drop the rejected focus"));
+assert.ok(correctionPolicy.includes("learner's correction as the current focus"));
+
+// S. Task-related general knowledge is allowed for writing support, but not as source fact.
+assert.ok(correctionPolicy.includes("General knowledge may be used"));
+assert.ok(correctionPolicy.includes("must not be presented as information stated in the source"));
+assert.equal(
+  analyzeQueryScope("카페 직원이 이런 상황에서 경찰에게 뭐라고 할 수 있어?").queryType,
+  "allowed"
+);
+
+// T. Multi-intent completeness is an explicit response-generation check.
+assert.ok(correctionPolicy.includes("Have I answered every requested item"));
+
+console.log("Writing assistant regression tests passed: A-T plus RAG/logging/repair checks");
