@@ -14,6 +14,14 @@ import {
   type RecentMessage,
 } from "@/backend/rag/conversationMemory";
 import {
+  buildAcknowledgmentOrInferenceResponse,
+  buildAssistantMetaFeedbackResponse,
+  buildContinuationStructureResponse,
+  detectAcknowledgmentOrInference,
+  detectAssistantMetaFeedback,
+  detectContinuationStructureRequest,
+} from "@/backend/rag/conversationalAlignment";
+import {
   looksLikeNewCurrentLanguageIntent,
   shouldTreatAsContinuationFollowUp,
 } from "@/backend/rag/contextPriority";
@@ -69,6 +77,9 @@ type ConversationOperation =
   | "translate_previous"
   | "simplify_previous"
   | "clarify_previous"
+  | "acknowledge_user_inference"
+  | "adjust_assistant_behavior"
+  | "continuation_structure"
   | "none";
 
 type StoryRequestMode = "factual" | "interpretive" | "generative";
@@ -1899,6 +1910,161 @@ export async function POST(request: NextRequest) {
       policyDecision === "restricted" &&
       (restrictionReason === "sentence_generation" || restrictionReason === "draft_rewrite"),
   };
+
+  if (detectAssistantMetaFeedback(query)) {
+    const responseText = buildAssistantMetaFeedbackResponse(query, responseLanguage);
+
+    await persistChatLog({
+      ...commonLog,
+      participant_id: participantId,
+      session_id: sessionId,
+      ep_id: epId,
+      condition_label: taskPackage.config.ai_condition,
+      selected_category: category,
+      raw_user_query: query,
+      policy_decision: "allowed",
+      status: "allowed",
+      response_status: "success",
+      retrieved_chunk_ids: [],
+      retrieved_chunk_metadata: [],
+      assistant_response: responseText,
+      timestamp,
+      response_length: responseText.length,
+      interaction_count: interactionCount,
+      session_duration_ms: sessionDurationMs,
+      query_type_label: "assistant_meta_feedback",
+      detected_support_mode: "assistant_meta_feedback",
+      user_query_type: "assistant_meta_feedback",
+      feedback_target: null,
+      source_types_used: [],
+      visual_assets_used: [],
+      retrieval_executed: false,
+      retrieval_reason: null,
+      retrieval_skipped_reason: "assistant_meta_feedback",
+      source_context_strategy: "none",
+      intent: "assistant_meta_feedback",
+      request_is_explicit: true,
+      requires_source_context: false,
+      requires_task_context: false,
+      response_mode: "standard",
+      conversation_operation: "adjust_assistant_behavior",
+      classifier_confidence: 0.96,
+      fallback_state: null,
+    });
+
+    return chatJsonResponse(responseFromText(responseText, requestId, "success", null));
+  }
+
+  if (detectAcknowledgmentOrInference(query)) {
+    const responseText = buildAcknowledgmentOrInferenceResponse(query, taskId, responseLanguage);
+    const canonicalChunks = retrieveCanonicalSourceContext(taskId, taskPackage);
+
+    await persistChatLog({
+      ...commonLog,
+      participant_id: participantId,
+      session_id: sessionId,
+      ep_id: epId,
+      condition_label: taskPackage.config.ai_condition,
+      selected_category: category,
+      raw_user_query: query,
+      policy_decision: "allowed",
+      status: "allowed",
+      response_status: "success",
+      retrieved_chunk_ids: canonicalChunks.map((chunk) => chunk.chunkId),
+      retrieved_chunk_metadata: canonicalChunks.map((chunk) => ({
+        chunkId: chunk.chunkId,
+        sourceId: chunk.sourceId,
+        sourceType: chunk.sourceType,
+        chunkIndex: chunk.chunkIndex,
+        chunkCount: chunk.chunkCount,
+        documentChunkIndex: chunk.documentChunkIndex,
+        documentChunkCount: chunk.documentChunkCount,
+        score: chunk.score,
+      })),
+      assistant_response: responseText,
+      timestamp,
+      response_length: responseText.length,
+      interaction_count: interactionCount,
+      session_duration_ms: sessionDurationMs,
+      query_type_label: "acknowledgment_or_inference",
+      detected_support_mode: "comprehension",
+      user_query_type: "acknowledgment_or_inference",
+      feedback_target: null,
+      source_types_used: [...new Set(canonicalChunks.map((chunk) => chunk.sourceType))],
+      visual_assets_used: [],
+      retrieval_executed: true,
+      retrieval_reason: "acknowledgment_or_inference:canonical",
+      retrieval_skipped_reason: null,
+      source_context_strategy: "canonical",
+      intent: "acknowledgment_or_inference",
+      request_is_explicit: true,
+      requires_source_context: true,
+      requires_task_context: false,
+      story_request_mode: "factual",
+      response_mode: "factual_answer",
+      conversation_operation: "acknowledge_user_inference",
+      classifier_confidence: 0.9,
+      fallback_state: null,
+    });
+
+    return chatJsonResponse(responseFromText(responseText, requestId, "success", null));
+  }
+
+  if (detectContinuationStructureRequest(query)) {
+    const responseText = buildContinuationStructureResponse(taskId, responseLanguage);
+    const canonicalChunks = retrieveCanonicalSourceContext(taskId, taskPackage);
+
+    await persistChatLog({
+      ...commonLog,
+      participant_id: participantId,
+      session_id: sessionId,
+      ep_id: epId,
+      condition_label: taskPackage.config.ai_condition,
+      selected_category: category,
+      raw_user_query: query,
+      policy_decision: "allowed",
+      status: "allowed",
+      response_status: "success",
+      retrieved_chunk_ids: canonicalChunks.map((chunk) => chunk.chunkId),
+      retrieved_chunk_metadata: canonicalChunks.map((chunk) => ({
+        chunkId: chunk.chunkId,
+        sourceId: chunk.sourceId,
+        sourceType: chunk.sourceType,
+        chunkIndex: chunk.chunkIndex,
+        chunkCount: chunk.chunkCount,
+        documentChunkIndex: chunk.documentChunkIndex,
+        documentChunkCount: chunk.documentChunkCount,
+        score: chunk.score,
+      })),
+      assistant_response: responseText,
+      timestamp,
+      response_length: responseText.length,
+      interaction_count: interactionCount,
+      session_duration_ms: sessionDurationMs,
+      query_type_label: "organization",
+      detected_support_mode: "organization",
+      user_query_type: "organization",
+      feedback_target: "organization_coherence",
+      source_types_used: [...new Set(canonicalChunks.map((chunk) => chunk.sourceType))],
+      visual_assets_used: [],
+      retrieval_executed: true,
+      retrieval_reason: "continuation_structure:canonical",
+      retrieval_skipped_reason: null,
+      source_context_strategy: "canonical",
+      intent: "continuation_structure",
+      request_is_explicit: true,
+      requires_source_context: true,
+      requires_task_context: false,
+      story_request_mode: "generative",
+      response_mode: "idea_options",
+      conversation_operation: "continuation_structure",
+      classifier_confidence: 0.92,
+      fallback_state: null,
+    });
+
+    return chatJsonResponse(responseFromText(responseText, requestId, "success", null));
+  }
+
   const incompleteAnswerRepair = detectIncompleteAnswerRepair(
     separatedTurn.currentRequest || query,
     recentMessages

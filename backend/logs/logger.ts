@@ -62,6 +62,9 @@ export type ChatLogEntry = {
     | "translate_previous"
     | "simplify_previous"
     | "clarify_previous"
+    | "acknowledge_user_inference"
+    | "adjust_assistant_behavior"
+    | "continuation_structure"
     | "none";
   classifier_confidence?: number;
   scope_limitations?: string[];

@@ -18,6 +18,14 @@ import {
 } from "../backend/rag/storyMetadata.ts";
 import { buildChatLogPayload, buildSessionTranscriptPayload } from "../backend/logs/logger.ts";
 import { detectIncompleteAnswerRepair } from "../backend/rag/incompleteAnswerRepair.ts";
+import {
+  buildAcknowledgmentOrInferenceResponse,
+  buildAssistantMetaFeedbackResponse,
+  buildContinuationStructureResponse,
+  detectAcknowledgmentOrInference,
+  detectAssistantMetaFeedback,
+  detectContinuationStructureRequest,
+} from "../backend/rag/conversationalAlignment.ts";
 
 const previousCafeTurn = [
   { role: "user", text: "카페를 떠나는 표현은?" },
@@ -280,4 +288,37 @@ assert.equal(
 // T. Multi-intent completeness is an explicit response-generation check.
 assert.ok(correctionPolicy.includes("Have I answered every requested item"));
 
-console.log("Writing assistant regression tests passed: A-T plus RAG/logging/repair checks");
+// U. Acknowledgment/inference should be answered directly without a progress push.
+assert.equal(detectAcknowledgmentOrInference("오케이. 그러면 발표가 중요하겠네."), true);
+const presentationInference = buildAcknowledgmentOrInferenceResponse(
+  "오케이. 그러면 발표가 중요하겠네.",
+  "task1",
+  "korean"
+);
+assert.ok(presentationInference.includes("발표는 중요"));
+assert.ok(presentationInference.includes("최종 성적") || presentationInference.includes("졸업"));
+assert.ok(!presentationInference.includes("집"));
+assert.ok(!presentationInference.includes("정해보세요"));
+
+// V. Assistant-directed meta-feedback should adjust behavior, not ask a category question.
+assert.equal(detectAssistantMetaFeedback("음.. 너무 푸쉬하는데?"), true);
+const metaFeedback = buildAssistantMetaFeedbackResponse("음.. 너무 푸쉬하는데?", "korean");
+assert.ok(metaFeedback.includes("재촉"));
+assert.ok(metaFeedback.includes("요청할 때만"));
+assert.ok(!metaFeedback.includes("어떤 도움이"));
+assert.ok(!metaFeedback.includes("작성한 내용을 확인"));
+
+// W. Continuation structure starts after the source ending and does not draft a paragraph.
+assert.equal(detectContinuationStructureRequest("일단 내용을 어떻게 구성하면 좋을까?"), true);
+const structurePlan = buildContinuationStructureResponse("task1", "korean");
+assert.ok(structurePlan.includes("원문이 끝난 뒤"));
+assert.ok(structurePlan.includes("결정"));
+assert.ok(structurePlan.includes("결과"));
+assert.ok(structurePlan.includes("발견"));
+assert.ok(!structurePlan.includes("Jack had"));
+
+// X. Source accuracy: EP1 wallet/student ID were forgotten or left behind, not lost.
+assert.ok(buildSystemInstruction("korean", "comprehension", false).includes("forgot or left behind"));
+assert.ok(buildSystemInstruction("korean", "language", false).includes("one complete English sentence"));
+
+console.log("Writing assistant regression tests passed: A-X plus alignment/RAG/logging checks");
