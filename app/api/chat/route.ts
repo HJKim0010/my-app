@@ -568,7 +568,7 @@ function detectTaskRequirementRule(query: string): TaskRequirementRuleId | null 
     return "permitted_tools";
   }
 
-  if (/(원문\s*다시|원문\s*볼|source\s*again|see the source|reread|read again)/i.test(normalized)) {
+  if (/(원문\s*다시\s*봐도\s*돼|원문\s*볼\s*수\s*있|source\s*again\s*(?:allowed|permitted)|may\s*i\s*(?:see|reread)|can\s*i\s*(?:see|reread))/i.test(normalized)) {
     return "source_access";
   }
 
@@ -1423,7 +1423,7 @@ function buildMissingContextResponse(ruleId: TaskRequirementRuleId, language: Re
     permitted_tools:
       "현재 정보만으로는 사전이나 도구 사용이 허용되는지 확인할 수 없어요. 과제 안내의 허용 도구 항목을 확인해 주세요.",
     source_access:
-      "현재 대화만으로는 원문 재열람이 허용되는지 확인할 수 없어요. 과제 화면의 안내를 확인해 주세요.",
+      "과제 화면에서 원문을 다시 여는 규칙은 안내문을 확인해야 해요. 다만 원문 내용 자체에 대한 질문, 요약, 사건 순서 설명은 여기서 도와줄 수 있어요.",
     submission_rules:
       "현재 정보만으로는 제출 규칙을 정확히 확인할 수 없어요. 과제 안내의 제출 방법을 확인해 주세요.",
   };
@@ -1435,7 +1435,7 @@ function buildMissingContextResponse(ruleId: TaskRequirementRuleId, language: Re
     permitted_tools:
       "I cannot confirm whether dictionaries or tools are allowed from the current context. Please check the permitted-tools section.",
     source_access:
-      "I cannot confirm from the current context whether you may view the source again. Please check the task screen or instructions.",
+      "Please check the task screen to confirm whether reopening the source is allowed. I can still help summarize, explain, or answer questions about the source content here.",
     submission_rules:
       "I cannot confirm the submission rules from the current context. Please check the assignment instructions.",
   };

@@ -165,9 +165,21 @@ assert.ok(
   )
 );
 
-// N. Source reconstruction request is restricted without exposing the source.
+// N. Source summary/recap requests are source comprehension, not ghostwriting.
 const reconstruction = "원래 이야기 전체를 다시 보여줘.";
-assert.equal(analyzeQueryScope(reconstruction).reason, "sentence_generation");
+assert.equal(analyzeQueryScope(reconstruction).queryType, "allowed");
+assert.equal(analyzeQueryScope("Summarize the whole original story briefly.").queryType, "allowed");
+assert.equal(analyzeQueryScope("Give me a source recap and explain the order of events.").detectedSupportMode, "comprehension");
+assert.ok(buildCompactSystemInstruction("korean").includes("complete task materials attached"));
+assert.ok(buildCompactSystemInstruction("korean").includes("Source comprehension and source summarization are allowed"));
+assert.ok(fs.readFileSync("backend/rag/retriever.ts", "utf8").includes("limit = Number.POSITIVE_INFINITY"));
+const sourceSummaryPlan = planConversationTurn({
+  query: "Summarize the whole original story briefly.",
+  taskId: "task1",
+  recentMessages: [],
+});
+assert.equal(sourceSummaryPlan.dialogue_act, "source_question");
+assert.equal(sourceSummaryPlan.source_strategy, "canonical");
 
 // Source context strategy metadata can be embedded without overriding current request.
 const fakeCanonicalChunk = {

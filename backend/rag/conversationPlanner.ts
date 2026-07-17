@@ -265,7 +265,7 @@ function detectsRejectionOrCorrection(query: string): boolean {
 function detectsSourceQuestion(query: string): boolean {
   const normalized = normalize(query);
 
-  return /(주인공|이름|신분|누구|왜|이유|어디|장소|source|original story|main character|who|why|where|what happened|story says)/i.test(
+  return /(주인공|이름|신분|누구|왜|이유|어디|장소|요약|줄거리|원래 이야기|원문|전체 이야기|사건 순서|무슨 일|단서|인물|source|original story|main character|who|why|where|what happened|story says|summary|summarize|recap|whole story|entire story|story sequence|order of events|source material|source recap)/i.test(
     normalized
   );
 }

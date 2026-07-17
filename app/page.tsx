@@ -1046,10 +1046,10 @@ function CompactGuideNotice({ onOpenGuide }: { onOpenGuide: () => void }) {
         이야기 이해, 다음 전개 아이디어, 구성 정리, 표현 찾기, 피드백과 교정에 사용할 수 있어요.
       </p>
       <p>
-        It does not write the answer for you, rewrite the whole draft, or summarize the
-        whole story.
+        It does not write the answer for you, rewrite the whole draft, or produce the
+        full continuation.
         <br />
-        전체 문단을 대신 쓰거나, 전체 글을 다시 쓰거나, 전체 줄거리를 요약해주지는 않아요.
+        전체 문단을 대신 쓰거나, 전체 글을 다시 쓰거나, 이어쓰기 답안을 완성해주지는 않아요.
       </p>
       <div className="compact-guidance-actions">
         <button type="button" className="secondary-button" onClick={onOpenGuide}>
@@ -1076,7 +1076,7 @@ function CompactGuideNoticeV2({ onOpenGuide }: { onOpenGuide: () => void }) {
       <ul className="guide-list compact-guide-list">
         <li>문단 대신 쓰기</li>
         <li>전체 글 다시 쓰기</li>
-        <li>전체 줄거리 요약</li>
+        <li>이어쓰기 답안 완성</li>
       </ul>
       <p>헷갈리면 이렇게 물어보세요.</p>
       <ul className="guide-list compact-guide-list">

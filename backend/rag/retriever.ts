@@ -218,7 +218,7 @@ export function retrieveTaskDocumentsForCondition(
 export function retrieveCanonicalSourceContext(
   taskId: TaskId,
   taskPackage: TaskPackage,
-  limit = 8
+  limit = Number.POSITIVE_INFINITY
 ): RetrievedChunk[] {
   const canonicalSourceTypes = new Set(["source_text", "video_transcript", "audio_transcript"]);
   const canonicalDocuments = taskPackage.documents.filter((document) =>
@@ -226,7 +226,9 @@ export function retrieveCanonicalSourceContext(
   );
   const chunks = chunkDocuments(taskId, canonicalDocuments);
 
-  return chunks.slice(0, limit).map((chunk) => ({
+  const selectedChunks = Number.isFinite(limit) ? chunks.slice(0, limit) : chunks;
+
+  return selectedChunks.map((chunk) => ({
     ...chunk,
     chunkId: `${chunk.chunkId}:canonical`,
     sourceLabel: `Canonical ${chunk.sourceLabel}`,

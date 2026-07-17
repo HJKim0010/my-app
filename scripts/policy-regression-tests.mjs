@@ -22,7 +22,6 @@ const restricted = [
   ["Write the next paragraph based on my idea.", "sentence_generation"],
   ["Please generate the full continuation.", "sentence_generation"],
   ["내 초안 전체를 모범답안처럼 다시 써줘.", "draft_rewrite"],
-  ["원래 이야기 전체를 다시 보여줘.", "sentence_generation"],
   ["이 글은 몇 점이야?", "scoring_evaluation"],
   ["Give me a rubric band.", "scoring_evaluation"],
 ];
@@ -30,6 +29,16 @@ const restricted = [
 for (const query of allowed) {
   const result = analyzeQueryScope(query);
   assert.equal(result.queryType, "allowed", `${query} should be allowed, got ${result.reason}`);
+}
+
+for (const query of [
+  "Summarize the whole original story briefly.",
+  "Give me a source recap and explain the order of events.",
+  "원래 이야기 전체를 짧게 요약해줘.",
+]) {
+  const result = analyzeQueryScope(query);
+  assert.equal(result.queryType, "allowed", `${query} should be allowed as source comprehension`);
+  assert.equal(result.detectedSupportMode, "comprehension", `${query} should route to comprehension`);
 }
 
 for (const [query, reason] of restricted) {

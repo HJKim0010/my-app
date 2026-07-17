@@ -172,6 +172,26 @@ function detectRequestedAction(query: string): RequestedAction {
   }
   if (hasFeedbackSignal(query)) return "check";
   if (asksForDirectTranslation(query)) return "translate";
+  if (
+    includesAny(q, [
+      "summarize",
+      "summary",
+      "recap",
+      "source recap",
+      "whole story",
+      "entire story",
+      "original story",
+      "story sequence",
+      "order of events",
+      "요약",
+      "줄거리",
+      "원래 이야기",
+      "원문",
+      "전체 이야기",
+    ])
+  ) {
+    return "explain";
+  }
   if (includesAny(q, ["organize", "outline", "structure", "sequence", "flow", "구성", "구조", "순서", "정리"])) {
     return "organize";
   }
@@ -320,18 +340,12 @@ export function analyzeQueryScope(query: string): ScopeDecision {
     /(next\s*paragraph|full\s*continuation|whole\s*continuation|model\s*answer|sample\s*answer|다음\s*문단|문단.*(?:써|작성|만들)|4\s*문장|네\s*문장|전체\s*이어쓰기|이어쓰기\s*전체|모범\s*답안|완성\s*답안)/i.test(
       query
     );
-  const asksForSourceReconstruction =
-    /(show|give|write|reconstruct).*(whole|entire|full).*(source|original story)|원래\s*이야기\s*전체|원문\s*전체|소스\s*전체/i.test(
-      query
-    );
-
   if (
     requestedAction === "rewrite" &&
     (targetScope === "whole_draft" || targetScope === "whole_answer" || targetScope === "paragraph")
   ) {
     reason = "draft_rewrite";
   } else if (
-    asksForSourceReconstruction ||
     asksForFullGeneration ||
     (requestedAction === "generate" &&
       (targetScope === "whole_answer" ||
