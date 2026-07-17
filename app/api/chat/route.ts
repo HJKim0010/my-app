@@ -13,6 +13,10 @@ import {
   buildConversationMemory,
   type RecentMessage,
 } from "@/backend/rag/conversationMemory";
+import {
+  looksLikeNewCurrentLanguageIntent,
+  shouldTreatAsContinuationFollowUp,
+} from "@/backend/rag/contextPriority";
 import { loadTaskPackage, type TaskCondition, type TaskId } from "@/backend/rag/loader";
 import {
   buildSystemInstruction,
@@ -22,7 +26,11 @@ import {
   type ResponseLanguage,
   type SupportMode,
 } from "@/backend/rag/promptBuilder";
-import { retrieveTaskChunks } from "@/backend/rag/retriever";
+import {
+  retrieveCanonicalSourceContext,
+  retrieveTaskChunks,
+  type RetrievedChunk,
+} from "@/backend/rag/retriever";
 
 export const maxDuration = 60;
 
@@ -55,6 +63,7 @@ type ConversationOperation =
 
 type StoryRequestMode = "factual" | "interpretive" | "generative";
 type ResponseMode = "factual_answer" | "cautious_interpretation" | "idea_options" | "standard";
+type SourceContextStrategy = "none" | "canonical" | "targeted_rag" | "canonical_plus_rag";
 
 type RequestIntentClassification = {
   intent: string;
@@ -440,6 +449,18 @@ function requiresStoryKnowledgeForRouting(
     };
   }
 
+  if (
+    storyQuestion.entity &&
+    (supportMode === "ideas" || supportMode === "organization") &&
+    looksLikeIdeaCompatibilityRequest(query)
+  ) {
+    return {
+      requiresStoryKnowledge: true,
+      entity: storyQuestion.entity,
+      storyRequestMode: storyRequestMode || "generative",
+    };
+  }
+
   if (looksLikeSourceContextRequest(query)) {
     return {
       requiresStoryKnowledge: true,
@@ -591,7 +612,7 @@ function looksLikeProceduralQuestion(query: string): boolean {
 function looksLikeGeneralLanguageQuestion(query: string): boolean {
   const normalized = compactText(query).toLowerCase();
 
-  return /(natural|awkward|grammar|word|phrase|expression|vocabulary|sentence structure|pattern|in english|translate|translation|문장이 자연|자연스러|어색|문법|단어|표현|어휘|문장 구조|패턴|영어로|번역)/i.test(
+  return /(natural|awkward|grammar|word|phrase|expression|vocabulary|sentence structure|pattern|in english|translate|translation|how to say|how can i say|how do i say|문장이 자연|자연스러|어색|문법|단어|표현|어휘|문장 구조|패턴|영어로|번역|표현하려|말하려고|이야기하려고|말하고 싶|쓰고 싶|나타내고 싶)/i.test(
     normalized
   );
 }
@@ -619,34 +640,8 @@ function looksLikeAmbiguousNextRequest(query: string): boolean {
   );
 }
 
-function recentDialogueLooksLikeContinuationWork(recentMessages: RecentMessage[]): boolean {
-  const recentText = recentMessages
-    .slice(-4)
-    .map((message) => compactText(message.text))
-    .join(" ");
-
-  return /(next event|possible direction|continue|story flow|sequence|idea|clue|memo|note|presentation|structure|feedback|다음\s*전개|다음\s*사건|아이디어|흐름|구성|순서|단서|메모|노트|발표|검사|피드백|자연스럽|이어)/i.test(
-    recentText
-  );
-}
-
 function looksLikeContinuationFollowUp(query: string, recentMessages: RecentMessage[]): boolean {
-  if (!recentDialogueLooksLikeContinuationWork(recentMessages)) {
-    return false;
-  }
-
-  const normalized = normalizeRoutingText(query);
-  const shortEnough = normalized.length <= 180;
-  const followUpCue =
-    /(what\s*about|how\s*about|then|next|that works|sounds good|check|flow|sequence|structure|does this work|is this okay|go back|go home|return home|have to go|must go|이어가|이어지|그럼|그러면|그다음|그다음은|다음|여기서|이 흐름|흐름|구성|순서|검사|봐줘|잡아\s*줘|잡아줘|그렇게\s*해\s*줘|그걸로\s*할게|좀\s*더\s*구체|더\s*구체|어떨까|괜찮|좋을 것|좋겠다|그게|그걸로|근데|그래도|어쩔\s*수\s*없이|할\s*수\s*없이|가야\s*하|학생증.*가지러|지갑.*가지러|집에\s*다시|집으로|돌아가|쓰러지|정신을\s*잃|노트|메모)/i.test(
-      normalized
-    );
-  const hasStoryOrPlanFragment =
-    /(jack|anna|he|she|memo|note|student id|wallet|presentation|subway|train|table|cafe|home|school|잭|애나|안나|메모|노트|학생증|지갑|발표|지하철|전철|카페|테이블|집|학교)/i.test(
-      normalized
-    ) || normalized.split(/\s+/).length >= 4;
-
-  return shortEnough && (followUpCue || hasStoryOrPlanFragment);
+  return shouldTreatAsContinuationFollowUp(query, recentMessages);
 }
 
 function looksLikeStructureFeedbackFollowUp(query: string): boolean {
@@ -718,6 +713,14 @@ function looksLikeSourceAlignmentRequest(query: string): boolean {
   const normalized = compactText(query).toLowerCase();
 
   return /(match|matches|fit|fits|connect|connected|consistent|contradict|missing connection|source connection|story connection|원래\s*이야기와\s*맞|자료와\s*맞|원문과\s*맞|연결|이어지|모순|빠진\s*연결|개연성|현실성)/i.test(
+    normalized
+  );
+}
+
+function looksLikeIdeaCompatibilityRequest(query: string): boolean {
+  const normalized = compactText(query).toLowerCase();
+
+  return /(my\s+idea|my\s+setting|what\s+if|how\s+about|does\s+this\s+work|is\s+this\s+okay|이\s*설정|이런\s*설정|내\s*아이디어|이\s*내용|넣고\s*싶|어때|어떨까|괜찮|가능|말이\s*돼|개연성|갑자기)/i.test(
     normalized
   );
 }
@@ -859,6 +862,7 @@ function classifyCurrentRequest(
   }
 
   if (
+    looksLikeNewCurrentLanguageIntent(classificationTarget) ||
     looksLikeGeneralLanguageQuestion(classificationTarget) &&
     !looksLikeSourceContextRequest(classificationTarget)
   ) {
@@ -1035,6 +1039,28 @@ function intentLogFields(classification: RequestIntentClassification) {
   };
 }
 
+function detectedFunctionsForLog(
+  classification: RequestIntentClassification,
+  supportMode: SupportMode
+): {
+  detected_functions: string[];
+  primary_detected_function: string | null;
+  secondary_detected_functions: string[];
+} {
+  const detected = [
+    classification.intent,
+    supportMode,
+    ...(classification.sub_requests?.map((request) => request.intent) || []),
+  ].filter(Boolean);
+  const unique = [...new Set(detected)];
+
+  return {
+    detected_functions: unique,
+    primary_detected_function: unique[0] || null,
+    secondary_detected_functions: unique.slice(1),
+  };
+}
+
 function extractRetrievalQuery(query: string): string {
   const lines = query
     .split(/\n+/)
@@ -1134,10 +1160,48 @@ function buildNoSourceEvidenceResponse(
     : "현재 이야기에서 그 정보를 명확히 확인할 수 없어요.";
 }
 
-function buildRetrievalUnavailableResponse(language: ResponseLanguage): string {
-  return language === "english"
-    ? "I could not load the current story information. Please try again in a moment."
-    : "현재 이야기 정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.";
+function looksLikeExactSourceDetailRequest(query: string): boolean {
+  const normalized = normalizeRoutingText(query);
+
+  return /(exact|specific|visual|image|picture|audio|video|scene|under\s+the\s+table|table\s*7|what\s+did|where\s+did|who\s+did|무엇을|뭘|어디|누가|정확|구체|장면|영상|그림|사진|소리|테이블\s*7|7번\s*테이블|아래에서)/i.test(
+    normalized
+  );
+}
+
+function determineSourceContextStrategy(
+  classification: RequestIntentClassification,
+  query: string
+): SourceContextStrategy {
+  if (!classification.requires_source_context) {
+    return "none";
+  }
+
+  const exactDetail =
+    classification.requires_exact_fact ||
+    classification.story_request_mode === "factual" ||
+    looksLikeExactSourceDetailRequest(query);
+
+  if (exactDetail) {
+    return "canonical_plus_rag";
+  }
+
+  return "canonical";
+}
+
+function mergeRetrievedChunks(chunks: RetrievedChunk[]): RetrievedChunk[] {
+  const seen = new Set<string>();
+  const merged: RetrievedChunk[] = [];
+
+  for (const chunk of chunks) {
+    const key = `${chunk.sourceId}:${chunk.content}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    merged.push(chunk);
+  }
+
+  return merged;
 }
 
 function buildDraftBasedIdeaFallback(learnerDraft: string, language: ResponseLanguage): AssistantDraftResponse {
@@ -1687,6 +1751,11 @@ export async function POST(request: NextRequest) {
   const separatedTurn = splitLearnerDraftAndRequest(query);
   const scopeLimitations = extractScopeLimitations(query);
   const requestClassification = classifyCurrentRequest(query, taskId, recentMessages, supportMode);
+  const sourceContextStrategy = determineSourceContextStrategy(
+    requestClassification,
+    separatedTurn.currentRequest || query
+  );
+  const functionLogFields = detectedFunctionsForLog(requestClassification, supportMode);
   const commonLog = {
     ...buildCommonLogFields({
       participantId,
@@ -1710,7 +1779,12 @@ export async function POST(request: NextRequest) {
       sessionDurationMs,
     }),
     ...intentLogFields(requestClassification),
+    ...functionLogFields,
     scope_limitations: scopeLimitations,
+    source_context_strategy: sourceContextStrategy,
+    ghostwriting_boundary_triggered:
+      policyDecision === "restricted" &&
+      (restrictionReason === "sentence_generation" || restrictionReason === "draft_rewrite"),
   };
 
   if (acceptsPreviousEventSequenceOffer(query, recentMessages)) {
@@ -2304,8 +2378,10 @@ export async function POST(request: NextRequest) {
     return chatJsonResponse(responseFromText(draftNeeded.text, requestId, "success", null));
   }
 
+  const shouldUseCanonicalContext =
+    sourceContextStrategy === "canonical" || sourceContextStrategy === "canonical_plus_rag";
   const shouldRunRetrieval =
-    requestClassification.requires_source_context &&
+    (sourceContextStrategy === "targeted_rag" || sourceContextStrategy === "canonical_plus_rag") &&
     requestClassification.request_is_explicit &&
     requestClassification.confidence >= 0.58;
   const retrievalQuery = shouldRunRetrieval
@@ -2322,9 +2398,13 @@ export async function POST(request: NextRequest) {
       : requestClassification.intent === "draft_only" ||
           requestClassification.intent === "unclear_intent"
         ? requestClassification.intent
-        : "source_context_not_required";
-  let retrievalFailed = false;
-  const retrievedChunks = (() => {
+        : sourceContextStrategy === "canonical"
+          ? "canonical_source_context_only"
+          : "source_context_not_required";
+  const canonicalChunks = shouldUseCanonicalContext
+    ? retrieveCanonicalSourceContext(taskId, taskPackage)
+    : [];
+  const targetedChunks = (() => {
     if (!shouldRunRetrieval) {
       return [];
     }
@@ -2333,43 +2413,10 @@ export async function POST(request: NextRequest) {
       return retrieveTaskChunks(taskId, retrievalQuery, taskPackage, retrievalLimit, true, conversationMemory);
     } catch (error) {
       console.error("Failed to retrieve task chunks", error);
-      retrievalFailed = true;
       return [];
     }
   })();
-
-  if (shouldRunRetrieval && retrievalFailed) {
-    const text = buildRetrievalUnavailableResponse(responseLanguage);
-
-    await persistChatLog({
-      ...commonLog,
-      participant_id: participantId,
-      session_id: sessionId,
-      ep_id: epId,
-      condition_label: taskPackage.config.ai_condition,
-      selected_category: category,
-      raw_user_query: query,
-      policy_decision: "allowed",
-      status: "error",
-      response_status: "error",
-      retrieved_chunk_ids: [],
-      retrieved_chunk_metadata: [],
-      assistant_response: text,
-      timestamp,
-      response_length: text.length,
-      interaction_count: interactionCount,
-      session_duration_ms: sessionDurationMs,
-      query_type_label: requestClassification.intent,
-      source_types_used: [],
-      visual_assets_used: [],
-      retrieval_executed: false,
-      retrieval_reason: retrievalReason,
-      retrieval_skipped_reason: "retrieval_error",
-      incomplete_reason: "retrieval_error",
-    });
-
-    return chatJsonResponse(responseFromText(text, requestId, "error", "service_unavailable"), 500);
-  }
+  const retrievedChunks = mergeRetrievedChunks([...canonicalChunks, ...targetedChunks]);
 
   if (
     shouldRunRetrieval &&
@@ -2526,7 +2573,7 @@ export async function POST(request: NextRequest) {
               responseLanguage,
               conversationMemory,
               {
-                includeSourceContext: shouldRunRetrieval,
+                includeSourceContext: sourceContextStrategy !== "none",
                 learnerDraft: separatedTurn.learnerDraft ||
                   (conversationMemory.workingContext === "user_continuation"
                     ? conversationMemory.continuationFocus || query
@@ -2535,6 +2582,7 @@ export async function POST(request: NextRequest) {
                 storyRequestMode: requestClassification.story_request_mode,
                 requiresExactFact: requestClassification.requires_exact_fact,
                 responseMode: requestClassification.response_mode,
+                sourceContextStrategy,
               }
             ),
           },

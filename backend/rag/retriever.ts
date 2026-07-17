@@ -214,3 +214,22 @@ export function retrieveTaskDocumentsForCondition(
 
   return [];
 }
+
+export function retrieveCanonicalSourceContext(
+  taskId: TaskId,
+  taskPackage: TaskPackage,
+  limit = 3
+): RetrievedChunk[] {
+  const canonicalSourceTypes = new Set(["source_text", "video_transcript", "audio_transcript"]);
+  const canonicalDocuments = taskPackage.documents.filter((document) =>
+    canonicalSourceTypes.has(document.sourceType)
+  );
+  const chunks = chunkDocuments(taskId, canonicalDocuments);
+
+  return chunks.slice(0, limit).map((chunk) => ({
+    ...chunk,
+    chunkId: `${chunk.chunkId}:canonical`,
+    sourceLabel: `Canonical ${chunk.sourceLabel}`,
+    score: 1,
+  }));
+}

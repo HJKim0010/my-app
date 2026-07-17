@@ -151,6 +151,19 @@ function looksLikeShortContextualFollowUp(text: string): boolean {
     normalized
   );
 }
+
+function looksLikeNewLanguageIntent(text: string): boolean {
+  const normalized = compactText(text);
+
+  if (!normalized || normalized.length < 8) {
+    return false;
+  }
+
+  return /(말하려고|이야기하려고|표현하려고|말하고\s*싶|쓰고\s*싶|나타내고\s*싶|영어로\s*어떻게|영어\s*표현|문장\s*구조|sentence\s*frame|phrase\s*for|how\s+(?:can|do)\s+i\s+say)/i.test(
+    normalized
+  );
+}
+
 function inferSupportContext(text: string): ActiveSupportContext {
   const normalized = compactText(text).toLowerCase();
 
@@ -166,7 +179,7 @@ function inferSupportContext(text: string): ActiveSupportContext {
     return "feedback";
   }
 
-  if (/(translate|in english|how do i say|pattern|sentence structure|word|expression|vocabulary|phrase|영어로|번역|표현|단어|패턴|문장 구조)/i.test(normalized)) {
+  if (/(translate|in english|how do i say|how can i say|pattern|sentence structure|word|expression|vocabulary|phrase|영어로|번역|표현|단어|패턴|문장 구조|말하려고|이야기하려고|표현하려고|말하고 싶|쓰고 싶)/i.test(normalized)) {
     return "language";
   }
 
@@ -195,7 +208,7 @@ function inferExplicitSupportShift(text: string): ActiveSupportContext {
     return "sentence_translation";
   }
 
-  if (/(translate|in english|how do i say|pattern|sentence structure|word|expression|vocabulary|phrase|영어로|번역|표현|단어|패턴|문장 구조)/i.test(normalized)) {
+  if (/(translate|in english|how do i say|how can i say|pattern|sentence structure|word|expression|vocabulary|phrase|영어로|번역|표현|단어|패턴|문장 구조|말하려고|이야기하려고|표현하려고|말하고 싶|쓰고 싶)/i.test(normalized)) {
     return "language";
   }
 
@@ -335,6 +348,7 @@ export function buildConversationMemory(
     inferSupportContext(lastUserText) || inferSupportContext(lastAssistantText);
   const explicitShift = inferExplicitSupportShift(query);
   const isContextualFollowUp =
+    !looksLikeNewLanguageIntent(query) &&
     looksLikeShortContextualFollowUp(query) &&
     shouldKeepPreviousContext(activeSupportContext, explicitShift);
 

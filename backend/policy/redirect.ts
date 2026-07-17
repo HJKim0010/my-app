@@ -10,175 +10,77 @@ export type SafeScaffold = {
   safeOptions: string[];
 };
 
-function compactText(text: string): string {
-  return text.replace(/\s+/g, " ").trim();
-}
-
-function extractQuotedOrTarget(query: string): string {
-  const quoted = query.match(/["'“”‘’]([^"'“”‘’]+)["'“”‘’]/)?.[1];
-  if (quoted) {
-    return compactText(quoted);
-  }
-
-  const beforeMarker =
-    query.split(/영어로\s*번역|영어로|번역|translate|into english|in english/i)[0] || query;
-  const objectMatch = beforeMarker.match(/(.+?)(?:을|를)?\s*(?:영어로|번역|바꿔|고쳐|표현)/);
-  return compactText(objectMatch?.[1] || beforeMarker).slice(0, 100);
-}
-
-function inferDirectTranslationPhrases(query: string): string[] {
-  const target = extractQuotedOrTarget(query).toLowerCase();
-  const phrases: string[] = [];
-
-  if (/늦|late/.test(target)) phrases.push("be late / get even later");
-  if (/서두|급|hurry|rush/.test(target)) phrases.push("be in a hurry");
-  if (/걱정|불안|worried|anxious/.test(target)) phrases.push("be worried / feel anxious");
-  if (/심장|heart/.test(target)) phrases.push("heart was beating fast");
-  if (/찾|발견|find|found|discover/.test(target)) phrases.push("find / discover");
-  if (/지갑|wallet/.test(target)) phrases.push("wallet");
-  if (/학생증|student\s*id/.test(target)) phrases.push("student ID");
-  if (/집|home/.test(target)) phrases.push("go back home");
-  if (/가지러|챙기|bring|get/.test(target)) phrases.push("get / bring");
-
-  return phrases.length ? phrases.slice(0, 4) : ["key action", "reason", "feeling"];
-}
-
-function inferKeyPhrases(
-  query: string,
+function scaffoldFor(
   reason: RestrictionReason,
   language: RedirectLanguage
-): string[] {
-  if (reason === "direct_translation") {
-    return inferDirectTranslationPhrases(query);
-  }
-
-  if (reason === "draft_rewrite") {
-    return language === "korean"
-      ? ["흐름", "어색한 표현", "한 문장씩 확인"]
-      : ["flow", "awkward expression", "one sentence at a time"];
-  }
-
-  if (reason === "scoring_evaluation") {
-    return language === "korean"
-      ? ["이야기 연결", "전개", "이해하기 어려운 부분"]
-      : ["story connection", "development", "unclear part"];
-  }
-
-  if (reason === "outside_content") {
-    return ["story situation", "character reaction", "plausible event"];
-  }
-
-  return language === "korean"
-    ? ["단서", "인물의 생각", "다음 행동"]
-    : ["clue", "character thought", "next action"];
-}
-
-function buildFrame(reason: RestrictionReason, language: RedirectLanguage): string {
-  if (reason === "direct_translation") {
-    return "He ___ because ___.";
-  }
-
-  if (language === "english") {
-    switch (reason) {
-      case "draft_rewrite":
-        return "This part is unclear because ___.";
-      case "scoring_evaluation":
-        return "One part to check is ___ because ___.";
-      case "outside_content":
-        return "This could fit the story if ___ causes ___.";
-      case "sentence_generation":
-      default:
-        return "First, ___ happens. Then, the character feels ___.";
-    }
-  }
-
-  switch (reason) {
-    case "draft_rewrite":
-      return "이 부분은 ___ 때문에 조금 불분명해요.";
-    case "scoring_evaluation":
-      return "먼저 확인할 부분은 ___예요. 왜냐하면 ___ 때문이에요.";
-    case "outside_content":
-      return "이 사건은 ___ 때문에 이야기와 연결될 수 있어요.";
-    case "sentence_generation":
-    default:
-      return "먼저 ___가 일어나고, 그다음 인물은 ___를 생각해요.";
-  }
-}
-
-function buildBoundary(reason: RestrictionReason, language: RedirectLanguage): string {
+): SafeScaffold {
   if (language === "english") {
     const boundaryByReason: Record<RestrictionReason, string> = {
       direct_translation:
-        "I cannot translate the whole sentence for you, but I can help you build it.",
+        "I can help with one sentence or local expression, but not a full paragraph or full continuation.",
       draft_rewrite:
-        "I cannot rewrite the whole draft, but I can help with one focused part.",
+        "I cannot rewrite the whole draft as a model answer, but I can proofread the parts you wrote.",
       outside_content:
-        "I should stay connected to the story task, but we can check story plausibility.",
+        "I should keep the help connected to this continuation-writing task.",
       sentence_generation:
-        "I cannot write the continuation or paragraph for you, but I can help you plan it.",
+        "I cannot write the whole continuation or paragraph for you, but I can help you build it.",
       scoring_evaluation:
-        "I cannot give a score or band, but I can give limited diagnostic feedback.",
+        "I cannot give a score, band, or research-style evaluation, but I can give practical feedback.",
     };
 
-    return boundaryByReason[reason];
+    return {
+      boundary: boundaryByReason[reason],
+      keyPhrases:
+        reason === "sentence_generation"
+          ? ["event outline", "causal bridge", "one target sentence"]
+          : reason === "draft_rewrite"
+            ? ["grammar", "clarity", "flow"]
+            : ["specific part", "writing goal"],
+      frame:
+        reason === "sentence_generation"
+          ? "Event outline: 1. ___ 2. ___ 3. ___"
+          : "The part I want to improve is ___.",
+      guidingQuestion: "Which specific sentence, idea, or connection do you want to work on?",
+      safeOptions: ["Ask for one target sentence.", "Ask for feedback on your own draft."],
+    };
   }
 
   const boundaryByReason: Record<RestrictionReason, string> = {
     direct_translation:
-      "문장 전체를 바로 영어로 번역하기보다는, 직접 만들 수 있게 나눠서 도와줄게요.",
+      "한 문장이나 짧은 표현은 도와줄 수 있지만, 문단 전체나 이어쓰기 전체를 대신 쓰지는 않을게요.",
     draft_rewrite:
-      "전체 초안을 대신 고쳐 쓰기보다는, 한 부분을 골라서 같이 볼게요.",
+      "초안 전체를 모범답안처럼 다시 쓰지는 못하지만, 네가 쓴 부분의 문법과 흐름은 봐줄 수 있어요.",
     outside_content:
-      "과제와 연결되지 않는 외부 정보보다는, 이야기 안에서 자연스러운지 확인해 볼게요.",
+      "이 이어쓰기 과제와 연결되는 범위 안에서 도와줄게요.",
     sentence_generation:
-      "전체 이어쓰기나 문단을 대신 쓰기보다는, 직접 쓸 수 있게 구조를 도와줄게요.",
+      "이어쓰기 문단 전체를 대신 쓰지는 못하지만, 전개를 만들 수 있게 도와줄 수 있어요.",
     scoring_evaluation:
-      "점수나 band는 말해줄 수 없지만, 문제가 될 수 있는 부분은 제한적으로 봐줄게요.",
+      "점수나 등급은 줄 수 없지만, 고칠 점과 개선 방법은 말해줄 수 있어요.",
   };
 
-  return boundaryByReason[reason];
-}
-
-function buildSafeOptions(language: RedirectLanguage): string[] {
-  return language === "english"
-    ? ["Share one sentence you try.", "Ask for one phrase or one flow check."]
-    : ["네가 시도한 문장 하나를 보내 주세요.", "표현 하나나 흐름 한 부분만 물어봐도 좋아요."];
-}
-
-function buildScaffold(
-  reason: RestrictionReason,
-  query: string,
-  language: RedirectLanguage
-): SafeScaffold {
   return {
-    boundary: buildBoundary(reason, language),
-    keyPhrases: inferKeyPhrases(query, reason, language),
-    frame: buildFrame(reason, language),
-    guidingQuestion:
-      language === "english"
-        ? "What feeling, reason, or action do you want to add?"
-        : "어떤 감정, 이유, 행동을 넣고 싶나요?",
-    safeOptions: buildSafeOptions(language),
-  };
-}
-
-function validateScaffold(scaffold: SafeScaffold): SafeScaffold {
-  const safeFrame = scaffold.frame.includes("___") ? scaffold.frame : `${scaffold.frame} ___`;
-
-  return {
-    ...scaffold,
-    keyPhrases: scaffold.keyPhrases.slice(0, 4).map((phrase) => phrase.replace(/[.!?]+$/g, "")),
-    frame: safeFrame,
-    safeOptions: scaffold.safeOptions.slice(0, 2),
+    boundary: boundaryByReason[reason],
+    keyPhrases:
+      reason === "sentence_generation"
+        ? ["사건 outline", "원인 연결", "한 문장 표현"]
+        : reason === "draft_rewrite"
+          ? ["문법", "명확성", "흐름"]
+          : ["구체적인 부분", "작문 목표"],
+    frame:
+      reason === "sentence_generation"
+        ? "사건 흐름: 1. ___ 2. ___ 3. ___"
+        : "고치고 싶은 부분은 ___예요.",
+    guidingQuestion: "어떤 문장, 아이디어, 연결 부분을 먼저 다룰까요?",
+    safeOptions: ["한 문장 표현을 물어보기", "내 초안에 대한 피드백 받기"],
   };
 }
 
 export function buildQueryAwareRedirect(
   reason: RestrictionReason,
-  query: string,
+  _query: string,
   language: RedirectLanguage = "english"
 ): SafeScaffold {
-  return validateScaffold(buildScaffold(reason, query, language));
+  return scaffoldFor(reason, language);
 }
 
 export function redirectResponse(
@@ -186,35 +88,22 @@ export function redirectResponse(
   language: RedirectLanguage = "english",
   query = ""
 ): string {
+  void query;
   const scaffold = buildQueryAwareRedirect(reason, query, language);
-  const keyLines = scaffold.keyPhrases.map((phrase) => `- ${phrase}`).join("\n");
-  const optionLines = scaffold.safeOptions.map((option) => `- ${option}`).join("\n");
 
   if (language === "english") {
     return [
       scaffold.boundary,
-      "",
-      "Useful words or phrases:",
-      keyLines,
-      "",
-      `Frame: ${scaffold.frame}`,
-      `Question: ${scaffold.guidingQuestion}`,
-      "",
-      "Safe next step:",
-      optionLines,
+      reason === "sentence_generation"
+        ? "I can give a short event outline, a causal bridge, or one target sentence instead."
+        : "Send the specific part you want to work on, and I will help locally.",
     ].join("\n");
   }
 
   return [
     scaffold.boundary,
-    "",
-    "쓸 수 있는 단어/표현:",
-    keyLines,
-    "",
-    `문장 틀: ${scaffold.frame}`,
-    `생각해 볼 질문: ${scaffold.guidingQuestion}`,
-    "",
-    "다음에 할 수 있는 것:",
-    optionLines,
+    reason === "sentence_generation"
+      ? "대신 짧은 사건 흐름, 원인 연결, 또는 목표 문장 하나는 바로 도와줄 수 있어요."
+      : "작업하고 싶은 구체적인 부분을 보내면 그 부분부터 도와줄게요.",
   ].join("\n");
 }

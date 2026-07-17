@@ -563,8 +563,8 @@ const GUIDE_COMPARE_ROWS = [
     better: '"What problem does the character face?"',
   },
   {
-    wrong: '"Fix my paragraph."',
-    better: '"Can you point out one awkward part in this paragraph?"',
+    wrong: '"Rewrite my paragraph."',
+    better: '"Can you proofread my paragraph and explain the main fixes?"',
   },
   {
     wrong: '"??"',
@@ -610,14 +610,14 @@ const GUIDE_GATE_CARDS = [
       {
         tone: "language",
         label: "LANGUAGE / 표현 도움",
-        text: '"What pattern can I use for this idea?"',
-        textKo: '"이 생각을 표현할 때 쓸 수 있는 문장 틀은 무엇인가요?"',
+        text: '"How can I say this idea in English?"',
+        textKo: '"이 생각을 영어로 어떻게 말하면 좋을까요?"',
       },
       {
         tone: "feedback",
         label: "FEEDBACK / 확인과 피드백",
-        text: '"Is this idea connected to the story?"',
-        textKo: '"이 아이디어가 원래 이야기와 잘 연결되나요?"',
+        text: '"Can you proofread my paragraph?"',
+        textKo: '"내 문단을 피드백하고 고칠 부분을 알려줄래?"',
       },
       {
         tone: "procedural",
@@ -648,10 +648,6 @@ const GUIDE_GATE_CARDS = [
       {
         text: '"Rewrite my paragraph."',
         textKo: '"내 문단을 다시 써줘."',
-      },
-      {
-        text: '"Translate this sentence into English."',
-        textKo: '"이 문장을 영어로 번역해줘."',
       },
     ],
   },
@@ -867,8 +863,8 @@ function GuideContent() {
   return (
     <div className="guide-copy">
       <p>
-        This chatbot is not a tool that writes for you. It helps you understand the
-        story, think of ideas, plan your writing, and get language help.
+        My Writing Assistant helps you develop, express, organize, and improve your
+        continuation writing while keeping your work connected to the source.
         <br />
         {KO.intro}
       </p>
@@ -957,7 +953,7 @@ function GuideContent() {
             &quot;What word can I use instead of &apos;very tired&apos;?&quot; / &quot;{KO.q4}&quot;
           </li>
           <li>
-            Get short local feedback on flow, logic, or awkward wording
+            Get proofreading feedback on flow, logic, grammar, or awkward wording
             <br />
             &quot;Which part sounds awkward here?&quot; / &quot;어느 부분이 어색한지 하나만 짚어줄래?&quot;
           </li>
@@ -978,7 +974,7 @@ function GuideContent() {
             &quot;Give me a full answer.&quot; / &quot;{KO.r2}&quot;
           </li>
           <li>
-            Do not ask for full correction or rewriting
+            Do not ask it to rewrite the whole draft as a new answer
             <br />
             &quot;Rewrite my paragraph.&quot; / &quot;{KO.r3}&quot;
           </li>
@@ -1045,9 +1041,9 @@ function CompactGuideNotice({ onOpenGuide }: { onOpenGuide: () => void }) {
     <div className="guidance-box compact-guidance">
       <p>
         This chatbot can help with story understanding, next-event ideas, structure,
-        expressions, and short local feedback.
+        expressions, and proofreading feedback.
         <br />
-        이야기 이해, 다음 전개 아이디어, 구성 정리, 표현 찾기, 짧은 피드백에 사용할 수 있어요.
+        이야기 이해, 다음 전개 아이디어, 구성 정리, 표현 찾기, 피드백과 교정에 사용할 수 있어요.
       </p>
       <p>
         It does not write the answer for you, rewrite the whole draft, or summarize the
@@ -1074,7 +1070,7 @@ function CompactGuideNoticeV2({ onOpenGuide }: { onOpenGuide: () => void }) {
         <li>다음 전개 아이디어</li>
         <li>구성 정리</li>
         <li>표현 찾기</li>
-        <li>짧은 피드백</li>
+        <li>피드백과 교정</li>
       </ul>
       <p>이건 어려워요:</p>
       <ul className="guide-list compact-guide-list">
@@ -1160,7 +1156,7 @@ function GuideContentV2() {
             </span>
             <br />
             <span className="guide-feature-example guide-feature-example-language">
-              &quot;What pattern can I use for this idea?&quot; / &quot;이 생각을 표현할 때 쓸 수 있는 문장 틀은 무엇인가요?&quot;
+              &quot;How can I say this idea in English?&quot; / &quot;이 생각을 영어로 어떻게 말하면 좋을까요?&quot;
             </span>
           </li>
         </ul>
@@ -1172,7 +1168,6 @@ function GuideContentV2() {
           <li>&quot;Write the next paragraph.&quot; / &quot;다음 문단을 써줘.&quot;</li>
           <li>&quot;Write the ending for me.&quot; / &quot;결말을 대신 써줘.&quot;</li>
           <li>&quot;Rewrite my paragraph.&quot; / &quot;내 문단을 다시 써줘.&quot;</li>
-          <li>&quot;Translate this sentence into English.&quot; / &quot;이 문장을 영어로 번역해줘.&quot;</li>
         </ul>
       </div>
 
@@ -1206,9 +1201,8 @@ function GuideContentV3() {
   return (
     <div className="guide-copy">
       <p>
-        This chatbot is not a tool that writes for you. It helps you understand the
-        story, think of ideas, plan your writing, get language help, and check small
-        parts of your own work.
+        My Writing Assistant helps you develop, express, organize, and improve your
+        continuation writing while keeping your work connected to the source.
         <br />
         {KO.intro}
       </p>
@@ -1265,7 +1259,7 @@ function GuideContentV3() {
             </span>
             <br />
             <span className="guide-feature-example guide-feature-example-language">
-              &quot;What pattern can I use for this idea?&quot; / &quot;이 생각을 표현할 때 쓸 수 있는 문장 틀은 무엇인가요?&quot;
+              &quot;How can I say this idea in English?&quot; / &quot;이 생각을 영어로 어떻게 말하면 좋을까요?&quot;
             </span>
           </li>
           <li>
@@ -1296,7 +1290,6 @@ function GuideContentV3() {
           <li>&quot;Write the next paragraph.&quot; / &quot;다음 문단을 써줘.&quot;</li>
           <li>&quot;Write the ending for me.&quot; / &quot;결말을 대신 써줘.&quot;</li>
           <li>&quot;Rewrite my paragraph.&quot; / &quot;내 문단을 다시 써줘.&quot;</li>
-          <li>&quot;Translate this sentence into English.&quot; / &quot;이 문장을 영어로 번역해줘.&quot;</li>
           <li>&quot;Give me a score.&quot; / &quot;이 글은 몇 점이야?&quot;</li>
         </ul>
       </div>

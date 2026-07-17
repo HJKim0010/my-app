@@ -45,6 +45,11 @@ export type ChatLogEntry = {
   retrieval_executed?: boolean;
   retrieval_reason?: string | null;
   retrieval_skipped_reason?: string | null;
+  source_context_strategy?: "none" | "canonical" | "targeted_rag" | "canonical_plus_rag";
+  detected_functions?: string[];
+  primary_detected_function?: string | null;
+  secondary_detected_functions?: string[];
+  ghostwriting_boundary_triggered?: boolean;
   intent?: string;
   request_is_explicit?: boolean;
   requires_source_context?: boolean;
@@ -199,6 +204,11 @@ function buildChatLogPayload(entry: ChatLogEntry, useLegacyTaskId = false): obje
     retrieval_executed: entry.retrieval_executed,
     retrieval_reason: entry.retrieval_reason ?? null,
     retrieval_skipped_reason: entry.retrieval_skipped_reason ?? null,
+    source_context_strategy: entry.source_context_strategy,
+    detected_functions: entry.detected_functions || [],
+    primary_detected_function: entry.primary_detected_function ?? null,
+    secondary_detected_functions: entry.secondary_detected_functions || [],
+    ghostwriting_boundary_triggered: entry.ghostwriting_boundary_triggered ?? false,
     intent: entry.intent,
     request_is_explicit: entry.request_is_explicit,
     requires_source_context: entry.requires_source_context,

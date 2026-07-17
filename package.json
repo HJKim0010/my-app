@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "build:lexicons": "node scripts/build-lexicons.mjs",
-    "test:policy": "node --experimental-strip-types scripts/policy-regression-tests.mjs"
+    "test:policy": "node --experimental-strip-types scripts/policy-regression-tests.mjs",
+    "test:context": "node --experimental-strip-types scripts/context-priority-tests.mjs",
+    "test:writing": "node --experimental-strip-types scripts/writing-assistant-regression-tests.mjs"
   },
   "dependencies": {
     "next": "16.2.1",
