@@ -51,15 +51,19 @@ export type ConversationPlannerOutput = {
   unanswered_items: string[];
   source_needed: boolean;
   source_strategy: PlannerSourceStrategy;
+  source_reason: string | null;
   response_scope: "direct_answer" | "concise_support" | "full_support" | "clarification";
   clarification_needed: boolean;
   progress_push_allowed: boolean;
   style_updates: string[];
-  planner_status: "ok" | "fallback";
+  planner_status: "ok" | "llm" | "fallback";
   planner_latency_ms: number;
   fallback_reason: string | null;
   selected_option_index: number | null;
   selected_option_meaning: string | null;
+  confidence: number;
+  planner_error_type: string | null;
+  fallback_used: boolean;
 };
 
 const MAX_TURN_CHARS = 220;
@@ -368,6 +372,30 @@ function sourceStrategyFor(act: PlannerDialogueAct, sourceNeeded: boolean): Plan
   return "canonical_plus_rag";
 }
 
+function sourceReasonFor(act: PlannerDialogueAct, sourceNeeded: boolean): string | null {
+  if (!sourceNeeded) {
+    return null;
+  }
+
+  if (act === "source_question") {
+    return "source_question";
+  }
+
+  if (act === "complete_missing_answer") {
+    return "missing_answer_repair";
+  }
+
+  if (act === "acknowledgment_or_inference") {
+    return "confirm_learner_inference";
+  }
+
+  if (act === "request_task_progression") {
+    return "source_grounded_task_progression";
+  }
+
+  return "source_grounded_writing_support";
+}
+
 export function planConversationTurn(params: {
   query: string;
   taskId: TaskId;
@@ -413,7 +441,7 @@ export function planConversationTurn(params: {
       dialogueAct = "select_previous_option";
       operation = "continue_previous";
       requestedOutputs = [`selected_option_${selectedOption.index}`];
-      sourceNeeded = true;
+      sourceNeeded = false;
       responseScope = "concise_support";
       progressPushAllowed = true;
     } else if (isMetaFeedback) {
@@ -431,7 +459,7 @@ export function planConversationTurn(params: {
       dialogueAct = "accept_previous_offer";
       operation = "accept_previous_offer";
       requestedOutputs = [acceptedOffer];
-      sourceNeeded = acceptedOffer === "concrete_savior_ideas" || acceptedOffer === "event_sequence";
+      sourceNeeded = false;
       responseScope = "concise_support";
     } else if (isCorrection) {
       dialogueAct = "correct_previous_interpretation";
@@ -498,6 +526,7 @@ export function planConversationTurn(params: {
       unanswered_items: unansweredItems,
       source_needed: sourceNeeded,
       source_strategy: sourceStrategyFor(dialogueAct, sourceNeeded),
+      source_reason: sourceReasonFor(dialogueAct, sourceNeeded),
       response_scope: responseScope,
       clarification_needed: clarificationNeeded,
       progress_push_allowed: progressPushAllowed,
@@ -507,6 +536,9 @@ export function planConversationTurn(params: {
       fallback_reason: null,
       selected_option_index: selectedOption?.index || null,
       selected_option_meaning: selectedOption?.description || null,
+      confidence: selectedOption || acceptedOffer ? 0.94 : isMetaFeedback || isAcknowledgment ? 0.9 : 0.78,
+      planner_error_type: null,
+      fallback_used: false,
     };
   } catch (error) {
     return {
@@ -521,6 +553,7 @@ export function planConversationTurn(params: {
       unanswered_items: [],
       source_needed: false,
       source_strategy: "none",
+      source_reason: null,
       response_scope: "concise_support",
       clarification_needed: false,
       progress_push_allowed: false,
@@ -530,6 +563,9 @@ export function planConversationTurn(params: {
       fallback_reason: error instanceof Error ? error.message : String(error),
       selected_option_index: null,
       selected_option_meaning: null,
+      confidence: 0.4,
+      planner_error_type: error instanceof Error ? error.name || "planner_error" : "planner_error",
+      fallback_used: true,
     };
   }
 }

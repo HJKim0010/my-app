@@ -128,6 +128,7 @@ const scenarios = [
       assert.ok(plan.selected_option_meaning.includes("Hesitate"));
       assert.equal(plan.clarification_needed, false);
       assert.equal(plan.progress_push_allowed, true);
+      assert.equal(plan.source_strategy, "none");
       assert.ok(response.includes("3번째 방향"));
       assert.ok(response.includes("망설이는 전개"));
       assert.ok(!response.includes("집으로 돌아"));

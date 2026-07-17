@@ -21,9 +21,9 @@ import {
 import {
   buildConcreteSaviorIdeasResponse,
   buildSelectedPreviousOptionResponse,
-  planConversationTurn,
   type ConversationPlannerOutput,
 } from "@/backend/rag/conversationPlanner";
+import { planConversationTurnWithFallback } from "@/backend/rag/llmConversationPlanner";
 import {
   looksLikeNewCurrentLanguageIntent,
   shouldTreatAsContinuationFollowUp,
@@ -1195,6 +1195,10 @@ function plannerLogFields(planner: ConversationPlannerOutput) {
     planner_style_updates: planner.style_updates,
     planner_selected_option_index: planner.selected_option_index,
     planner_selected_option_meaning: planner.selected_option_meaning,
+    planner_source_reason: planner.source_reason,
+    planner_confidence: planner.confidence,
+    planner_error_type: planner.planner_error_type,
+    planner_fallback_used: planner.fallback_used,
   };
 }
 
@@ -1903,11 +1907,21 @@ export async function POST(request: NextRequest) {
   const hasConversationContext = recentMessages.length > 0;
   const separatedTurn = splitLearnerDraftAndRequest(query);
   const scopeLimitations = extractScopeLimitations(query);
-  const conversationPlan = planConversationTurn({
+  const apiKey = process.env.OPENAI_API_KEY;
+  const plannerClient = apiKey ? new OpenAI({ apiKey }) : null;
+  const plannerModel = process.env.OPENAI_PLANNER_MODEL || process.env.OPENAI_MODEL || "gpt-5.4-mini";
+  const plannerTimeoutMs = Number(process.env.OPENAI_PLANNER_TIMEOUT_MS || 8000);
+  const conversationPlan = await planConversationTurnWithFallback({
+    client: plannerClient,
+    model: plannerModel,
     query: separatedTurn.currentRequest || query,
     taskId,
+    condition,
     recentMessages,
-    currentSupportMode: supportMode,
+    conversationMemory,
+    responseStylePreferences: [],
+    timeoutMs: plannerTimeoutMs,
+    enabled: process.env.DISABLE_LLM_PLANNER !== "true",
   });
   const requestClassification = classifyCurrentRequest(query, taskId, recentMessages, supportMode);
   const classifierSourceContextStrategy = determineSourceContextStrategy(
@@ -1915,7 +1929,7 @@ export async function POST(request: NextRequest) {
     separatedTurn.currentRequest || query
   );
   const sourceContextStrategy =
-    conversationPlan.source_needed && conversationPlan.source_strategy !== "none"
+    conversationPlan.confidence >= 0.7
       ? conversationPlan.source_strategy
       : classifierSourceContextStrategy;
   const functionLogFields = detectedFunctionsForLog(requestClassification, supportMode);
@@ -1963,7 +1977,6 @@ export async function POST(request: NextRequest) {
       },
       taskId
     );
-    const canonicalChunks = retrieveCanonicalSourceContext(taskId, taskPackage);
 
     await persistChatLog({
       ...commonLog,
@@ -1976,17 +1989,8 @@ export async function POST(request: NextRequest) {
       policy_decision: "allowed",
       status: "allowed",
       response_status: "success",
-      retrieved_chunk_ids: canonicalChunks.map((chunk) => chunk.chunkId),
-      retrieved_chunk_metadata: canonicalChunks.map((chunk) => ({
-        chunkId: chunk.chunkId,
-        sourceId: chunk.sourceId,
-        sourceType: chunk.sourceType,
-        chunkIndex: chunk.chunkIndex,
-        chunkCount: chunk.chunkCount,
-        documentChunkIndex: chunk.documentChunkIndex,
-        documentChunkCount: chunk.documentChunkCount,
-        score: chunk.score,
-      })),
+      retrieved_chunk_ids: [],
+      retrieved_chunk_metadata: [],
       assistant_response: responseText,
       timestamp,
       response_length: responseText.length,
@@ -1996,15 +2000,15 @@ export async function POST(request: NextRequest) {
       detected_support_mode: "idea_generation",
       user_query_type: "select_previous_option",
       feedback_target: null,
-      source_types_used: [...new Set(canonicalChunks.map((chunk) => chunk.sourceType))],
+      source_types_used: [],
       visual_assets_used: [],
-      retrieval_executed: true,
-      retrieval_reason: "select_previous_option:canonical",
-      retrieval_skipped_reason: null,
-      source_context_strategy: "canonical",
+      retrieval_executed: false,
+      retrieval_reason: null,
+      retrieval_skipped_reason: "select_previous_option",
+      source_context_strategy: "none",
       intent: "select_previous_option",
       request_is_explicit: true,
-      requires_source_context: true,
+      requires_source_context: false,
       requires_task_context: true,
       story_request_mode: "generative",
       response_mode: "idea_options",
@@ -2100,7 +2104,7 @@ export async function POST(request: NextRequest) {
       retrieval_executed: true,
       retrieval_reason: "acknowledgment_or_inference:canonical",
       retrieval_skipped_reason: null,
-      source_context_strategy: "canonical",
+      source_context_strategy: "none",
       intent: "acknowledgment_or_inference",
       request_is_explicit: true,
       requires_source_context: true,
@@ -2155,7 +2159,7 @@ export async function POST(request: NextRequest) {
       retrieval_executed: true,
       retrieval_reason: "continuation_structure:canonical",
       retrieval_skipped_reason: null,
-      source_context_strategy: "canonical",
+      source_context_strategy: "none",
       intent: "continuation_structure",
       request_is_explicit: true,
       requires_source_context: true,
@@ -2234,7 +2238,6 @@ export async function POST(request: NextRequest) {
     )
   ) {
     const responseText = buildConcreteSaviorIdeasResponse(taskId);
-    const canonicalChunks = retrieveCanonicalSourceContext(taskId, taskPackage);
 
     await persistChatLog({
       ...commonLog,
@@ -2247,17 +2250,8 @@ export async function POST(request: NextRequest) {
       policy_decision: "allowed",
       status: "allowed",
       response_status: "success",
-      retrieved_chunk_ids: canonicalChunks.map((chunk) => chunk.chunkId),
-      retrieved_chunk_metadata: canonicalChunks.map((chunk) => ({
-        chunkId: chunk.chunkId,
-        sourceId: chunk.sourceId,
-        sourceType: chunk.sourceType,
-        chunkIndex: chunk.chunkIndex,
-        chunkCount: chunk.chunkCount,
-        documentChunkIndex: chunk.documentChunkIndex,
-        documentChunkCount: chunk.documentChunkCount,
-        score: chunk.score,
-      })),
+      retrieved_chunk_ids: [],
+      retrieved_chunk_metadata: [],
       assistant_response: responseText,
       timestamp,
       response_length: responseText.length,
@@ -2267,15 +2261,15 @@ export async function POST(request: NextRequest) {
       detected_support_mode: "idea_generation",
       user_query_type: "accept_previous_offer",
       feedback_target: null,
-      source_types_used: [...new Set(canonicalChunks.map((chunk) => chunk.sourceType))],
+      source_types_used: [],
       visual_assets_used: [],
-      retrieval_executed: true,
-      retrieval_reason: "accepted_previous_offer:canonical",
-      retrieval_skipped_reason: null,
+      retrieval_executed: false,
+      retrieval_reason: null,
+      retrieval_skipped_reason: "accepted_previous_offer",
       source_context_strategy: "canonical",
       intent: "idea_generation",
       request_is_explicit: true,
-      requires_source_context: true,
+      requires_source_context: false,
       requires_task_context: false,
       story_request_mode: "generative",
       response_mode: "idea_options",
@@ -3112,8 +3106,6 @@ export async function POST(request: NextRequest) {
       responseFromText(boundedResponse.text, requestId, "success", null, boundedResponse.quickReplies)
     );
   }
-
-  const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
     const text = participantErrorMessage(responseLanguage);

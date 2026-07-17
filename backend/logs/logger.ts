@@ -90,13 +90,17 @@ export type ChatLogEntry = {
   planner_source_needed?: boolean;
   planner_source_strategy?: "none" | "canonical" | "targeted_rag" | "canonical_plus_rag";
   planner_active_direction?: string | null;
-  planner_status?: "ok" | "fallback";
+  planner_status?: "ok" | "llm" | "fallback";
   planner_latency_ms?: number;
   planner_fallback_reason?: string | null;
   planner_progress_push_allowed?: boolean;
   planner_style_updates?: string[];
   planner_selected_option_index?: number | null;
   planner_selected_option_meaning?: string | null;
+  planner_source_reason?: string | null;
+  planner_confidence?: number;
+  planner_error_type?: string | null;
+  planner_fallback_used?: boolean;
 };
 
 export type SessionTranscriptEntry = {
@@ -284,6 +288,10 @@ export function buildChatLogPayload(
     planner_style_updates: entry.planner_style_updates || [],
     planner_selected_option_index: entry.planner_selected_option_index ?? null,
     planner_selected_option_meaning: entry.planner_selected_option_meaning ?? null,
+    planner_source_reason: entry.planner_source_reason ?? null,
+    planner_confidence: entry.planner_confidence,
+    planner_error_type: entry.planner_error_type ?? null,
+    planner_fallback_used: entry.planner_fallback_used,
   };
 }
 

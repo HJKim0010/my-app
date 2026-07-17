@@ -400,6 +400,7 @@ assert.equal(thirdOptionPlan.selected_option_index, 3);
 assert.ok(thirdOptionPlan.selected_option_meaning.includes("Hesitate"));
 assert.equal(thirdOptionPlan.clarification_needed, false);
 assert.equal(thirdOptionPlan.progress_push_allowed, true);
+assert.equal(thirdOptionPlan.source_strategy, "none");
 const selectedOptionResponse = buildSelectedPreviousOptionResponse(
   { index: 3, description: thirdOptionPlan.selected_option_meaning },
   "task1"
@@ -416,4 +417,25 @@ assert.ok(ep1AccuracyPolicy.includes("Jack already has his bag and laptop"));
 assert.ok(ep1AccuracyPolicy.includes("forgot or left behind his wallet and student ID"));
 assert.ok(ep1AccuracyPolicy.includes("do not say he lost them"));
 
-console.log("Writing assistant regression tests passed: A-AD plus planner/alignment/RAG/logging checks");
+// AE. Source strategy is gated by the conversational plan, not stale story context.
+const languageOnlyPlan = planConversationTurn({
+  query: "How do I say he urgently needed a job in English?",
+  taskId: "task2",
+  recentMessages: previousCafeTurn,
+});
+assert.equal(languageOnlyPlan.source_strategy, "none");
+assert.equal(languageOnlyPlan.source_needed, false);
+
+const sourceQuestionPlan = planConversationTurn({
+  query: "Jack의 신분과 나이는?",
+  taskId: "task1",
+  recentMessages: [],
+});
+assert.equal(sourceQuestionPlan.source_strategy, "canonical");
+assert.equal(sourceQuestionPlan.source_needed, true);
+
+assert.ok(buildSystemInstruction("english", "comprehension", false).includes("exact age is not given"));
+assert.ok(buildSystemInstruction("english", "comprehension", false).includes("woman's identity and intention are unknown"));
+assert.ok(buildSystemInstruction("english", "comprehension", false).includes("object taped under table 7 is unknown"));
+
+console.log("Writing assistant regression tests passed: A-AE plus planner/alignment/RAG/logging checks");
