@@ -26,6 +26,10 @@ import {
   detectAssistantMetaFeedback,
   detectContinuationStructureRequest,
 } from "../backend/rag/conversationalAlignment.ts";
+import {
+  buildConcreteSaviorIdeasResponse,
+  planConversationTurn,
+} from "../backend/rag/conversationPlanner.ts";
 
 const previousCafeTurn = [
   { role: "user", text: "카페를 떠나는 표현은?" },
@@ -321,4 +325,53 @@ assert.ok(!structurePlan.includes("Jack had"));
 assert.ok(buildSystemInstruction("korean", "comprehension", false).includes("forgot or left behind"));
 assert.ok(buildSystemInstruction("korean", "language", false).includes("one complete English sentence"));
 
-console.log("Writing assistant regression tests passed: A-X plus alignment/RAG/logging checks");
+// Y. Semantic planner resolves broad acceptance to the immediately previous offer.
+const saviorOfferHistory = [
+  {
+    role: "assistant",
+    text: "원하면 구세주 등장 아이디어를 2개 정도 구체적으로 정리해드릴게요.",
+  },
+];
+const acceptedSaviorPlan = planConversationTurn({
+  query: "응 그렇게 해줘.",
+  taskId: "task1",
+  recentMessages: saviorOfferHistory,
+  currentSupportMode: "ideas",
+});
+assert.equal(acceptedSaviorPlan.dialogue_act, "accept_previous_offer");
+assert.ok(acceptedSaviorPlan.accepted_suggestions.includes("concrete_savior_ideas"));
+const saviorResponse = buildConcreteSaviorIdeasResponse("task1");
+assert.ok(saviorResponse.includes("구세주"));
+assert.ok(saviorResponse.includes("팀원") || saviorResponse.includes("역 직원"));
+assert.ok(!saviorResponse.includes("집으로 돌아"));
+
+// Z. Planner treats omitted prior offer as repair, not source analysis.
+const omittedSaviorPlan = planConversationTurn({
+  query: "구세주 등장은 없어?",
+  taskId: "task1",
+  recentMessages: saviorOfferHistory,
+  currentSupportMode: "ideas",
+});
+assert.equal(omittedSaviorPlan.conversation_operation, "repair_previous_omission");
+assert.ok(omittedSaviorPlan.requested_outputs.includes("repair omitted prior offer"));
+
+// AA. Planner records meta-feedback preferences as session diagnostics.
+const pushyPlan = planConversationTurn({
+  query: "음.. 너무 푸쉬하는데?",
+  taskId: "task1",
+  recentMessages: [{ role: "assistant", text: "이제 다음 단계를 골라 보세요." }],
+});
+assert.equal(pushyPlan.dialogue_act, "assistant_directed_feedback");
+assert.equal(pushyPlan.progress_push_allowed, false);
+assert.ok(pushyPlan.style_updates.includes("minimal_progress_push"));
+
+// AB. Bare English draft is proofreading, not unclear intent.
+const bareDraftPlan = planConversationTurn({
+  query: implicitEnglishDraft,
+  taskId: "task2",
+  recentMessages: [],
+});
+assert.equal(bareDraftPlan.dialogue_act, "draft_submission");
+assert.ok(bareDraftPlan.requested_outputs.includes("corrected version"));
+
+console.log("Writing assistant regression tests passed: A-AB plus planner/alignment/RAG/logging checks");

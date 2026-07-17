@@ -17,10 +17,12 @@ import {
   buildAcknowledgmentOrInferenceResponse,
   buildAssistantMetaFeedbackResponse,
   buildContinuationStructureResponse,
-  detectAcknowledgmentOrInference,
-  detectAssistantMetaFeedback,
-  detectContinuationStructureRequest,
 } from "@/backend/rag/conversationalAlignment";
+import {
+  buildConcreteSaviorIdeasResponse,
+  planConversationTurn,
+  type ConversationPlannerOutput,
+} from "@/backend/rag/conversationPlanner";
 import {
   looksLikeNewCurrentLanguageIntent,
   shouldTreatAsContinuationFollowUp,
@@ -77,6 +79,12 @@ type ConversationOperation =
   | "translate_previous"
   | "simplify_previous"
   | "clarify_previous"
+  | "complete_missing_answer"
+  | "accept_previous_offer"
+  | "repair_previous_omission"
+  | "reject_previous_suggestion"
+  | "correct_previous_interpretation"
+  | "proofread_draft"
   | "acknowledge_user_inference"
   | "adjust_assistant_behavior"
   | "continuation_structure"
@@ -1169,6 +1177,23 @@ function detectedFunctionsForLog(
   };
 }
 
+function plannerLogFields(planner: ConversationPlannerOutput) {
+  return {
+    planner_dialogue_act: planner.dialogue_act,
+    planner_conversation_operation: planner.conversation_operation,
+    planner_requested_outputs: planner.requested_outputs,
+    planner_resolved_references: planner.resolved_references,
+    planner_source_needed: planner.source_needed,
+    planner_source_strategy: planner.source_strategy,
+    planner_active_direction: planner.active_learner_direction,
+    planner_status: planner.planner_status,
+    planner_latency_ms: planner.planner_latency_ms,
+    planner_fallback_reason: planner.fallback_reason,
+    planner_progress_push_allowed: planner.progress_push_allowed,
+    planner_style_updates: planner.style_updates,
+  };
+}
+
 function extractRetrievalQuery(query: string): string {
   const lines = query
     .split(/\n+/)
@@ -1874,11 +1899,21 @@ export async function POST(request: NextRequest) {
   const hasConversationContext = recentMessages.length > 0;
   const separatedTurn = splitLearnerDraftAndRequest(query);
   const scopeLimitations = extractScopeLimitations(query);
+  const conversationPlan = planConversationTurn({
+    query: separatedTurn.currentRequest || query,
+    taskId,
+    recentMessages,
+    currentSupportMode: supportMode,
+  });
   const requestClassification = classifyCurrentRequest(query, taskId, recentMessages, supportMode);
-  const sourceContextStrategy = determineSourceContextStrategy(
+  const classifierSourceContextStrategy = determineSourceContextStrategy(
     requestClassification,
     separatedTurn.currentRequest || query
   );
+  const sourceContextStrategy =
+    conversationPlan.source_needed && conversationPlan.source_strategy !== "none"
+      ? conversationPlan.source_strategy
+      : classifierSourceContextStrategy;
   const functionLogFields = detectedFunctionsForLog(requestClassification, supportMode);
   const commonLog = {
     ...buildCommonLogFields({
@@ -1904,6 +1939,7 @@ export async function POST(request: NextRequest) {
     }),
     ...intentLogFields(requestClassification),
     ...functionLogFields,
+    ...plannerLogFields(conversationPlan),
     scope_limitations: scopeLimitations,
     source_context_strategy: sourceContextStrategy,
     ghostwriting_boundary_triggered:
@@ -1911,7 +1947,7 @@ export async function POST(request: NextRequest) {
       (restrictionReason === "sentence_generation" || restrictionReason === "draft_rewrite"),
   };
 
-  if (detectAssistantMetaFeedback(query)) {
+  if (conversationPlan.conversation_operation === "adjust_assistant_behavior") {
     const responseText = buildAssistantMetaFeedbackResponse(query, responseLanguage);
 
     await persistChatLog({
@@ -1955,7 +1991,7 @@ export async function POST(request: NextRequest) {
     return chatJsonResponse(responseFromText(responseText, requestId, "success", null));
   }
 
-  if (detectAcknowledgmentOrInference(query)) {
+  if (conversationPlan.conversation_operation === "acknowledge_user_inference") {
     const responseText = buildAcknowledgmentOrInferenceResponse(query, taskId, responseLanguage);
     const canonicalChunks = retrieveCanonicalSourceContext(taskId, taskPackage);
 
@@ -2010,7 +2046,7 @@ export async function POST(request: NextRequest) {
     return chatJsonResponse(responseFromText(responseText, requestId, "success", null));
   }
 
-  if (detectContinuationStructureRequest(query)) {
+  if (conversationPlan.conversation_operation === "continuation_structure") {
     const responseText = buildContinuationStructureResponse(taskId, responseLanguage);
     const canonicalChunks = retrieveCanonicalSourceContext(taskId, taskPackage);
 
@@ -2121,7 +2157,71 @@ export async function POST(request: NextRequest) {
     return chatJsonResponse(responseFromText(responseText, requestId, "success", null));
   }
 
-  if (acceptsPreviousEventSequenceOffer(query, recentMessages)) {
+  if (
+    conversationPlan.accepted_suggestions.includes("concrete_savior_ideas") ||
+    (
+      conversationPlan.conversation_operation === "repair_previous_omission" &&
+      /구세주|savior/i.test(query)
+    )
+  ) {
+    const responseText = buildConcreteSaviorIdeasResponse(taskId);
+    const canonicalChunks = retrieveCanonicalSourceContext(taskId, taskPackage);
+
+    await persistChatLog({
+      ...commonLog,
+      participant_id: participantId,
+      session_id: sessionId,
+      ep_id: epId,
+      condition_label: taskPackage.config.ai_condition,
+      selected_category: category,
+      raw_user_query: query,
+      policy_decision: "allowed",
+      status: "allowed",
+      response_status: "success",
+      retrieved_chunk_ids: canonicalChunks.map((chunk) => chunk.chunkId),
+      retrieved_chunk_metadata: canonicalChunks.map((chunk) => ({
+        chunkId: chunk.chunkId,
+        sourceId: chunk.sourceId,
+        sourceType: chunk.sourceType,
+        chunkIndex: chunk.chunkIndex,
+        chunkCount: chunk.chunkCount,
+        documentChunkIndex: chunk.documentChunkIndex,
+        documentChunkCount: chunk.documentChunkCount,
+        score: chunk.score,
+      })),
+      assistant_response: responseText,
+      timestamp,
+      response_length: responseText.length,
+      interaction_count: interactionCount,
+      session_duration_ms: sessionDurationMs,
+      query_type_label: "idea_generation",
+      detected_support_mode: "idea_generation",
+      user_query_type: "accept_previous_offer",
+      feedback_target: null,
+      source_types_used: [...new Set(canonicalChunks.map((chunk) => chunk.sourceType))],
+      visual_assets_used: [],
+      retrieval_executed: true,
+      retrieval_reason: "accepted_previous_offer:canonical",
+      retrieval_skipped_reason: null,
+      source_context_strategy: "canonical",
+      intent: "idea_generation",
+      request_is_explicit: true,
+      requires_source_context: true,
+      requires_task_context: false,
+      story_request_mode: "generative",
+      response_mode: "idea_options",
+      conversation_operation: conversationPlan.conversation_operation,
+      classifier_confidence: 0.92,
+      fallback_state: null,
+    });
+
+    return chatJsonResponse(responseFromText(responseText, requestId, "success", null));
+  }
+
+  if (
+    conversationPlan.accepted_suggestions.includes("event_sequence") &&
+    acceptsPreviousEventSequenceOffer(query, recentMessages)
+  ) {
     const responseText = buildAcceptedEventSequenceResponse(taskId);
 
     await persistChatLog({

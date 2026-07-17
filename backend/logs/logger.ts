@@ -62,6 +62,12 @@ export type ChatLogEntry = {
     | "translate_previous"
     | "simplify_previous"
     | "clarify_previous"
+    | "complete_missing_answer"
+    | "accept_previous_offer"
+    | "repair_previous_omission"
+    | "reject_previous_suggestion"
+    | "correct_previous_interpretation"
+    | "proofread_draft"
     | "acknowledge_user_inference"
     | "adjust_assistant_behavior"
     | "continuation_structure"
@@ -76,6 +82,18 @@ export type ChatLogEntry = {
     | "clarification_needed"
     | null;
   recognized_story_entity?: string | null;
+  planner_dialogue_act?: string;
+  planner_conversation_operation?: string;
+  planner_requested_outputs?: string[];
+  planner_resolved_references?: string[];
+  planner_source_needed?: boolean;
+  planner_source_strategy?: "none" | "canonical" | "targeted_rag" | "canonical_plus_rag";
+  planner_active_direction?: string | null;
+  planner_status?: "ok" | "fallback";
+  planner_latency_ms?: number;
+  planner_fallback_reason?: string | null;
+  planner_progress_push_allowed?: boolean;
+  planner_style_updates?: string[];
 };
 
 export type SessionTranscriptEntry = {
@@ -249,6 +267,18 @@ export function buildChatLogPayload(
     selected_task_rule_id: entry.selected_task_rule_id ?? null,
     fallback_state: entry.fallback_state ?? null,
     recognized_story_entity: entry.recognized_story_entity ?? null,
+    planner_dialogue_act: entry.planner_dialogue_act,
+    planner_conversation_operation: entry.planner_conversation_operation,
+    planner_requested_outputs: entry.planner_requested_outputs || [],
+    planner_resolved_references: entry.planner_resolved_references || [],
+    planner_source_needed: entry.planner_source_needed,
+    planner_source_strategy: entry.planner_source_strategy,
+    planner_active_direction: entry.planner_active_direction ?? null,
+    planner_status: entry.planner_status,
+    planner_latency_ms: entry.planner_latency_ms,
+    planner_fallback_reason: entry.planner_fallback_reason ?? null,
+    planner_progress_push_allowed: entry.planner_progress_push_allowed,
+    planner_style_updates: entry.planner_style_updates || [],
   };
 }
 
