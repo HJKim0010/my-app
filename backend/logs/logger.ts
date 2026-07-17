@@ -249,25 +249,34 @@ export function buildChatLogPayload(
   };
 }
 
-function buildSessionTranscriptPayload(
+export function buildSessionTranscriptPayload(
   entry: SessionTranscriptEntry,
-  useLegacyTaskId = false
+  useLegacyTaskId = false,
+  compatibilityMode = false
 ): object {
-  return {
+  const basePayload = {
     participant_id: entry.participant_id,
     session_id: entry.session_id,
     ...(useLegacyTaskId
       ? { task_id: toLegacyTaskId(entry.ep_id) }
       : { ep_id: entry.ep_id }),
     condition_label: entry.condition_label,
-    source_condition: entry.source_condition,
-    support_condition: entry.support_condition || "ai",
-    task_id: entry.task_id,
-    episode_id: entry.episode_id || entry.ep_id,
     timestamp: entry.timestamp,
     interaction_count: entry.interaction_count,
     session_duration_ms: entry.session_duration_ms,
     transcript: entry.transcript,
+  };
+
+  if (compatibilityMode) {
+    return basePayload;
+  }
+
+  return {
+    ...basePayload,
+    source_condition: entry.source_condition,
+    support_condition: entry.support_condition || "ai",
+    task_id: entry.task_id,
+    episode_id: entry.episode_id || entry.ep_id,
   };
 }
 
@@ -339,6 +348,32 @@ export async function appendSessionTranscript(
       await insertIntoSupabase(SESSION_TRANSCRIPTS_TABLE, buildSessionTranscriptPayload(entry));
       return;
     } catch (error) {
+      if (isSupabaseSchemaMismatch(error)) {
+        try {
+          await insertIntoSupabase(
+            SESSION_TRANSCRIPTS_TABLE,
+            buildSessionTranscriptPayload(entry, false, true)
+          );
+          return;
+        } catch (compatibilityError) {
+          if (shouldRetryWithLegacyTaskId(compatibilityError)) {
+            try {
+              await insertIntoSupabase(
+                SESSION_TRANSCRIPTS_TABLE,
+                buildSessionTranscriptPayload(entry, true, true)
+              );
+              return;
+            } catch (legacyCompatibilityError) {
+              appendLocalFallback(SESSION_TRANSCRIPT_FILE, entry, legacyCompatibilityError);
+              return;
+            }
+          }
+
+          appendLocalFallback(SESSION_TRANSCRIPT_FILE, entry, compatibilityError);
+          return;
+        }
+      }
+
       if (shouldRetryWithLegacyTaskId(error)) {
         try {
           await insertIntoSupabase(
@@ -347,6 +382,19 @@ export async function appendSessionTranscript(
           );
           return;
         } catch (legacyError) {
+          if (isSupabaseSchemaMismatch(legacyError)) {
+            try {
+              await insertIntoSupabase(
+                SESSION_TRANSCRIPTS_TABLE,
+                buildSessionTranscriptPayload(entry, true, true)
+              );
+              return;
+            } catch (legacyCompatibilityError) {
+              appendLocalFallback(SESSION_TRANSCRIPT_FILE, entry, legacyCompatibilityError);
+              return;
+            }
+          }
+
           appendLocalFallback(SESSION_TRANSCRIPT_FILE, entry, legacyError);
           return;
         }

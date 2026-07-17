@@ -16,7 +16,7 @@ import {
   getMainCharacterName,
   getMainCharacterStatusSummary,
 } from "../backend/rag/storyMetadata.ts";
-import { buildChatLogPayload } from "../backend/logs/logger.ts";
+import { buildChatLogPayload, buildSessionTranscriptPayload } from "../backend/logs/logger.ts";
 import { detectIncompleteAnswerRepair } from "../backend/rag/incompleteAnswerRepair.ts";
 
 const previousCafeTurn = [
@@ -209,6 +209,34 @@ assert.equal(compatibilityPayload.raw_user_query, sampleLogEntry.raw_user_query)
 assert.ok(!("source_context_strategy" in compatibilityPayload));
 assert.ok(!("policy_reason" in compatibilityPayload));
 assert.ok(!("response_status" in compatibilityPayload));
+
+const sampleTranscriptEntry = {
+  participant_id: "reviewer",
+  session_id: "session-1",
+  ep_id: "ep2",
+  condition_label: "static_multimodal_condition",
+  source_condition: "static",
+  support_condition: "ai",
+  task_id: "task2",
+  episode_id: "ep2",
+  timestamp: "2026-07-17T00:00:00.000Z",
+  interaction_count: 1,
+  session_duration_ms: 1000,
+  transcript: [
+    { role: "user", text: "주인공 이름이랑 신분은?" },
+    { role: "assistant", text: "주인공은 Anna입니다." },
+  ],
+};
+const fullTranscriptPayload = buildSessionTranscriptPayload(sampleTranscriptEntry);
+const compatibilityTranscriptPayload = buildSessionTranscriptPayload(
+  sampleTranscriptEntry,
+  false,
+  true
+);
+assert.equal(fullTranscriptPayload.source_condition, "static");
+assert.equal(compatibilityTranscriptPayload.session_id, "session-1");
+assert.ok(!("source_condition" in compatibilityTranscriptPayload));
+assert.ok(!("task_id" in compatibilityTranscriptPayload));
 
 // Q. Incomplete multi-part answer repair: short keyword completes the omitted slot.
 const incompleteMultiPartHistory = [
