@@ -71,6 +71,16 @@ const paragraphFeedback =
 assert.equal(analyzeQueryScope(paragraphFeedback).queryType, "allowed");
 assert.equal(analyzeQueryScope(paragraphFeedback).detectedSupportMode, "feedback_checking");
 
+// J2. English draft without an explicit question implies proofreading.
+const implicitEnglishDraft =
+  "Anna slowly approaches the table. She open the box and find a note. Her heart started beating fast.";
+assert.equal(detectSupportMode(implicitEnglishDraft), "feedback");
+assert.ok(
+  buildSystemInstruction("english", "feedback", false).includes(
+    "implicit request for proofreading"
+  )
+);
+
 // K. Short contextual follow-up may use recent sentence options.
 const optionHistory = [
   { role: "user", text: sentenceRequest },

@@ -514,6 +514,32 @@ function looksLikeDraftOrPassage(query: string): boolean {
   );
 }
 
+function looksLikeEnglishLearnerDraft(query: string): boolean {
+  const trimmed = query.trim();
+  const normalized = compactText(query);
+
+  if (!trimmed || hasExplicitAssistanceRequest(query) || isGreeting(query) || isShortAcknowledgment(query)) {
+    return false;
+  }
+
+  const englishLetters = trimmed.match(/[A-Za-z]/g)?.length ?? 0;
+  const koreanChars = trimmed.match(/[\uac00-\ud7a3]/g)?.length ?? 0;
+  const wordCount = normalized.split(/\s+/).filter(Boolean).length;
+  const sentenceMarks = trimmed.match(/[.!]/g)?.length ?? 0;
+  const questionMarks = trimmed.match(/[?？]/g)?.length ?? 0;
+  const lines = trimmed.split(/\n+/).filter((line) => line.trim().length > 0);
+
+  if (englishLetters < 8 || koreanChars > englishLetters / 2 || questionMarks > sentenceMarks) {
+    return false;
+  }
+
+  return (
+    looksLikeDraftOrPassage(query) ||
+    lines.length >= 2 ||
+    (wordCount >= 4 && /[.!]["')\]]?\s*$/.test(trimmed))
+  );
+}
+
 function isDraftOnlyOrUnclearIntent(query: string): boolean {
   if (!looksLikeDraftOrPassage(query)) {
     return false;
@@ -770,6 +796,18 @@ function classifyCurrentRequest(
       conversation_operation: "new_request",
       confidence: 0.94,
       selected_task_rule_id: taskRequirementRule,
+    };
+  }
+
+  if (looksLikeEnglishLearnerDraft(query)) {
+    return {
+      intent: "language_feedback",
+      request_is_explicit: true,
+      requires_source_context: false,
+      requires_task_context: false,
+      response_mode: "standard",
+      conversation_operation: "new_request",
+      confidence: 0.9,
     };
   }
 

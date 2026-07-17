@@ -272,6 +272,32 @@ export function detectSentenceLevelSupport(query: string): boolean {
   return SENTENCE_SUPPORT_TERMS.some((term) => normalized.includes(term));
 }
 
+function detectImplicitEnglishDraftFeedback(query: string): boolean {
+  const trimmed = query.trim();
+  const normalized = trimmed.replace(/\s+/g, " ");
+
+  if (!trimmed) {
+    return false;
+  }
+
+  const englishLetters = trimmed.match(/[A-Za-z]/g)?.length ?? 0;
+  const koreanChars = trimmed.match(/[\uac00-\ud7a3]/g)?.length ?? 0;
+  const wordCount = normalized.split(/\s+/).filter(Boolean).length;
+  const sentenceMarks = trimmed.match(/[.!]/g)?.length ?? 0;
+  const questionMarks = trimmed.match(/[?？]/g)?.length ?? 0;
+  const lines = trimmed.split(/\n+/).filter((line) => line.trim().length > 0);
+  const explicitQuestion =
+    /(can you|could you|please|how\s+(?:do|can|should)|what\s+(?:does|should|would)|why|check|feedback|proofread|correct|fix|review|translate|explain|어떻게|왜|무슨|봐\s*줘|고쳐|확인|피드백|번역|설명)/i.test(
+      normalized
+    );
+
+  if (explicitQuestion || englishLetters < 8 || koreanChars > englishLetters / 2 || questionMarks > sentenceMarks) {
+    return false;
+  }
+
+  return lines.length >= 2 || sentenceMarks >= 1 || wordCount >= 12;
+}
+
 export function detectUserContinuationMode(query: string, memory?: ConversationMemory): boolean {
   const normalized = query.toLowerCase();
 
@@ -302,6 +328,10 @@ export function detectSupportMode(
     }
 
     return memory.activeSupportContext;
+  }
+
+  if (detectImplicitEnglishDraftFeedback(query)) {
+    return "feedback";
   }
 
   if (
@@ -408,6 +438,8 @@ export function buildSystemInstruction(
     "If the learner asks how to express a Korean phrase more naturally, include natural English options unless they clearly ask for Korean-only phrasing.",
     "Do not provide a final score, band, or rubric judgment.",
     "If the learner asks for feedback, proofreading, correction, or review of their own writing, respond like a normal proofreading assistant.",
+    "If the learner submits an English sentence or paragraph without an explicit question during the writing session, treat it as an implicit request for proofreading and concise writing feedback.",
+    "For implicit proofreading, provide a corrected version first and briefly identify the most important changes. Do not ask what help is needed unless multiple materially different intentions are genuinely plausible.",
     "Allowed feedback: a corrected version of the learner's own sentence or short draft, specific edits, grammar fixes, awkward expression fixes, story-connection comments, and brief reasons for changes.",
     "Not allowed feedback: adding new plot content, expanding the draft, changing the learner's intended meaning, turning it into a model answer, or writing a continuation from scratch.",
     "When the learner sounds frustrated, slow down, acknowledge briefly, and answer only the part they are asking about.",
@@ -482,6 +514,7 @@ function buildModeInstruction(mode: SupportMode): string {
     return [
       "Support mode: proofreading and writing feedback.",
       "When the learner asks for feedback, proofread, correction, edit, or review, give the kind of result a normal AI proofreading assistant would give.",
+      "When the learner only submits an English sentence or paragraph, infer proofreading/concise feedback and do not spend a turn asking what help is needed.",
       "Include a corrected version when the learner provides text to check.",
       "Then list the main fixes briefly: grammar, word choice, clarity, flow, logic, or story connection.",
       "Preserve the learner's meaning. Do not add new plot content, expand the draft, turn it into a model answer, or write the continuation from scratch.",
