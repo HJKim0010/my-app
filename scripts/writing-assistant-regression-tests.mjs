@@ -10,6 +10,10 @@ import {
   looksLikeNewCurrentLanguageIntent,
   shouldTreatAsContinuationFollowUp,
 } from "../backend/rag/contextPriority.ts";
+import {
+  detectMainCharacterNameRequest,
+  getMainCharacterName,
+} from "../backend/rag/storyMetadata.ts";
 
 const previousCafeTurn = [
   { role: "user", text: "카페를 떠나는 표현은?" },
@@ -59,6 +63,12 @@ assert.equal(detectSupportMode(mixedRequest), "language");
 const sourceOnly = "Anna가 table 7 아래에서 무엇을 발견했어?";
 assert.equal(analyzeQueryScope(sourceOnly).queryType, "allowed");
 assert.equal(detectSupportMode(sourceOnly), "comprehension");
+
+// H2. Role-based factual source question: protagonist/main character name.
+assert.equal(detectMainCharacterNameRequest("주인공 이름을 알려줘."), true);
+assert.equal(detectMainCharacterNameRequest("Who is the main character?"), true);
+assert.equal(getMainCharacterName("task1"), "Jack");
+assert.equal(getMainCharacterName("task2"), "Anna");
 
 // I. Full paragraph ghostwriting remains restricted.
 const paragraphRequest = "이 설정으로 다음 문단을 영어로 4문장 써줘.";

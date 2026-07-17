@@ -31,6 +31,10 @@ import {
   retrieveTaskChunks,
   type RetrievedChunk,
 } from "@/backend/rag/retriever";
+import {
+  detectMainCharacterNameRequest,
+  getMainCharacterName,
+} from "@/backend/rag/storyMetadata";
 
 export const maxDuration = 60;
 
@@ -281,7 +285,7 @@ function hasStoryQuestionCue(query: string): boolean {
 
   return /[?？]/.test(normalized)
     || /(why|what|who|where|when|how|was|were|did|does|is|are|could|might|should)\b/i.test(normalized)
-    || /(왜|무엇때문|뭐때문|뭘하느라|이유가|이유는|어째서|어떻게|어떤|뭐였|뭐라고|누가|누구|어디|언제|무슨\s*일|무슨\s*뜻|했지|했어|했나|였지|있었어|써\s*있|적혀|바빴|서둘렀|나타났|괜찮은가|괜찮아|생길\s*수|이어가|전개|아이디어)/i.test(
+    || /(왜|무엇때문|뭐때문|뭘하느라|이유가|이유는|어째서|어떻게|어떤|뭐였|뭐라고|누가|누구|이름|알려\s*줘|어디|언제|무슨\s*일|무슨\s*뜻|했지|했어|했나|였지|있었어|써\s*있|적혀|바빴|서둘렀|나타났|괜찮은가|괜찮아|생길\s*수|이어가|전개|아이디어|주인공|중심\s*인물)/i.test(
       normalized
     );
 }
@@ -436,6 +440,14 @@ function requiresStoryKnowledgeForRouting(
 ): { requiresStoryKnowledge: boolean; entity: string | null; storyRequestMode: StoryRequestMode | null } {
   const storyRequestMode = detectStoryRequestMode(query, supportMode);
   const storyQuestion = looksLikeActiveStoryQuestion(query, taskId, recentMessages);
+
+  if (detectMainCharacterNameRequest(query)) {
+    return {
+      requiresStoryKnowledge: true,
+      entity: getMainCharacterName(taskId),
+      storyRequestMode: "factual",
+    };
+  }
 
   if (storyRequestMode) {
     return { requiresStoryKnowledge: true, entity: storyQuestion.entity, storyRequestMode };
@@ -754,11 +766,11 @@ function looksLikeIdeaCompatibilityRequest(query: string): boolean {
 function looksLikeSourceContextRequest(query: string): boolean {
   const normalized = compactText(query).toLowerCase();
   const sourceReference =
-    /(source|original story|story source|story material|reading|video|clue|event|character|relationship|scene|plot|원래\s*이야기|원문|자료|소스|읽기\s*자료|영상|단서|사건|장면|인물|관계|줄거리|스토리)/i.test(
+    /(source|original story|story source|story material|reading|video|clue|event|character|main\s*character|protagonist|relationship|scene|plot|원래\s*이야기|원문|자료|소스|읽기\s*자료|영상|단서|사건|장면|인물|주인공|중심\s*인물|관계|줄거리|스토리)/i.test(
       normalized
     );
   const sourceComprehension =
-    /(what happened|what does|what did|who did|who was|where did|why did|why was|which clue|which event|use.*clue|clue.*use|explain the clue|explain this scene|무슨\s*뜻|무슨\s*일|누굴|누가|어디|왜\s*(?:그런|이런|그렇게|이렇게|인가|일까|죠|요|해|했)|어느\s*장면|어떤.*단서|원래.*단서|단서.*사용|단서가\s*뭐|설명)/i.test(
+    /(what happened|what does|what did|who did|who was|where did|why did|why was|which clue|which event|name|use.*clue|clue.*use|explain the clue|explain this scene|무슨\s*뜻|무슨\s*일|누굴|누가|누구|이름|알려\s*줘|어디|왜\s*(?:그런|이런|그렇게|이렇게|인가|일까|죠|요|해|했)|어느\s*장면|어떤.*단서|원래.*단서|단서.*사용|단서가\s*뭐|설명)/i.test(
       normalized
     );
 
@@ -1977,6 +1989,44 @@ export async function POST(request: NextRequest) {
       retrieval_skipped_reason: "task_requirement",
       selected_task_rule_id: ruleId,
       fallback_state: hasStructuredAnswer ? null : "recognized_question_missing_context",
+    });
+
+    return chatJsonResponse(responseFromText(responseText, requestId, "success", null));
+  }
+
+  if (detectMainCharacterNameRequest(query)) {
+    const name = getMainCharacterName(taskId);
+    const responseText =
+      responseLanguage === "english"
+        ? `The main character is ${name}.`
+        : `주인공은 ${name}입니다.`;
+
+    await persistChatLog({
+      ...commonLog,
+      participant_id: participantId,
+      session_id: sessionId,
+      ep_id: epId,
+      condition_label: taskPackage.config.ai_condition,
+      selected_category: category,
+      raw_user_query: query,
+      policy_decision: "allowed",
+      status: "allowed",
+      response_status: "success",
+      retrieved_chunk_ids: [],
+      retrieved_chunk_metadata: [],
+      assistant_response: responseText,
+      timestamp,
+      response_length: responseText.length,
+      interaction_count: interactionCount,
+      session_duration_ms: sessionDurationMs,
+      query_type_label: "source_comprehension",
+      detected_support_mode: "comprehension",
+      user_query_type: "comprehension",
+      feedback_target: null,
+      source_types_used: [],
+      visual_assets_used: [],
+      retrieval_executed: false,
+      retrieval_skipped_reason: "main_character_metadata",
     });
 
     return chatJsonResponse(responseFromText(responseText, requestId, "success", null));
