@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { analyzeQueryScope } from "../backend/policy/classifier.ts";
 import { redirectResponse } from "../backend/policy/redirect.ts";
 import {
+  buildCompactSystemInstruction,
   buildSystemInstruction,
   buildUserInput,
   detectSupportMode,
@@ -438,4 +440,25 @@ assert.ok(buildSystemInstruction("english", "comprehension", false).includes("ex
 assert.ok(buildSystemInstruction("english", "comprehension", false).includes("woman's identity and intention are unknown"));
 assert.ok(buildSystemInstruction("english", "comprehension", false).includes("object taped under table 7 is unknown"));
 
-console.log("Writing assistant regression tests passed: A-AE plus planner/alignment/RAG/logging checks");
+// AF. Production request assembly is role-based: recent messages, optional source, final current user.
+const routeSource = fs.readFileSync("app/api/chat/route.ts", "utf8");
+assert.ok(routeSource.includes("buildRoleBasedOpenAIInput"));
+assert.ok(routeSource.includes("preservedRecentMessages"));
+assert.ok(routeSource.includes("OPTIONAL SOURCE CONTEXT FOR THIS TURN"));
+assert.ok(routeSource.includes("CURRENT USER MESSAGE"));
+assert.ok(routeSource.includes("content: finalUserContent"));
+assert.ok(!routeSource.includes("text: buildUserInput("));
+
+// AG. Main generation uses compact high-priority instructions, not the old synthetic history prompt.
+const compactInstruction = buildCompactSystemInstruction("korean", false);
+assert.ok(compactInstruction.includes("role-based conversation"));
+assert.ok(compactInstruction.includes("latest utterance directly"));
+assert.ok(compactInstruction.includes("Do not write a full continuation paragraph"));
+assert.ok(compactInstruction.length < buildSystemInstruction("korean", "ideas", false).length);
+
+// AH. Repeated-response guard is present and single-repair oriented.
+assert.ok(routeSource.includes("isHighlySimilarToPreviousAssistant"));
+assert.ok(routeSource.includes("QUALITY REPAIR"));
+assert.ok(routeSource.includes("repeated_response_regenerated_once"));
+
+console.log("Writing assistant regression tests passed: A-AH plus role-based planner/alignment/RAG/logging checks");

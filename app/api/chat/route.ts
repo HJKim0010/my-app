@@ -34,8 +34,7 @@ import {
 } from "@/backend/rag/incompleteAnswerRepair";
 import { loadTaskPackage, type TaskCondition, type TaskId } from "@/backend/rag/loader";
 import {
-  buildSystemInstruction,
-  buildUserInput,
+  buildCompactSystemInstruction,
   detectResponseLanguage,
   detectSupportMode,
   type ResponseLanguage,
@@ -206,6 +205,49 @@ function sanitizeAssistantResponse(text: string): string {
 
 function compactText(text: string): string {
   return text.replace(/\s+/g, " ").trim();
+}
+
+function normalizeForSimilarity(text: string): string {
+  return compactText(text)
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]/gu, "");
+}
+
+function similarityScore(a: string, b: string): number {
+  const left = normalizeForSimilarity(a);
+  const right = normalizeForSimilarity(b);
+
+  if (!left || !right) {
+    return 0;
+  }
+
+  if (left === right) {
+    return 1;
+  }
+
+  const leftTokens = new Set(left.split(/\s+/).filter(Boolean));
+  const rightTokens = new Set(right.split(/\s+/).filter(Boolean));
+  const intersection = [...leftTokens].filter((token) => rightTokens.has(token)).length;
+  const union = new Set([...leftTokens, ...rightTokens]).size;
+
+  return union === 0 ? 0 : intersection / union;
+}
+
+function isRepeatRequest(query: string): boolean {
+  return /(repeat|again|translate|simplify|say that again|다시|반복|번역|쉽게|풀어서)/i.test(query);
+}
+
+function isHighlySimilarToPreviousAssistant(
+  query: string,
+  responseText: string,
+  recentMessages: RecentMessage[]
+): boolean {
+  if (isRepeatRequest(query)) {
+    return false;
+  }
+
+  const previousAssistant = [...recentMessages].reverse().find((message) => message.role === "assistant")?.text || "";
+  return previousAssistant.length > 80 && similarityScore(previousAssistant, responseText) >= 0.82;
 }
 
 const KOREAN_ACKNOWLEDGMENT_PATTERN =
@@ -1200,6 +1242,156 @@ function plannerLogFields(planner: ConversationPlannerOutput) {
     planner_error_type: planner.planner_error_type,
     planner_fallback_used: planner.fallback_used,
   };
+}
+
+function formatRetrievedSourceContext(
+  taskPackage: ReturnType<typeof loadTaskPackage>,
+  retrievedChunks: RetrievedChunk[]
+): string {
+  if (retrievedChunks.length === 0) {
+    return "(No retrieved source context)";
+  }
+
+  return retrievedChunks
+    .map((chunk, index) =>
+      [
+        `[Chunk ${index + 1}] ${chunk.sourceLabel}`,
+        `chunk_id: ${chunk.chunkId}`,
+        `source_type: ${chunk.sourceType}`,
+        chunk.content.trim(),
+      ].join("\n")
+    )
+    .join("\n\n");
+}
+
+function buildRoleBasedCurrentUserText(params: {
+  query: string;
+  category: string;
+  taskPackage: ReturnType<typeof loadTaskPackage>;
+  supportMode: SupportMode;
+  responseLanguage: ResponseLanguage;
+  conversationPlan: ConversationPlannerOutput;
+  requestClassification: RequestIntentClassification;
+  sourceContextStrategy: SourceContextStrategy;
+  learnerDraft?: string;
+  scopeLimitations: string[];
+}): string {
+  return [
+    "CURRENT USER MESSAGE",
+    params.query,
+    "",
+    "Turn metadata for the assistant:",
+    `- Episode: ${params.taskPackage.taskId === "task1" ? "EP1 / Jack's story" : "EP2 / Anna's story"}`,
+    `- Selected UI category for logging only: ${params.category}`,
+    `- Soft support label for logging only: ${params.supportMode}`,
+    `- Response language: ${params.responseLanguage}`,
+    `- Dialogue act: ${params.conversationPlan.dialogue_act}`,
+    `- Conversation operation: ${params.conversationPlan.conversation_operation}`,
+    `- Requested outputs: ${params.conversationPlan.requested_outputs.join(", ") || "(none)"}`,
+    `- Active learner direction: ${params.conversationPlan.active_learner_direction || "(none)"}`,
+    `- Source strategy: ${params.sourceContextStrategy}`,
+    `- Source reason: ${params.conversationPlan.source_reason || "(none)"}`,
+    `- Story request mode: ${params.requestClassification.story_request_mode || "(none)"}`,
+    `- Response scope: ${params.conversationPlan.response_scope}`,
+    `- Progress push allowed: ${params.conversationPlan.progress_push_allowed ? "yes" : "no"}`,
+    params.conversationPlan.selected_option_index
+      ? `- Selected previous option: ${params.conversationPlan.selected_option_index}. ${params.conversationPlan.selected_option_meaning}`
+      : "",
+    params.conversationPlan.accepted_suggestions.length
+      ? `- Accepted previous suggestion: ${params.conversationPlan.accepted_suggestions.join(", ")}`
+      : "",
+    params.conversationPlan.rejected_directions.length
+      ? `- Rejected direction: ${params.conversationPlan.rejected_directions.join(" / ")}`
+      : "",
+    params.conversationPlan.unanswered_items.length
+      ? `- Unanswered items to repair: ${params.conversationPlan.unanswered_items.join(", ")}`
+      : "",
+    params.scopeLimitations.length
+      ? `- Scope limitations: ${params.scopeLimitations.join(", ")}`
+      : "",
+    params.learnerDraft ? `\nLearner draft to check:\n${params.learnerDraft}` : "",
+    "",
+    "Answer this final user message directly. Use the preceding role-based conversation naturally. Do not re-summarize earlier turns unless needed to resolve the current message.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function buildRoleBasedOpenAIInput(params: {
+  query: string;
+  category: string;
+  taskPackage: ReturnType<typeof loadTaskPackage>;
+  recentMessages: RecentMessage[];
+  retrievedChunks: RetrievedChunk[];
+  supportMode: SupportMode;
+  responseLanguage: ResponseLanguage;
+  conversationPlan: ConversationPlannerOutput;
+  requestClassification: RequestIntentClassification;
+  sourceContextStrategy: SourceContextStrategy;
+  learnerDraft?: string;
+  scopeLimitations: string[];
+  visualInputs: Array<{ type: "input_image"; image_url?: string; file_id?: string; detail?: string }>;
+}) {
+  const preservedRecentMessages = params.recentMessages.slice(-20).map((message) => ({
+    role: message.role,
+    content: message.text,
+  }));
+  const olderMessages = params.recentMessages.slice(0, -20);
+  const olderSummary = olderMessages.length
+    ? [
+        {
+          role: "user" as const,
+          content: [
+            "OLDER CONVERSATION SUMMARY",
+            `There are ${olderMessages.length} older prior messages.`,
+            "Use only for broad continuity. Recent raw role-based messages below have priority.",
+          ].join("\n"),
+        },
+      ]
+    : [];
+  const sourceContextMessage =
+    params.sourceContextStrategy === "none"
+      ? []
+      : [
+          {
+            role: "user" as const,
+            content: [
+              "OPTIONAL SOURCE CONTEXT FOR THIS TURN",
+              `Source strategy: ${params.sourceContextStrategy}`,
+              "Use this only as evidence for story/source facts. Do not let it override the final user message or recent role-based conversation.",
+              "",
+              formatRetrievedSourceContext(params.taskPackage, params.retrievedChunks),
+            ].join("\n"),
+          },
+        ];
+  const finalUserContent = [
+    {
+      type: "input_text" as const,
+      text: buildRoleBasedCurrentUserText({
+        query: params.query,
+        category: params.category,
+        taskPackage: params.taskPackage,
+        supportMode: params.supportMode,
+        responseLanguage: params.responseLanguage,
+        conversationPlan: params.conversationPlan,
+        requestClassification: params.requestClassification,
+        sourceContextStrategy: params.sourceContextStrategy,
+        learnerDraft: params.learnerDraft,
+        scopeLimitations: params.scopeLimitations,
+      }),
+    },
+    ...params.visualInputs,
+  ];
+
+  return [
+    ...olderSummary,
+    ...preservedRecentMessages,
+    ...sourceContextMessage,
+    {
+      role: "user" as const,
+      content: finalUserContent,
+    },
+  ];
 }
 
 function extractRetrievalQuery(query: string): string {
@@ -3135,46 +3327,31 @@ export async function POST(request: NextRequest) {
   const model = process.env.OPENAI_MODEL || "gpt-5.4-mini";
   const timeoutMs = Number(process.env.OPENAI_TIMEOUT_MS || 45000);
 
-  const openAIRequest = {
+  const openAIRequest: OpenAI.Responses.ResponseCreateParamsNonStreaming & { stream?: boolean } = {
     model,
-    instructions: buildSystemInstruction(
+    instructions: buildCompactSystemInstruction(
       responseLanguage,
-      supportMode,
       conversationMemory.workingContext === "user_continuation"
     ),
     max_output_tokens: Number(process.env.OPENAI_MAX_OUTPUT_TOKENS || 1200),
-    input: [
-      {
-        role: "user" as const,
-        content: [
-          {
-              type: "input_text" as const,
-              text: buildUserInput(
-              separatedTurn.currentRequest || query,
-              category,
-              taskPackage,
-              retrievedChunks,
-              supportMode,
-              responseLanguage,
-              conversationMemory,
-              {
-                includeSourceContext: sourceContextStrategy !== "none",
-                learnerDraft: separatedTurn.learnerDraft ||
-                  (conversationMemory.workingContext === "user_continuation"
-                    ? conversationMemory.continuationFocus || query
-                    : undefined),
-                scopeLimitations,
-                storyRequestMode: requestClassification.story_request_mode,
-                requiresExactFact: requestClassification.requires_exact_fact,
-                responseMode: requestClassification.response_mode,
-                sourceContextStrategy,
-              }
-            ),
-          },
-          ...visualInputs,
-        ],
-      },
-    ],
+    input: buildRoleBasedOpenAIInput({
+      query: separatedTurn.currentRequest || query,
+      category,
+      taskPackage,
+      recentMessages,
+      retrievedChunks,
+      supportMode,
+      responseLanguage,
+      conversationPlan,
+      requestClassification,
+      sourceContextStrategy,
+      learnerDraft: separatedTurn.learnerDraft ||
+        (conversationMemory.workingContext === "user_continuation"
+          ? conversationMemory.continuationFocus || query
+          : undefined),
+      scopeLimitations,
+      visualInputs,
+    }) as OpenAI.Responses.ResponseInput,
   };
 
   const stream = new ReadableStream<Uint8Array>({
@@ -3209,7 +3386,6 @@ export async function POST(request: NextRequest) {
         for await (const event of responseStream) {
           if (event.type === "response.output_text.delta") {
             streamedText += event.delta;
-            write({ type: "delta", delta: event.delta });
           } else if (event.type === "response.completed") {
             finalResponse = event.response;
           } else if (event.type === "response.incomplete") {
@@ -3225,14 +3401,46 @@ export async function POST(request: NextRequest) {
 
         clearTimeout(timeout);
 
-        const assistantResponse = sanitizeAssistantResponse(
+        let assistantResponse = sanitizeAssistantResponse(
           streamedText || finalResponse?.output_text || ""
         );
+        let repeatedResponseRegenerated = false;
+
+        if (assistantResponse && isHighlySimilarToPreviousAssistant(query, assistantResponse, recentMessages)) {
+          try {
+            const repairResponse = await client.responses.create({
+              ...openAIRequest,
+              input: [
+                ...(openAIRequest.input as OpenAI.Responses.ResponseInput),
+                {
+                  role: "user" as const,
+                  content:
+                    "QUALITY REPAIR: Your previous draft was too similar to the immediately previous assistant response. Regenerate once. Answer the current final user message directly using the role-based conversation, without repeating the previous assistant answer unless the learner explicitly asked for repetition.",
+                },
+              ],
+              stream: false,
+            });
+            const repairedText = sanitizeAssistantResponse(repairResponse.output_text || "");
+
+            if (repairedText) {
+              assistantResponse = repairedText;
+              finalResponse = repairResponse;
+              repeatedResponseRegenerated = true;
+            }
+          } catch (repairError) {
+            console.error("Repeated response repair failed", repairError);
+          }
+        }
+
         const responseStatus: ChatApiResponse["status"] =
           finalResponse?.status === "incomplete" || !assistantResponse
             ? "incomplete"
             : "success";
         const displayResponse = assistantResponse || participantErrorMessage(responseLanguage);
+
+        if (displayResponse) {
+          write({ type: "delta", delta: displayResponse });
+        }
 
         await persistChatLog({
           ...commonLog,
@@ -3269,7 +3477,9 @@ export async function POST(request: NextRequest) {
           retrieval_executed: shouldRunRetrieval,
           retrieval_reason: retrievalReason,
           retrieval_skipped_reason: retrievalSkippedReason,
-          incomplete_reason: incompleteReason,
+          incomplete_reason: repeatedResponseRegenerated
+            ? "repeated_response_regenerated_once"
+            : incompleteReason,
         });
 
         write({
