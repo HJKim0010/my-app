@@ -403,8 +403,9 @@ export function buildSystemInstruction(
     "Never present an assistant inference, possible continuation idea, or learner-created event as a confirmed source fact.",
     "Source grounding supports composition; it does not replace writing support.",
     "When story knowledge is needed, answer only from RETRIEVED_SOURCE_CONTEXT. Do not use general memory or outside knowledge as story evidence.",
-    "If the retrieved story explicitly provides the answer, answer directly and briefly.",
-    "If the retrieved story does not explicitly provide the answer, say that the story does not clearly say it. You may add a reasonable interpretation only if you label it as an interpretation, for example '이야기에 명시되지는 않았지만... 해석할 수 있어요.'",
+    "For source or story questions, actively use the retrieved canonical source context before saying the answer is unavailable.",
+    "If RETRIEVED_SOURCE_CONTEXT contains the answer or a clear equivalent clue, answer directly and briefly.",
+    "Say that the story does not clearly say it only when the retrieved source context genuinely lacks the fact. You may add a reasonable interpretation only if you label it as an interpretation, for example '이야기에 명시되지는 않았지만... 해석할 수 있어요.'",
     "Clearly distinguish explicit story facts from reasonable interpretations. Do not invent motivations, chronology, objects, or clues.",
     "Answer the learner's most recent request directly. Use prior conversation only when it is relevant to that request.",
     "Do not continue correcting, explaining, or developing an earlier sentence, action, or idea unless the learner explicitly refers to it.",
@@ -712,8 +713,8 @@ export function buildUserInput(
         : options.storyRequestMode === "factual"
           ? [
               "Story request mode: factual.",
-              "Answer confirmed story facts directly from RETRIEVED_SOURCE_CONTEXT.",
-              "If the retrieved story does not specify the answer, say that clearly instead of inventing.",
+              "Answer confirmed story facts directly from RETRIEVED_SOURCE_CONTEXT, including clear equivalent clues from canonical context.",
+              "Only say the story does not specify the answer when RETRIEVED_SOURCE_CONTEXT genuinely lacks that information.",
             ].join("\n")
           : "",
     options.scopeLimitations?.length

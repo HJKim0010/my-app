@@ -766,11 +766,11 @@ function looksLikeIdeaCompatibilityRequest(query: string): boolean {
 function looksLikeSourceContextRequest(query: string): boolean {
   const normalized = compactText(query).toLowerCase();
   const sourceReference =
-    /(source|original story|story source|story material|reading|video|clue|event|character|main\s*character|protagonist|relationship|scene|plot|원래\s*이야기|원문|자료|소스|읽기\s*자료|영상|단서|사건|장면|인물|주인공|중심\s*인물|관계|줄거리|스토리)/i.test(
+    /(source|original story|story source|story material|story|text|material|reading|video|clue|event|character|main\s*character|protagonist|relationship|scene|plot|원래\s*이야기|이야기|스토리|내용|원문|자료|소스|읽기\s*자료|영상|단서|사건|장면|인물|주인공|중심\s*인물|관계|줄거리)/i.test(
       normalized
     );
   const sourceComprehension =
-    /(what happened|what does|what did|who did|who was|where did|why did|why was|which clue|which event|name|use.*clue|clue.*use|explain the clue|explain this scene|무슨\s*뜻|무슨\s*일|누굴|누가|누구|이름|알려\s*줘|어디|왜\s*(?:그런|이런|그렇게|이렇게|인가|일까|죠|요|해|했)|어느\s*장면|어떤.*단서|원래.*단서|단서.*사용|단서가\s*뭐|설명)/i.test(
+    /(what happened|what does|what did|who did|who was|where did|why did|why was|which clue|which event|name|use.*clue|clue.*use|explain the clue|explain this scene|무슨\s*뜻|무슨\s*일|누굴|누가|누구|이름|알려\s*줘|어디|왜\s*(?:그런|이런|그렇게|이렇게|인가|일까|죠|요|해|했)|어느\s*장면|어떤.*단서|원래.*단서|단서.*사용|단서가\s*뭐|설명|알려줘|알려\s*줘|뭐야|뭔가|무엇)/i.test(
       normalized
     );
 
@@ -778,7 +778,14 @@ function looksLikeSourceContextRequest(query: string): boolean {
     return true;
   }
 
-  if (sourceReference && (sourceComprehension || /explain|이해|설명|맞|연결|fit|match|connect/i.test(normalized))) {
+  if (
+    sourceReference &&
+    (sourceComprehension ||
+      hasStoryQuestionCue(query) ||
+      /explain|understand|recap|summary|summarize|이해|설명|요약|맞|연결|fit|match|connect/i.test(
+        normalized
+      ))
+  ) {
     return true;
   }
 

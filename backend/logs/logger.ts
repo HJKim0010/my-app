@@ -158,16 +158,31 @@ function toLegacyTaskId(epId: string): string {
   return epId;
 }
 
-function shouldRetryWithLegacyTaskId(error: unknown): boolean {
+function errorMessage(error: unknown): string {
   if (!(error instanceof Error)) {
-    return false;
+    return String(error);
   }
 
-  return error.message.includes("ep_id") || error.message.includes("task_id");
+  return error.message;
 }
 
-function buildChatLogPayload(entry: ChatLogEntry, useLegacyTaskId = false): object {
-  return {
+function shouldRetryWithLegacyTaskId(error: unknown): boolean {
+  const message = errorMessage(error);
+  return message.includes("ep_id") || message.includes("task_id");
+}
+
+function isSupabaseSchemaMismatch(error: unknown): boolean {
+  return /schema cache|could not find|column|does not exist|pgrst204|pgrst/i.test(
+    errorMessage(error)
+  );
+}
+
+export function buildChatLogPayload(
+  entry: ChatLogEntry,
+  useLegacyTaskId = false,
+  compatibilityMode = false
+): object {
+  const basePayload = {
     participant_id: entry.participant_id,
     session_id: entry.session_id,
     ...(useLegacyTaskId
@@ -177,9 +192,7 @@ function buildChatLogPayload(entry: ChatLogEntry, useLegacyTaskId = false): obje
     selected_category: entry.selected_category,
     raw_user_query: entry.raw_user_query,
     policy_decision: entry.policy_decision,
-    policy_reason: entry.policy_reason ?? entry.redirect_reason ?? null,
     status: entry.status,
-    response_status: entry.response_status,
     retrieved_chunk_ids: entry.retrieved_chunk_ids,
     retrieved_chunk_metadata: entry.retrieved_chunk_metadata,
     assistant_response: entry.assistant_response,
@@ -188,18 +201,28 @@ function buildChatLogPayload(entry: ChatLogEntry, useLegacyTaskId = false): obje
     interaction_count: entry.interaction_count,
     session_duration_ms: entry.session_duration_ms,
     query_type_label: entry.query_type_label,
+    redirect_reason: entry.redirect_reason,
+    source_types_used: entry.source_types_used || [],
+    visual_assets_used: entry.visual_assets_used || [],
+  };
+
+  if (compatibilityMode) {
+    return basePayload;
+  }
+
+  return {
+    ...basePayload,
+    policy_reason: entry.policy_reason ?? entry.redirect_reason ?? null,
+    response_status: entry.response_status,
     user_query_type: entry.user_query_type || entry.detected_support_mode || entry.query_type_label,
     detected_support_mode: entry.detected_support_mode,
     feedback_target: entry.feedback_target ?? null,
-    redirect_reason: entry.redirect_reason,
     input_origin: entry.input_origin || "typed",
     source_condition: entry.source_condition,
     support_condition: entry.support_condition || "ai",
     task_id: entry.task_id,
     episode_id: entry.episode_id || entry.ep_id,
     researcher_code: entry.researcher_code ?? null,
-    source_types_used: entry.source_types_used || [],
-    visual_assets_used: entry.visual_assets_used || [],
     incomplete_reason: entry.incomplete_reason,
     retrieval_executed: entry.retrieval_executed,
     retrieval_reason: entry.retrieval_reason ?? null,
@@ -254,11 +277,47 @@ export async function appendChatLog(entry: ChatLogEntry): Promise<void> {
       await insertIntoSupabase(CHAT_EVENTS_TABLE, buildChatLogPayload(entry));
       return;
     } catch (error) {
+      if (isSupabaseSchemaMismatch(error)) {
+        try {
+          await insertIntoSupabase(CHAT_EVENTS_TABLE, buildChatLogPayload(entry, false, true));
+          return;
+        } catch (compatibilityError) {
+          if (shouldRetryWithLegacyTaskId(compatibilityError)) {
+            try {
+              await insertIntoSupabase(
+                CHAT_EVENTS_TABLE,
+                buildChatLogPayload(entry, true, true)
+              );
+              return;
+            } catch (legacyCompatibilityError) {
+              appendLocalFallback(LOG_FILE, entry, legacyCompatibilityError);
+              return;
+            }
+          }
+
+          appendLocalFallback(LOG_FILE, entry, compatibilityError);
+          return;
+        }
+      }
+
       if (shouldRetryWithLegacyTaskId(error)) {
         try {
           await insertIntoSupabase(CHAT_EVENTS_TABLE, buildChatLogPayload(entry, true));
           return;
         } catch (legacyError) {
+          if (isSupabaseSchemaMismatch(legacyError)) {
+            try {
+              await insertIntoSupabase(
+                CHAT_EVENTS_TABLE,
+                buildChatLogPayload(entry, true, true)
+              );
+              return;
+            } catch (legacyCompatibilityError) {
+              appendLocalFallback(LOG_FILE, entry, legacyCompatibilityError);
+              return;
+            }
+          }
+
           appendLocalFallback(LOG_FILE, entry, legacyError);
           return;
         }

@@ -14,6 +14,7 @@ import {
   detectMainCharacterNameRequest,
   getMainCharacterName,
 } from "../backend/rag/storyMetadata.ts";
+import { buildChatLogPayload } from "../backend/logs/logger.ts";
 
 const previousCafeTurn = [
   { role: "user", text: "카페를 떠나는 표현은?" },
@@ -163,4 +164,41 @@ const sourceInput = buildUserInput(sourceOnly, "Others", task2, [fakeCanonicalCh
 assert.ok(sourceInput.includes("Source context strategy: canonical_plus_rag"));
 assert.ok(sourceInput.includes("Do not let either override CURRENT_USER_REQUEST"));
 
-console.log("Writing assistant regression tests passed: A-N plus RAG structure checks");
+// O. Factual story questions should use canonical source context before saying unavailable.
+const sourceGroundingInstruction = buildSystemInstruction("korean", "comprehension", false);
+assert.ok(sourceGroundingInstruction.includes("actively use the retrieved canonical source context"));
+assert.ok(sourceGroundingInstruction.includes("genuinely lacks the fact"));
+
+// P. Supabase chat_events compatibility mode keeps core logging fields when metadata columns are missing.
+const sampleLogEntry = {
+  participant_id: "reviewer",
+  session_id: "session-1",
+  ep_id: "ep2",
+  condition_label: "static_multimodal_condition",
+  selected_category: "내용 이해 / Understand the source",
+  raw_user_query: "주인공 이름을 알려줘.",
+  policy_decision: "allowed",
+  policy_reason: "allowed",
+  status: "allowed",
+  response_status: "success",
+  retrieved_chunk_ids: ["chunk-1"],
+  retrieved_chunk_metadata: [],
+  assistant_response: "주인공은 Anna입니다.",
+  timestamp: "2026-07-17T00:00:00.000Z",
+  response_length: 14,
+  interaction_count: 1,
+  session_duration_ms: 1000,
+  query_type_label: "comprehension",
+  source_context_strategy: "canonical_plus_rag",
+  detected_functions: ["source_comprehension"],
+  ghostwriting_boundary_triggered: false,
+};
+const fullPayload = buildChatLogPayload(sampleLogEntry);
+const compatibilityPayload = buildChatLogPayload(sampleLogEntry, false, true);
+assert.equal(fullPayload.source_context_strategy, "canonical_plus_rag");
+assert.equal(compatibilityPayload.raw_user_query, sampleLogEntry.raw_user_query);
+assert.ok(!("source_context_strategy" in compatibilityPayload));
+assert.ok(!("policy_reason" in compatibilityPayload));
+assert.ok(!("response_status" in compatibilityPayload));
+
+console.log("Writing assistant regression tests passed: A-P plus RAG/logging checks");

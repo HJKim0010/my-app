@@ -218,7 +218,7 @@ export function retrieveTaskDocumentsForCondition(
 export function retrieveCanonicalSourceContext(
   taskId: TaskId,
   taskPackage: TaskPackage,
-  limit = 3
+  limit = 8
 ): RetrievedChunk[] {
   const canonicalSourceTypes = new Set(["source_text", "video_transcript", "audio_transcript"]);
   const canonicalDocuments = taskPackage.documents.filter((document) =>
