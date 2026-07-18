@@ -175,6 +175,17 @@ function isAcknowledgment(text: string): boolean {
   );
 }
 
+function acceptsPreviousAction(text: string): boolean {
+  const normalized = normalizeAnalysisText(text);
+  return (
+    isAcknowledgment(normalized) ||
+    /^(?:네|넵|응|그래|좋아|좋아요|예|yes|yeah|ok|okay|sure)[,\s]*(?:그렇게\s*)?(?:해\s*줘|해주세요|해줘|do that)?[.!?\s]*$/i.test(
+      normalized
+    ) ||
+    /(?:그렇게\s*해\s*줘|그렇게\s*해주세요|do that|go ahead|that sounds good)/i.test(normalized)
+  );
+}
+
 function referencesPreviousExpression(text: string): boolean {
   return /(표현|문장|sentence|expression|word|verb|단어|동사|아까|previous|that one|그거|그 문장|그 표현)/i.test(
     normalizeAnalysisText(text)
@@ -247,7 +258,11 @@ export function resolveFollowUp(
     };
   }
 
-  if ((isAcknowledgment(normalized) || /^(해줘|그렇게|do that|that one)[.!?\s]*$/i.test(normalized)) && previousAssistantAct === "offer") {
+  if (
+    acceptsPreviousAction(normalized) &&
+    (previousAssistantAct === "offer" ||
+      /(?:원하면|줄게|드릴게|해줄게|만들어|제시할게|나눠줄게|i can|would you like|do you want)/i.test(previousAssistant))
+  ) {
     return {
       isFollowUp: true,
       isShortFollowUp: short,

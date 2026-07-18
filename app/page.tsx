@@ -2,15 +2,17 @@
 
 import type { ReactNode, TouchEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  flushChatStreamBuffer,
+  isChatApiResponse,
+  isQuickReply,
+  parseChatStreamChunk,
+  type ChatApiResponse,
+  type QuickReply,
+} from "./chatStreamEvents";
 
 type TaskId = "task1" | "task2";
 type TaskCondition = "static" | "dynamic";
-
-type QuickReply = {
-  label: string;
-  value?: string;
-  action?: "send" | "prefill" | "focus";
-};
 
 type ChatMessage = {
   id: string;
@@ -22,33 +24,6 @@ type ChatMessage = {
 };
 
 type StoredTranscriptMessage = Pick<ChatMessage, "role" | "text">;
-
-type ChatApiResponse = {
-  ok?: boolean;
-  requestId?: string;
-  status?: "success" | "redirected" | "incomplete" | "timeout" | "error";
-  text: string;
-  reason?: string | null;
-  quickReplies?: QuickReply[];
-};
-
-type ChatStreamEvent =
-  | {
-      type: "start";
-      requestId: string;
-    }
-  | {
-      type: "delta";
-      delta: string;
-    }
-  | {
-      type: "done";
-      payload: ChatApiResponse;
-    }
-  | {
-      type: "error";
-      payload: ChatApiResponse;
-    };
 
 type TaskChatState = {
   sessionId: string;
@@ -124,57 +99,6 @@ const CHAT_EXAMPLE_PROMPTS = [
 
 function isExamplePromptText(value: string): boolean {
   return CHAT_EXAMPLE_PROMPTS.some((example) => example.promptKo === value);
-}
-
-function isQuickReply(value: unknown): value is QuickReply {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-
-  const candidate = value as Record<string, unknown>;
-  const action = candidate.action;
-
-  return (
-    typeof candidate.label === "string" &&
-    (candidate.value === undefined || typeof candidate.value === "string") &&
-    (action === undefined || action === "send" || action === "prefill" || action === "focus")
-  );
-}
-
-function isChatApiResponse(value: unknown): value is ChatApiResponse {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-
-  const candidate = value as Record<string, unknown>;
-
-  return (
-    typeof candidate.text === "string" &&
-    (candidate.quickReplies === undefined ||
-      (Array.isArray(candidate.quickReplies) && candidate.quickReplies.every(isQuickReply)))
-  );
-}
-
-function isChatStreamEvent(value: unknown): value is ChatStreamEvent {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-
-  const candidate = value as Record<string, unknown>;
-
-  if (candidate.type === "start") {
-    return typeof candidate.requestId === "string";
-  }
-
-  if (candidate.type === "delta") {
-    return typeof candidate.delta === "string";
-  }
-
-  if (candidate.type === "done" || candidate.type === "error") {
-    return isChatApiResponse(candidate.payload);
-  }
-
-  return false;
 }
 
 const CHAT_INPUT_PLACEHOLDER =
@@ -1565,7 +1489,9 @@ export default function Home() {
 
     const userText = outgoingText.trim();
     inputUndoStackRef.current.push(userText);
-    const currentState = taskStatesRef.current[selectedTask];
+    const requestTask = selectedTask;
+    const currentState = taskStatesRef.current[requestTask];
+    const requestSessionId = currentState.sessionId;
     const nextInteractionCount = currentState.interactionCount + 1;
     const userMessage: ChatMessage = {
       id: `${Date.now()}-user`,
@@ -1584,11 +1510,11 @@ export default function Home() {
 
     setTaskStates((current) => ({
       ...current,
-      [selectedTask]: {
-        ...current[selectedTask],
+      [requestTask]: {
+        ...current[requestTask],
         interactionCount: nextInteractionCount,
         transcriptSaved: false,
-        messages: [...current[selectedTask].messages, userMessage, pendingAssistantMessage],
+        messages: [...current[requestTask].messages, userMessage, pendingAssistantMessage],
       },
     }));
 
@@ -1607,10 +1533,10 @@ export default function Home() {
     const updateAssistantMessage = (partial: Partial<ChatMessage>) => {
       setTaskStates((current) => ({
         ...current,
-        [selectedTask]: {
-          ...current[selectedTask],
+        [requestTask]: {
+          ...current[requestTask],
           transcriptSaved: false,
-          messages: current[selectedTask].messages.map((message) =>
+          messages: current[requestTask].messages.map((message) =>
             message.id === assistantMessageId ? { ...message, ...partial } : message
           ),
         },
@@ -1624,7 +1550,7 @@ export default function Home() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          taskId: selectedTask,
+          taskId: requestTask,
           participantId,
           query: userText,
           recentMessages: currentState.messages
@@ -1632,7 +1558,7 @@ export default function Home() {
             .map(({ role, text }) => ({ role, text })),
           category: "Others",
           condition: selectedCondition,
-          sessionId: currentState.sessionId,
+          sessionId: requestSessionId,
           interactionCount: nextInteractionCount,
           sessionStartedAt: currentState.sessionStartedAt,
           input_origin: inputOrigin,
@@ -1652,6 +1578,8 @@ export default function Home() {
         const decoder = new TextDecoder();
         let buffer = "";
         let finalPayload: ChatApiResponse | null = null;
+        let clientReceivedEventCount = 0;
+        let uiUpdateCount = 0;
 
         while (true) {
           const { value, done } = await reader.read();
@@ -1660,23 +1588,19 @@ export default function Home() {
             break;
           }
 
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
+          const parsedChunk = parseChatStreamChunk(buffer, decoder.decode(value, { stream: true }));
+          buffer = parsedChunk.buffer;
 
-          for (const line of lines) {
-            if (!line.trim()) {
-              continue;
-            }
+          if (parsedChunk.malformedLines.length > 0) {
+            console.warn("Malformed chat stream event ignored", parsedChunk.malformedLines.length);
+          }
 
-            const parsed = JSON.parse(line) as unknown;
-
-            if (!isChatStreamEvent(parsed)) {
-              continue;
-            }
+          for (const parsed of parsedChunk.events) {
+            clientReceivedEventCount += 1;
 
             if (parsed.type === "delta") {
               streamedAssistantText += parsed.delta;
+              uiUpdateCount += 1;
               updateAssistantMessage({
                 text: streamedAssistantText,
                 isStreaming: true,
@@ -1690,20 +1614,35 @@ export default function Home() {
           }
         }
 
-        if (buffer.trim()) {
-          const parsed = JSON.parse(buffer) as unknown;
+        const remainingText = decoder.decode();
+        const flushed = flushChatStreamBuffer(buffer + remainingText);
 
-          if (isChatStreamEvent(parsed)) {
-            if (parsed.type === "delta") {
-              streamedAssistantText += parsed.delta;
-              updateAssistantMessage({
-                text: streamedAssistantText,
-                isStreaming: true,
-              });
-            } else if (parsed.type === "done" || parsed.type === "error") {
-              finalPayload = parsed.payload;
-            }
+        if (flushed.malformedLines.length > 0) {
+          console.warn("Malformed chat stream tail ignored", flushed.malformedLines.length);
+        }
+
+        for (const parsed of flushed.events) {
+          clientReceivedEventCount += 1;
+
+          if (parsed.type === "delta") {
+            streamedAssistantText += parsed.delta;
+            uiUpdateCount += 1;
+            updateAssistantMessage({
+              text: streamedAssistantText,
+              isStreaming: true,
+            });
+          } else if (parsed.type === "done" || parsed.type === "error") {
+            finalPayload = parsed.payload;
           }
+        }
+
+        if (process.env.NODE_ENV !== "production") {
+          console.debug("chat_stream_client_debug", {
+            clientReceivedEventCount,
+            uiUpdateCount,
+            finalCharacterCount: streamedAssistantText.length,
+            renderMode: streamedAssistantText ? "progressive" : "buffered",
+          });
         }
 
         if (!finalPayload) {
@@ -1753,7 +1692,7 @@ export default function Home() {
         isError: assistantPayload.status === "error" || assistantPayload.status === "timeout",
       });
 
-      void persistTranscript(selectedTask, nextState, false);
+      void persistTranscript(requestTask, nextState, false);
     } catch (error) {
       console.error(error);
       const message =

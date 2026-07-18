@@ -101,6 +101,14 @@ export type ChatLogEntry = {
   planner_confidence?: number;
   planner_error_type?: string | null;
   planner_fallback_used?: boolean;
+  response_origin?: "openai_stream" | "deterministic_procedure" | "technical_error" | "policy_limited_openai";
+  shortcut_branch?: string | null;
+  stream_started_at?: string;
+  first_delta_at?: string;
+  stream_completed_at?: string;
+  streamed_delta_count?: number;
+  assistant_message_finalized?: boolean;
+  client_render_mode?: "progressive" | "buffered" | "fallback";
 };
 
 export type SessionTranscriptEntry = {

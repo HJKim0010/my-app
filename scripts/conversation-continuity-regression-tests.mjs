@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
+import { analyzeQueryScope } from "../backend/policy/classifier.ts";
+import { buildHistoryWithFallback } from "../backend/logs/sessionHistory.ts";
 import { buildCanonicalTaskContext } from "../backend/rag/canonicalTaskContext.ts";
+import { buildTurnPlan, canUseGenericClarification } from "../backend/rag/conversationOrchestrator.ts";
+import { planConversationTurn } from "../backend/rag/conversationPlanner.ts";
 import {
   normalizeAnalysisText,
   resolveFollowUp,
@@ -118,6 +122,139 @@ for (const testCase of followUpCases) {
   }
 }
 
+function makeRequestClassification(overrides = {}) {
+  return {
+    intent: "general_question",
+    requires_source_context: false,
+    requires_task_context: false,
+    request_is_explicit: true,
+    confidence: 0.8,
+    ...overrides,
+  };
+}
+
+function makeTurnPlan({ query, taskId = "task1", recentMessages = [], requestClassification = {} }) {
+  const policyAnalysis = analyzeQueryScope(query);
+  const conversationPlan = planConversationTurn({
+    query,
+    taskId,
+    recentMessages,
+  });
+
+  return buildTurnPlan({
+    rawUserMessage: query,
+    taskId,
+    recentMessages,
+    policyAnalysis,
+    requestClassification: makeRequestClassification(requestClassification),
+    conversationPlan,
+  });
+}
+
+const requiredFailureCases = [
+  {
+    name: "Case 1A accepts first-sentences offer",
+    query: "네 그렇게 해줘.",
+    recentMessages: [
+      {
+        role: "assistant",
+        text: "원하면 제가 첫 1~2문장만 같이 만들어드릴게요.",
+      },
+    ],
+    expected: {
+      explicitIntent: "follow_up",
+      followUpType: "accept_offer",
+      responseMode: "direct_answer",
+    },
+  },
+  {
+    name: "Case 1B trailing English command wins",
+    query: "Jack이 지갑과 학생증이 없다는 사실을 다시 확인하고 멈칫한다. 영어로",
+    recentMessages: [
+      {
+        role: "assistant",
+        text: "첫 번째 방향으로 가면 Jack이 집으로 돌아가는 흐름도 가능해요.",
+      },
+    ],
+    expected: {
+      explicitIntent: "translate",
+      followUpType: "new_request",
+      responseMode: "translation",
+      targetIncludes: "지갑과 학생증",
+    },
+  },
+  {
+    name: "Case 1C multiline English command translates all target text",
+    query: [
+      "Jack이 지갑과 학생증이 없다는 사실을 다시 확인하고 멈칫한다.",
+      "학생증이 꼭 필요하다고 판단해서, 늦더라도 집으로 돌아가거나 다른 해결 방법을 찾기로 한다.",
+      "그 선택 때문에 발표에 더 늦을 위험이 커지고, Jack은 더 급하게 움직인다.",
+      "",
+      "영어로",
+    ].join("\n"),
+    recentMessages: [],
+    requestClassification: { intent: "draft_only", request_is_explicit: false, confidence: 0.45 },
+    expected: {
+      explicitIntent: "translate",
+      followUpType: "new_request",
+      responseMode: "translation",
+      targetIncludes: "학생증이 꼭 필요",
+      clarificationAllowed: false,
+    },
+  },
+  {
+    name: "Case 2 accepts ending-direction offer",
+    query: "응",
+    recentMessages: [
+      {
+        role: "assistant",
+        text: "원하면 다음엔 엔딩 방향 3개로 더 구체적으로 나눠줄게요.",
+      },
+    ],
+    expected: {
+      explicitIntent: "follow_up",
+      followUpType: "accept_offer",
+      responseMode: "direct_answer",
+    },
+  },
+  {
+    name: "Case 5 ghostwriting request becomes limited conversational help",
+    query: "내 대신에 좀 써줘라. 이것좀",
+    recentMessages: [
+      {
+        role: "assistant",
+        text: "원하면 방금 고른 방향으로 첫 두 문장, 간단한 outline, 또는 표현을 도와줄 수 있어요.",
+      },
+    ],
+    expected: {
+      explicitIntent: "ghostwriting_request",
+      followUpType: "new_request",
+      responseMode: "limited_refusal",
+      policyMode: "prohibited_ghostwriting",
+    },
+  },
+];
+
+for (const testCase of requiredFailureCases) {
+  const plan = makeTurnPlan(testCase);
+  assert.equal(plan.explicitIntent, testCase.expected.explicitIntent, testCase.name);
+  assert.equal(plan.followUpType, testCase.expected.followUpType, testCase.name);
+  assert.equal(plan.responseMode, testCase.expected.responseMode, testCase.name);
+  assert.equal(canUseGenericClarification(plan), false, testCase.name);
+
+  if (testCase.expected.policyMode) {
+    assert.equal(plan.policyMode, testCase.expected.policyMode, testCase.name);
+  }
+
+  if (testCase.expected.targetIncludes) {
+    assertIncludes(plan.targetText || "", testCase.expected.targetIncludes, testCase.name);
+  }
+
+  if ("clarificationAllowed" in testCase.expected) {
+    assert.equal(plan.clarificationAllowed, testCase.expected.clarificationAllowed, testCase.name);
+  }
+}
+
 const typoCases = [
   ["anna 왜 무서웟어", "Anna 왜 무서웠어"],
   ["Jack is studnet?", "Jack is student?"],
@@ -129,6 +266,127 @@ const typoCases = [
 for (const [input, expected] of typoCases) {
   assert.equal(normalizeAnalysisText(input), expected);
 }
+
+const turnPlanSignalCases = [
+  {
+    name: "English yes accepts concrete previous offer",
+    query: "Yes",
+    recentMessages: [{ role: "assistant", text: "I can give you three ending directions." }],
+    expectedIntent: "follow_up",
+    expectedFollowUp: "accept_offer",
+    expectedMode: "direct_answer",
+  },
+  {
+    name: "English second option selection stays anchored",
+    query: "The second one",
+    recentMessages: [{ role: "assistant", text: "1. Go home for the ID.\n2. Ask the teacher for another way." }],
+    expectedIntent: "follow_up",
+    expectedFollowUp: "select_option",
+    expectedMode: "direct_answer",
+  },
+  {
+    name: "Previous expression request stays anchored",
+    query: "The previous one",
+    recentMessages: [{ role: "assistant", text: "Try `Jack froze for a second.` or `Jack hesitated.`" }],
+    expectedIntent: "follow_up",
+    expectedFollowUp: "ask_repeat",
+    expectedMode: "direct_answer",
+  },
+  {
+    name: "Another expression stays anchored",
+    query: "다른 표현",
+    recentMessages: [{ role: "assistant", text: "`Jack hesitated.`가 자연스러워요." }],
+    expectedIntent: "expression_help",
+    expectedFollowUp: "new_request",
+    expectedMode: "translation",
+    targetIncludes: "Jack hesitated",
+  },
+  {
+    name: "Standalone English command is translation",
+    query: "Jack hesitated before leaving. In English",
+    expectedIntent: "translate",
+    expectedFollowUp: "new_request",
+    expectedMode: "translation",
+  },
+  {
+    name: "Grammar check explicit command wins",
+    query: "Jack is student? 문법 맞아?",
+    expectedIntent: "grammar_check",
+    expectedFollowUp: "new_request",
+    expectedMode: "correction",
+  },
+  {
+    name: "Idea feedback explicit command wins",
+    query: "Jack이 학생증 때문에 집에 돌아가는 아이디어 어때?",
+    expectedIntent: "idea_feedback",
+    expectedFollowUp: "new_request",
+    expectedMode: "feedback",
+  },
+  {
+    name: "Procedural word-count question wins",
+    query: "몇 단어 써야 해?",
+    expectedIntent: "procedural_question",
+    expectedFollowUp: "new_request",
+    expectedMode: "procedure",
+  },
+  {
+    name: "Source summary requires canonical source",
+    query: "source summary",
+    expectedIntent: "source_summary",
+    expectedFollowUp: "new_request",
+    expectedMode: "explanation",
+    requiresCanonicalSource: true,
+  },
+  {
+    name: "Mixed typo story question normalizes internally",
+    query: "Jack is studnet? what happend next?",
+    expectedIntent: "source_question",
+    expectedFollowUp: "new_request",
+    expectedMode: "explanation",
+  },
+];
+
+for (const testCase of turnPlanSignalCases) {
+  const plan = makeTurnPlan(testCase);
+  assert.equal(plan.explicitIntent, testCase.expectedIntent, testCase.name);
+  assert.equal(plan.followUpType, testCase.expectedFollowUp, testCase.name);
+  assert.equal(plan.responseMode, testCase.expectedMode, testCase.name);
+  assert.equal(canUseGenericClarification(plan), false, testCase.name);
+
+  if ("requiresCanonicalSource" in testCase) {
+    assert.equal(plan.requiresCanonicalSource, testCase.requiresCanonicalSource, testCase.name);
+  }
+
+  if (testCase.targetIncludes) {
+    assertIncludes(plan.targetText || "", testCase.targetIncludes, testCase.name);
+  }
+}
+
+const twentyTurnHistory = Array.from({ length: 20 }, (_, index) => ({
+  role: index % 2 === 0 ? "user" : "assistant",
+  text: index % 2 === 0
+    ? `turn ${index}: Jack asks about his student ID.`
+    : `turn ${index}: 원하면 엔딩 방향 3개를 더 구체적으로 나눠줄게요.`,
+}));
+const twentyTurnPlan = makeTurnPlan({
+  query: "응",
+  recentMessages: twentyTurnHistory,
+});
+assert.equal(twentyTurnPlan.explicitIntent, "follow_up", "20-turn history accepts latest pending offer");
+assert.equal(twentyTurnPlan.followUpType, "accept_offer", "20-turn history latest offer");
+assert.equal(canUseGenericClarification(twentyTurnPlan), false, "20-turn history does not fallback");
+
+const frontendHistory = await buildHistoryWithFallback({
+  recentMessages: [
+    { role: "user", text: "Can you give ideas?" },
+    { role: "assistant", text: "I can give you three directions." },
+  ],
+  sessionId: "session-with-complete-frontend-history",
+  epId: "ep1",
+});
+assert.equal(frontendHistory.historySource, "frontend", "complete frontend history is preserved");
+assert.equal(frontendHistory.fallbackCount, 0, "complete frontend history does not fallback");
+assert.equal(frontendHistory.messages.length, 2, "complete frontend history message count");
 
 const ep1Static = buildCanonicalTaskContext(loadTaskPackage("task1", "static"));
 const ep2Static = buildCanonicalTaskContext(loadTaskPackage("task2", "static"));

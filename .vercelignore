@@ -1,0 +1,4 @@
+.idea
+.next-dev.log
+.next-dev.err.log
+backend/logs/*.jsonl

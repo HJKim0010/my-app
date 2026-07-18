@@ -38,6 +38,11 @@ import {
   resolveFollowUp,
   type FollowUpResolution,
 } from "@/backend/rag/followUpResolver";
+import {
+  buildTurnPlan,
+  canUseGenericClarification,
+  type TurnPlan,
+} from "@/backend/rag/conversationOrchestrator";
 import { loadTaskPackage, type TaskCondition, type TaskId } from "@/backend/rag/loader";
 import {
   buildCompactSystemInstruction,
@@ -765,63 +770,6 @@ function looksLikeStructureFeedbackFollowUp(query: string): boolean {
   );
 }
 
-function acceptsPreviousEventSequenceOffer(query: string, recentMessages: RecentMessage[]): boolean {
-  const normalized = normalizeRoutingText(query);
-  const acceptsOffer = /(잡아|해\s*줘|그렇게|그걸로|응|네|그래|좋아|ㅇㅇ)/i.test(normalized);
-
-  if (!acceptsOffer) {
-    return false;
-  }
-
-  return recentMessages
-    .slice(-6)
-    .some(
-      (message) =>
-        message.role === "assistant" &&
-        /(사건|순서|흐름|event\s*sequence|3\s*steps|three\s*steps)/i.test(
-          message.text
-        )
-    );
-}
-
-function buildAcceptedEventSequenceResponse(taskId: TaskId): string {
-  if (taskId === "task2") {
-    return [
-      "1. Anna가 table 7 아래의 물건을 보고 잠깐 멈춘다.",
-      "2. 무서워서 바로 집지 않고, 주변을 확인하거나 카페 밖으로 물러난다.",
-      "3. 물건을 두고 나온 결과, 단서를 놓칠지 다시 돌아갈지 결정해야 하는 상황이 생긴다.",
-      "",
-      "이제 이 세 단계 중에서 Anna가 왜 물러나는지 한 가지 이유를 정해 다음 장면으로 이어 보세요.",
-    ].join("\n");
-  }
-
-  return [
-    "1. Jack이 지갑과 학생증이 없다는 사실을 다시 확인하고 멈칫한다.",
-    "2. 학생증이 꼭 필요하다고 판단해서, 늦더라도 집으로 돌아가거나 다른 해결 방법을 찾기로 한다.",
-    "3. 그 선택 때문에 발표에 더 늦을 위험이 커지고, Jack은 더 급하게 움직인다.",
-    "",
-    "이제 집으로 돌아갈지, 다른 해결 방법을 찾을지 하나를 골라 다음 사건으로 이어 보세요.",
-  ].join("\n");
-}
-
-function buildClarificationNeededResponse(query: string, language: ResponseLanguage): string {
-  if (looksLikeAmbiguousNextRequest(query)) {
-    return language === "english"
-      ? "Do you mean what actually happens in the original story, or possible ideas for how to continue it?"
-      : "원래 이야기에서 실제로 다음에 나온 일을 묻는 건가요, 아니면 이어쓰기 아이디어를 원하는 건가요?";
-  }
-
-  if (looksLikeVagueStoryComprehensionRequest(query)) {
-    return language === "english"
-      ? "Is the overall story flow confusing, or is there a specific scene, clue, or character you want me to explain?"
-      : "전체 흐름이 헷갈린 건가요, 아니면 특정 장면이나 단서가 헷갈린 건가요?";
-  }
-
-  return language === "english"
-    ? "I want to answer the right thing. Are you asking about the original story, your own idea, or language/expression?"
-    : "정확히 도와주고 싶어요. 원래 이야기 내용, 네 아이디어와의 연결, 아니면 표현/문법 중 무엇을 보고 싶은 건가요?";
-}
-
 function looksLikeSourceAlignmentRequest(query: string): boolean {
   const normalized = compactText(query).toLowerCase();
 
@@ -1312,6 +1260,7 @@ function buildRoleBasedCurrentUserText(params: {
   learnerDraft?: string;
   scopeLimitations: string[];
   followUpResolution: FollowUpResolution;
+  turnPlan: TurnPlan;
   canonicalContextId: string;
 }): string {
   return [
@@ -1334,6 +1283,12 @@ function buildRoleBasedCurrentUserText(params: {
     `- Previous assistant act: ${params.followUpResolution.previousAssistantAct}`,
     `- Resolved action: ${params.followUpResolution.resolvedAction || "(none)"}`,
     `- Referenced entity: ${params.followUpResolution.referencedEntity || "(none)"}`,
+    `- TurnPlan explicit intent: ${params.turnPlan.explicitIntent}`,
+    `- TurnPlan resolved intent: ${params.turnPlan.resolvedIntent}`,
+    `- TurnPlan response mode: ${params.turnPlan.responseMode}`,
+    `- TurnPlan policy mode: ${params.turnPlan.policyMode}`,
+    `- TurnPlan pending action: ${params.turnPlan.pendingAction || "(none)"}`,
+    `- TurnPlan target text: ${params.turnPlan.targetText || "(none)"}`,
     `- Source reason: ${params.conversationPlan.source_reason || "(none)"}`,
     `- Story request mode: ${params.requestClassification.story_request_mode || "(none)"}`,
     `- Response scope: ${params.conversationPlan.response_scope}`,
@@ -1364,6 +1319,39 @@ function buildRoleBasedCurrentUserText(params: {
           "Use this resolution unless the current user message clearly changes topic.",
         ].join("\n")
       : "",
+    params.turnPlan.pendingAction
+      ? [
+          "",
+          "Conversation orchestration decision:",
+          `- Follow the TurnPlan response mode: ${params.turnPlan.responseMode}.`,
+          `- Pending action: ${params.turnPlan.pendingAction}.`,
+          params.turnPlan.selectedOption ? `- Selected option: ${params.turnPlan.selectedOption}` : "",
+          "Do not replace this with a generic clarification unless the TurnPlan allows clarification.",
+        ].filter(Boolean).join("\n")
+      : "",
+    params.turnPlan.policyMode === "prohibited_ghostwriting"
+      ? [
+          "",
+          "Policy constraint for this turn:",
+          "- Do not write a complete submit-ready continuation or full replacement draft.",
+          "- Acknowledge the request briefly, state the boundary in one sentence, then provide the most relevant permitted help from the recent conversation.",
+          "- Permitted help includes a short outline, idea options, source-grounded checks, local expression help, grammar help, or one short target sentence when appropriate.",
+        ].join("\n")
+      : "",
+    params.turnPlan.targetText && params.turnPlan.responseMode === "translation"
+      ? [
+          "",
+          "Translation target:",
+          params.turnPlan.targetText,
+          "Translate the full target text directly. Do not ask what help is needed.",
+        ].join("\n")
+      : "",
+    "",
+    "Response style:",
+    "- Answer the actual request first.",
+    "- Keep the response concise and conversational.",
+    "- Avoid unnecessary headings, menus, worksheet-like templates, and repeated story summaries.",
+    "- Use short paragraphs or a small list only when it improves readability.",
     "",
     "Answer this final user message directly. Use the preceding role-based conversation naturally. Do not re-summarize earlier turns unless needed to resolve the current message.",
   ]
@@ -1385,6 +1373,7 @@ function buildRoleBasedOpenAIInput(params: {
   learnerDraft?: string;
   scopeLimitations: string[];
   followUpResolution: FollowUpResolution;
+  turnPlan: TurnPlan;
   canonicalContextId: string;
   visualInputs: Array<{ type: "input_image"; image_url?: string; file_id?: string; detail?: string }>;
 }) {
@@ -1433,6 +1422,7 @@ function buildRoleBasedOpenAIInput(params: {
         learnerDraft: params.learnerDraft,
         scopeLimitations: params.scopeLimitations,
         followUpResolution: params.followUpResolution,
+        turnPlan: params.turnPlan,
         canonicalContextId: params.canonicalContextId,
       }),
     },
@@ -1462,12 +1452,6 @@ function extractRetrievalQuery(query: string): string {
   const selected = sourceLines.at(-1) || lines.at(-1) || query;
 
   return compactText(selected).slice(0, 500);
-}
-
-function buildDraftOnlyClarificationResponse(language: ResponseLanguage): string {
-  return language === "english"
-    ? "I’ve read your draft. What would you like help with?"
-    : "작성한 내용을 확인했어요. 어떤 도움이 필요한지 알려주세요.";
 }
 
 function buildMissingContextResponse(ruleId: TaskRequirementRuleId, language: ResponseLanguage): string {
@@ -1826,6 +1810,11 @@ function responseFromText(
   return { ok: status === "success" || status === "redirected", requestId, status, text, reason, quickReplies: [] };
 }
 
+function allowUserFacingTemplateShortcut(branch: string): boolean {
+  void branch;
+  return false;
+}
+
 function confirmationQuickReplies(_language: ResponseLanguage): QuickReply[] {
   void _language;
   return [];
@@ -2181,20 +2170,29 @@ export async function POST(request: NextRequest) {
     enabled: process.env.DISABLE_LLM_PLANNER !== "true",
   });
   const requestClassification = classifyCurrentRequest(query, taskId, recentMessages, supportMode);
+  const turnPlan = buildTurnPlan({
+    rawUserMessage: query,
+    taskId,
+    recentMessages,
+    policyAnalysis,
+    requestClassification,
+    conversationPlan,
+    followUpResolution,
+  });
   const classifierSourceContextStrategy = determineSourceContextStrategy(
     requestClassification,
     separatedTurn.currentRequest || query
   );
-  let sourceContextStrategy =
+  let sourceContextStrategy: SourceContextStrategy =
     conversationPlan.confidence >= 0.7
       ? conversationPlan.source_strategy
       : classifierSourceContextStrategy;
-  if (
-    followUpResolution.isFollowUp &&
-    followUpResolution.confidence >= 0.82 &&
-    !["refer_to_previous_entity"].includes(followUpResolution.type)
-  ) {
+  if (!turnPlan.requiresCanonicalSource) {
     sourceContextStrategy = "none";
+  } else if (turnPlan.requiresCanonicalSource && !turnPlan.requiresSupplementaryRetrieval) {
+    sourceContextStrategy = "canonical";
+  } else if (turnPlan.requiresSupplementaryRetrieval) {
+    sourceContextStrategy = "canonical_plus_rag";
   }
   const functionLogFields = detectedFunctionsForLog(requestClassification, supportMode);
   const commonLog = {
@@ -2226,6 +2224,9 @@ export async function POST(request: NextRequest) {
     source_context_strategy: sourceContextStrategy,
     detected_functions: [
       ...functionLogFields.detected_functions,
+      `turn_plan:${turnPlan.explicitIntent}`,
+      `response_mode:${turnPlan.responseMode}`,
+      `policy_mode:${turnPlan.policyMode}`,
       `follow_up:${followUpResolution.type}`,
       `previous_assistant_act:${followUpResolution.previousAssistantAct}`,
       `history_source:${historyWithFallback.historySource}`,
@@ -2244,6 +2245,10 @@ export async function POST(request: NextRequest) {
       sessionSuffix: sessionId.slice(-8),
       detectedLanguage: followUpResolution.detectedLanguage,
       normalizedAnalysisText: followUpResolution.normalizedAnalysisText.slice(0, 120),
+      turnPlanIntent: turnPlan.explicitIntent,
+      turnPlanResolvedIntent: turnPlan.resolvedIntent,
+      turnPlanResponseMode: turnPlan.responseMode,
+      turnPlanPolicyMode: turnPlan.policyMode,
       followUpType: followUpResolution.type,
       followUpConfidence: followUpResolution.confidence,
       previousAssistantAct: followUpResolution.previousAssistantAct,
@@ -2262,6 +2267,8 @@ export async function POST(request: NextRequest) {
   }
 
   if (
+    allowUserFacingTemplateShortcut("select_previous_option") &&
+    turnPlan.followUpType === "select_option" &&
     conversationPlan.conversation_operation === "continue_previous" &&
     conversationPlan.selected_option_index &&
     conversationPlan.selected_option_meaning
@@ -2316,7 +2323,10 @@ export async function POST(request: NextRequest) {
     return chatJsonResponse(responseFromText(responseText, requestId, "success", null));
   }
 
-  if (conversationPlan.conversation_operation === "adjust_assistant_behavior") {
+  if (
+    allowUserFacingTemplateShortcut("assistant_meta_feedback") &&
+    conversationPlan.conversation_operation === "adjust_assistant_behavior"
+  ) {
     const responseText = buildAssistantMetaFeedbackResponse(query, responseLanguage);
 
     await persistChatLog({
@@ -2360,7 +2370,10 @@ export async function POST(request: NextRequest) {
     return chatJsonResponse(responseFromText(responseText, requestId, "success", null));
   }
 
-  if (conversationPlan.conversation_operation === "acknowledge_user_inference") {
+  if (
+    allowUserFacingTemplateShortcut("acknowledge_user_inference") &&
+    conversationPlan.conversation_operation === "acknowledge_user_inference"
+  ) {
     const responseText = buildAcknowledgmentOrInferenceResponse(query, taskId, responseLanguage);
     const canonicalChunks = retrieveCanonicalSourceContext(taskId, taskPackage);
 
@@ -2415,7 +2428,10 @@ export async function POST(request: NextRequest) {
     return chatJsonResponse(responseFromText(responseText, requestId, "success", null));
   }
 
-  if (conversationPlan.conversation_operation === "continuation_structure") {
+  if (
+    allowUserFacingTemplateShortcut("continuation_structure") &&
+    conversationPlan.conversation_operation === "continuation_structure"
+  ) {
     const responseText = buildContinuationStructureResponse(taskId, responseLanguage);
     const canonicalChunks = retrieveCanonicalSourceContext(taskId, taskPackage);
 
@@ -2527,11 +2543,12 @@ export async function POST(request: NextRequest) {
   }
 
   if (
-    conversationPlan.accepted_suggestions.includes("concrete_savior_ideas") ||
-    (
-      conversationPlan.conversation_operation === "repair_previous_omission" &&
-      /구세주|savior/i.test(query)
-    )
+    allowUserFacingTemplateShortcut("concrete_savior_ideas") &&
+    (conversationPlan.accepted_suggestions.includes("concrete_savior_ideas") ||
+      (
+        conversationPlan.conversation_operation === "repair_previous_omission" &&
+        /구세주|savior/i.test(query)
+      ))
   ) {
     const responseText = buildConcreteSaviorIdeasResponse(taskId);
 
@@ -2577,122 +2594,7 @@ export async function POST(request: NextRequest) {
     return chatJsonResponse(responseFromText(responseText, requestId, "success", null));
   }
 
-  if (
-    conversationPlan.accepted_suggestions.includes("event_sequence") &&
-    acceptsPreviousEventSequenceOffer(query, recentMessages)
-  ) {
-    const responseText = buildAcceptedEventSequenceResponse(taskId);
-
-    await persistChatLog({
-      ...commonLog,
-      participant_id: participantId,
-      session_id: sessionId,
-      ep_id: epId,
-      condition_label: taskPackage.config.ai_condition,
-      selected_category: category,
-      raw_user_query: query,
-      policy_decision: "allowed",
-      status: "allowed",
-      response_status: "success",
-      retrieved_chunk_ids: [],
-      retrieved_chunk_metadata: [],
-      assistant_response: responseText,
-      timestamp,
-      response_length: responseText.length,
-      interaction_count: interactionCount,
-      session_duration_ms: sessionDurationMs,
-      query_type_label: "organization",
-      detected_support_mode: "organization",
-      user_query_type: "organization",
-      feedback_target: null,
-      source_types_used: [],
-      visual_assets_used: [],
-      retrieval_executed: false,
-      retrieval_skipped_reason: "accepted_previous_event_sequence_offer",
-      fallback_state: null,
-    });
-
-    return chatJsonResponse(responseFromText(responseText, requestId, "success", null));
-  }
-
-  if (requestClassification.intent === "clarification_needed") {
-    const responseText = buildClarificationNeededResponse(query, responseLanguage);
-
-    await persistChatLog({
-      ...commonLog,
-      participant_id: participantId,
-      session_id: sessionId,
-      ep_id: epId,
-      condition_label: taskPackage.config.ai_condition,
-      selected_category: category,
-      raw_user_query: query,
-      policy_decision: "allowed",
-      status: "allowed",
-      response_status: "success",
-      retrieved_chunk_ids: [],
-      retrieved_chunk_metadata: [],
-      assistant_response: responseText,
-      timestamp,
-      response_length: responseText.length,
-      interaction_count: interactionCount,
-      session_duration_ms: sessionDurationMs,
-      query_type_label: "clarification_needed",
-      detected_support_mode: "clarification_needed",
-      user_query_type: "clarification_needed",
-      feedback_target: null,
-      source_types_used: [],
-      visual_assets_used: [],
-      retrieval_executed: false,
-      retrieval_skipped_reason: "clarification_needed",
-      fallback_state: "clarification_needed",
-    });
-
-    return chatJsonResponse(responseFromText(responseText, requestId, "success", null));
-  }
-
-  if (!requestClassification.request_is_explicit || requestClassification.confidence < 0.58) {
-    const isGenuineDraftOnly = requestClassification.intent === "draft_only";
-    const fallbackState = isGenuineDraftOnly
-      ? "genuine_draft_only"
-      : "clarification_needed";
-    const responseText = isGenuineDraftOnly
-      ? buildDraftOnlyClarificationResponse("korean")
-      : buildClarificationNeededResponse(query, responseLanguage);
-
-    await persistChatLog({
-      ...commonLog,
-      participant_id: participantId,
-      session_id: sessionId,
-      ep_id: epId,
-      condition_label: taskPackage.config.ai_condition,
-      selected_category: category,
-      raw_user_query: query,
-      policy_decision: "allowed",
-      status: "allowed",
-      response_status: "success",
-      retrieved_chunk_ids: [],
-      retrieved_chunk_metadata: [],
-      assistant_response: responseText,
-      timestamp,
-      response_length: responseText.length,
-      interaction_count: interactionCount,
-      session_duration_ms: sessionDurationMs,
-      query_type_label: requestClassification.intent,
-      detected_support_mode: requestClassification.intent,
-      user_query_type:
-        requestClassification.intent === "draft_only" ? "draft_only" : "unclear_intent",
-      feedback_target: null,
-      source_types_used: [],
-      visual_assets_used: [],
-      retrieval_executed: false,
-      retrieval_skipped_reason: fallbackState,
-      fallback_state: fallbackState,
-    });
-
-    return chatJsonResponse(responseFromText(responseText, requestId, "success", null));
-  }
-
-  if (requestClassification.intent === "task_requirement") {
+  if (turnPlan.responseMode === "procedure" && requestClassification.intent === "task_requirement") {
     const ruleId = requestClassification.selected_task_rule_id || "submission_rules";
     const hasStructuredAnswer = hasStructuredTaskRequirementAnswer(
       ruleId as TaskRequirementRuleId,
@@ -2827,7 +2729,11 @@ export async function POST(request: NextRequest) {
     return chatJsonResponse(responseFromText(responseText, requestId, "success", null));
   }
 
-  if (requestClassification.intent === "language_change") {
+  if (
+    allowUserFacingTemplateShortcut("language_change_followup") &&
+    requestClassification.intent === "language_change" &&
+    turnPlan.explicitIntent === "follow_up"
+  ) {
     const previousAssistantResponse = getLatestAssistantText(recentMessages);
     const apiKey = process.env.OPENAI_API_KEY;
 
@@ -2984,7 +2890,9 @@ export async function POST(request: NextRequest) {
   }
 
   if (
+    allowUserFacingTemplateShortcut("ambiguous_learner_sentence") &&
     hasAmbiguousErroneousSentenceRequest(separatedTurn.currentRequest) &&
+    canUseGenericClarification(turnPlan) &&
     !requestClassification.requires_source_context
   ) {
     const clarification = buildAmbiguousSentenceClarification(responseLanguage);
@@ -3053,7 +2961,12 @@ export async function POST(request: NextRequest) {
     return chatJsonResponse(responseFromText(response.text, requestId, "success", null));
   }
 
-  if (containsGreeting(query) && isVagueHelpRequest(query) && !isGreeting(query)) {
+  if (
+    allowUserFacingTemplateShortcut("greeting_clarification") &&
+    containsGreeting(query) &&
+    isVagueHelpRequest(query) &&
+    !isGreeting(query)
+  ) {
     const response = buildGreetingClarificationResponse(responseLanguage);
 
     await persistChatLog({
@@ -3086,7 +2999,7 @@ export async function POST(request: NextRequest) {
     return chatJsonResponse(responseFromText(response.text, requestId, "success", null, response.quickReplies));
   }
 
-  if (isGreeting(query)) {
+  if (allowUserFacingTemplateShortcut("greeting") && isGreeting(query)) {
     const response = buildCalmGreetingResponse(responseLanguage);
 
     await persistChatLog({
@@ -3119,7 +3032,12 @@ export async function POST(request: NextRequest) {
     return chatJsonResponse(responseFromText(response.text, requestId, "success", null, response.quickReplies));
   }
 
-  if (isAmbiguousShortReaction(query) && !hasConversationContext) {
+  if (
+    allowUserFacingTemplateShortcut("ambiguous_short_reaction") &&
+    isAmbiguousShortReaction(query) &&
+    !hasConversationContext &&
+    canUseGenericClarification(turnPlan)
+  ) {
     const response = buildAmbiguousReactionResponseV2(responseLanguage);
 
     await persistChatLog({
@@ -3150,7 +3068,12 @@ export async function POST(request: NextRequest) {
     return chatJsonResponse(responseFromText(response.text, requestId, "success", null, response.quickReplies));
   }
 
-  if (isShortAcknowledgment(query) && !hasConversationContext) {
+  if (
+    allowUserFacingTemplateShortcut("short_acknowledgment_without_context") &&
+    isShortAcknowledgment(query) &&
+    !hasConversationContext &&
+    canUseGenericClarification(turnPlan)
+  ) {
     const response = buildAcknowledgmentFollowUpV2(responseLanguage);
 
     await persistChatLog({
@@ -3181,7 +3104,10 @@ export async function POST(request: NextRequest) {
     return chatJsonResponse(responseFromText(response.text, requestId, "success", null, response.quickReplies));
   }
 
-  if (policyDecision === "restricted") {
+  if (
+    allowUserFacingTemplateShortcut("policy_redirect") &&
+    (policyDecision === "restricted" || turnPlan.policyMode === "prohibited_ghostwriting")
+  ) {
     const redirected = redirectResponse(
       restrictionReason ?? "sentence_generation",
       responseLanguage,
@@ -3232,7 +3158,11 @@ export async function POST(request: NextRequest) {
     return chatJsonResponse(redirectPayload);
   }
 
-  if (shouldAskForUserDraftBeforeSource(query, conversationMemory.workingContext)) {
+  if (
+    allowUserFacingTemplateShortcut("needs_learner_draft_before_retrieval") &&
+    shouldAskForUserDraftBeforeSource(query, conversationMemory.workingContext) &&
+    canUseGenericClarification(turnPlan)
+  ) {
     const draftNeeded = buildNoChunkResponseV2("feedback", responseLanguage, "user_continuation");
 
     await persistChatLog({
@@ -3306,6 +3236,7 @@ export async function POST(request: NextRequest) {
   const retrievedChunks = mergeRetrievedChunks([...canonicalChunks, ...targetedChunks]);
 
   if (
+    allowUserFacingTemplateShortcut("target_clarification") &&
     shouldRunRetrieval &&
     shouldAskTargetClarification(
       query,
@@ -3346,6 +3277,7 @@ export async function POST(request: NextRequest) {
   }
 
   if (
+    allowUserFacingTemplateShortcut("no_chunk_response") &&
     shouldRunRetrieval &&
     retrievedChunks.length === 0 &&
     !conversationMemory.isContextualFollowUp &&
@@ -3458,6 +3390,7 @@ export async function POST(request: NextRequest) {
       requestClassification,
       sourceContextStrategy,
       followUpResolution,
+      turnPlan,
       canonicalContextId: canonicalContext.id,
       learnerDraft: separatedTurn.learnerDraft ||
         (conversationMemory.workingContext === "user_continuation"
@@ -3484,6 +3417,9 @@ export async function POST(request: NextRequest) {
       };
 
       write({ type: "start", requestId });
+      const streamStartedAt = new Date().toISOString();
+      let firstDeltaAt: string | undefined;
+      let streamedDeltaCount = 0;
 
       try {
         const responseStream = await client.responses.create(
@@ -3500,6 +3436,9 @@ export async function POST(request: NextRequest) {
         for await (const event of responseStream) {
           if (event.type === "response.output_text.delta") {
             streamedText += event.delta;
+            streamedDeltaCount += 1;
+            firstDeltaAt ||= new Date().toISOString();
+            write({ type: "delta", delta: event.delta });
           } else if (event.type === "response.completed") {
             finalResponse = event.response;
           } else if (event.type === "response.incomplete") {
@@ -3520,7 +3459,7 @@ export async function POST(request: NextRequest) {
         );
         let repeatedResponseRegenerated = false;
 
-        if (assistantResponse && isHighlySimilarToPreviousAssistant(query, assistantResponse, recentMessages)) {
+        if (!streamedText && assistantResponse && isHighlySimilarToPreviousAssistant(query, assistantResponse, recentMessages)) {
           try {
             const repairResponse = await client.responses.create({
               ...openAIRequest,
@@ -3550,11 +3489,14 @@ export async function POST(request: NextRequest) {
           finalResponse?.status === "incomplete" || !assistantResponse
             ? "incomplete"
             : "success";
-        const displayResponse = assistantResponse || participantErrorMessage(responseLanguage);
+        const displayResponse = streamedText || assistantResponse || participantErrorMessage(responseLanguage);
 
-        if (displayResponse) {
+        if (!streamedText && displayResponse) {
+          streamedDeltaCount += 1;
+          firstDeltaAt ||= new Date().toISOString();
           write({ type: "delta", delta: displayResponse });
         }
+        const streamCompletedAt = new Date().toISOString();
 
         await persistChatLog({
           ...commonLog,
@@ -3564,7 +3506,10 @@ export async function POST(request: NextRequest) {
           condition_label: taskPackage.config.ai_condition,
           selected_category: category,
           raw_user_query: query,
-          policy_decision: "allowed",
+          policy_decision: turnPlan.policyMode === "prohibited_ghostwriting" ? "restricted" : "allowed",
+          policy_reason: turnPlan.policyMode === "prohibited_ghostwriting"
+            ? restrictionReason ?? "sentence_generation"
+            : null,
           status: responseStatus,
           response_status: responseStatus,
           retrieved_chunk_ids: retrievedChunks.map((chunk) => chunk.chunkId),
@@ -3594,6 +3539,16 @@ export async function POST(request: NextRequest) {
           incomplete_reason: repeatedResponseRegenerated
             ? "repeated_response_regenerated_once"
             : incompleteReason,
+          response_origin: turnPlan.policyMode === "prohibited_ghostwriting"
+            ? "policy_limited_openai"
+            : "openai_stream",
+          shortcut_branch: null,
+          stream_started_at: streamStartedAt,
+          first_delta_at: firstDeltaAt,
+          stream_completed_at: streamCompletedAt,
+          streamed_delta_count: streamedDeltaCount,
+          assistant_message_finalized: true,
+          client_render_mode: "progressive",
         });
 
         write({
