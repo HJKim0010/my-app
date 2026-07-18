@@ -314,9 +314,9 @@ function renderAssistantText(text: string, isStreaming = false, isError = false)
 
 const KO = {
   intro:
-    "\uC774 \uCC57\uBD07\uC740 \uAE00\uC744 \uB300\uC2E0 \uC368\uC8FC\uB294 \uB3C4\uAD6C\uAC00 \uC544\uB2D9\uB2C8\uB2E4. \uC774\uC57C\uAE30\uB97C \uC774\uD574\uD558\uACE0, \uC544\uC774\uB514\uC5B4\uB97C \uC0DD\uAC01\uD558\uACE0, \uAE00\uC744 \uACC4\uD68D\uD558\uACE0, \uC5B8\uC5B4 \uD45C\uD604\uC744 \uB3D5\uB294 \uB3C4\uAD6C\uC785\uB2C8\uB2E4.",
+    "\uC774 \uCC57\uBD07\uC740 \uAE00\uC744 \uB300\uC2E0 \uC368\uC8FC\uB294 \uB3C4\uAD6C\uAC00 \uC544\uB2D9\uB2C8\uB2E4. \uC601\uC0C1\uC774\uB098 \uC790\uB8CC \uC774\uD6C4\uC758 \uC774\uC57C\uAE30 \uC911\uAC04-\uD6C4\uBC18\uBD80\uB97C \uC5EC\uB7EC\uBD84\uC774 \uC9C1\uC811 \uC774\uC5B4 \uC4F8 \uC218 \uC788\uB3C4\uB85D, \uC774\uD574, \uC544\uC774\uB514\uC5B4, \uAD6C\uC131, \uC5B8\uC5B4 \uD45C\uD604\uC744 \uB3D5\uB294 \uB3C4\uAD6C\uC785\uB2C8\uB2E4.",
   support:
-    "AI\uB294 \uC0DD\uAC01\uC744 \uB3D5\uACE0, \uAE00\uC740 \uC5EC\uB7EC\uBD84\uC774 \uC9C1\uC811 \uC791\uC131\uD574\uC57C \uD569\uB2C8\uB2E4.",
+    "AI\uB294 \uC0DD\uAC01\uC744 \uB3D5\uACE0, \uC0C8 \uC0AC\uAC74\uACFC \uACB0\uB9D0\uC740 \uC5EC\uB7EC\uBD84\uC774 \uC9C1\uC811 \uC791\uC131\uD574\uC57C \uD569\uB2C8\uB2E4.",
   languageTitle: "\uC0AC\uC6A9 \uAC00\uB2A5 \uC5B8\uC5B4",
   allowedTitle: "\uC774\uB807\uAC8C \uC0AC\uC6A9\uD558\uC138\uC694",
   restrictedTitle: "\uC774\uB807\uAC8C \uC0AC\uC6A9\uD558\uBA74 \uC548 \uB429\uB2C8\uB2E4",
@@ -499,9 +499,21 @@ const GUIDE_COMPARE_ROWS = [
 const GUIDE_GATE_CARDS = [
   {
     eyebrow: "1",
-    title: "Languages",
-    titleKo: "사용 가능 언어",
+    title: "Your Writing Task",
+    titleKo: "여러분의 글쓰기 과제",
     items: [
+      {
+        text:
+          "After the video or source story ends, continue the middle-to-later part of the story and complete the ending in your own English.",
+        textKo:
+          "영상이나 원래 이야기가 끝난 뒤부터, 이야기의 중간-후반부를 이어 쓰고 결말까지 여러분의 영어로 완성해야 합니다.",
+      },
+      {
+        text:
+          "The chatbot helps you think about events, logic, structure, and expressions; it does not write the continuation for you.",
+        textKo:
+          "챗봇은 사건, 논리, 구성, 표현을 생각하도록 도와주지만, 이어쓰기 답안을 대신 써주지는 않습니다.",
+      },
       {
         text: "You may ask in Korean, English, or both.",
         textKo: "질문은 한국어, 영어, 또는 둘 다 사용해도 됩니다.",
