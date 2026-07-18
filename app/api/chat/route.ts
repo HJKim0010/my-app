@@ -8,6 +8,8 @@ import {
 } from "@/backend/policy/classifier";
 import { redirectResponse } from "@/backend/policy/redirect";
 import { appendChatLog, type ChatLogEntry } from "@/backend/logs/logger";
+import { buildHistoryWithFallback } from "@/backend/logs/sessionHistory";
+import { buildCanonicalTaskContext } from "@/backend/rag/canonicalTaskContext";
 import { resolveVisualInputs } from "@/backend/rag/assetResolver";
 import {
   buildConversationMemory,
@@ -32,6 +34,10 @@ import {
   detectIncompleteAnswerRepair,
   type MissingAnswerSlot,
 } from "@/backend/rag/incompleteAnswerRepair";
+import {
+  resolveFollowUp,
+  type FollowUpResolution,
+} from "@/backend/rag/followUpResolver";
 import { loadTaskPackage, type TaskCondition, type TaskId } from "@/backend/rag/loader";
 import {
   buildCompactSystemInstruction,
@@ -1264,6 +1270,36 @@ function formatRetrievedSourceContext(
     .join("\n\n");
 }
 
+function buildOlderConversationMemory(olderMessages: RecentMessage[]): string {
+  if (olderMessages.length === 0) {
+    return "";
+  }
+
+  const anchorPattern =
+    /(idea|option|expression|sentence|grammar|feedback|correct|student id|wallet|table\s*7|note|box|direction|plan|selected|reject|아이디어|선택|방향|계획|표현|문장|문법|피드백|수정|학생증|지갑|테이블\s*7|쪽지|메모|상자|거절|말고)/i;
+  const firstTurns = olderMessages.slice(0, 4);
+  const anchors = olderMessages
+    .slice(4)
+    .filter((message) => anchorPattern.test(message.text))
+    .slice(-10);
+  const selected = [...firstTurns, ...anchors]
+    .filter((message, index, messages) =>
+      messages.findIndex((candidate) => candidate.role === message.role && candidate.text === message.text) === index
+    )
+    .map((message) => {
+      const text = compactText(message.text);
+      const clipped = text.length > 240 ? `${text.slice(0, 239)}...` : text;
+      return `${message.role === "assistant" ? "Assistant" : "User"}: ${clipped}`;
+    });
+
+  return [
+    "OLDER CONVERSATION MEMORY",
+    `There are ${olderMessages.length} older prior messages before the raw recent-message window.`,
+    "The compact lines below preserve early context and durable anchors such as selected ideas, offers, expressions, corrections, and source-fact decisions.",
+    ...selected,
+  ].join("\n");
+}
+
 function buildRoleBasedCurrentUserText(params: {
   query: string;
   category: string;
@@ -1275,6 +1311,8 @@ function buildRoleBasedCurrentUserText(params: {
   sourceContextStrategy: SourceContextStrategy;
   learnerDraft?: string;
   scopeLimitations: string[];
+  followUpResolution: FollowUpResolution;
+  canonicalContextId: string;
 }): string {
   return [
     "CURRENT USER MESSAGE",
@@ -1290,6 +1328,12 @@ function buildRoleBasedCurrentUserText(params: {
     `- Requested outputs: ${params.conversationPlan.requested_outputs.join(", ") || "(none)"}`,
     `- Active learner direction: ${params.conversationPlan.active_learner_direction || "(none)"}`,
     `- Source strategy: ${params.sourceContextStrategy}`,
+    `- Canonical context id: ${params.canonicalContextId}`,
+    `- Follow-up type: ${params.followUpResolution.type}`,
+    `- Follow-up confidence: ${params.followUpResolution.confidence.toFixed(2)}`,
+    `- Previous assistant act: ${params.followUpResolution.previousAssistantAct}`,
+    `- Resolved action: ${params.followUpResolution.resolvedAction || "(none)"}`,
+    `- Referenced entity: ${params.followUpResolution.referencedEntity || "(none)"}`,
     `- Source reason: ${params.conversationPlan.source_reason || "(none)"}`,
     `- Story request mode: ${params.requestClassification.story_request_mode || "(none)"}`,
     `- Response scope: ${params.conversationPlan.response_scope}`,
@@ -1310,6 +1354,16 @@ function buildRoleBasedCurrentUserText(params: {
       ? `- Scope limitations: ${params.scopeLimitations.join(", ")}`
       : "",
     params.learnerDraft ? `\nLearner draft to check:\n${params.learnerDraft}` : "",
+    params.followUpResolution.isFollowUp && params.followUpResolution.anchorText
+      ? [
+          "",
+          "Resolved conversational follow-up:",
+          `- Type: ${params.followUpResolution.type}`,
+          `- Anchor from recent conversation: ${compactText(params.followUpResolution.anchorText)}`,
+          `- Action to perform: ${params.followUpResolution.resolvedAction || "Continue the same topic."}`,
+          "Use this resolution unless the current user message clearly changes topic.",
+        ].join("\n")
+      : "",
     "",
     "Answer this final user message directly. Use the preceding role-based conversation naturally. Do not re-summarize earlier turns unless needed to resolve the current message.",
   ]
@@ -1330,6 +1384,8 @@ function buildRoleBasedOpenAIInput(params: {
   sourceContextStrategy: SourceContextStrategy;
   learnerDraft?: string;
   scopeLimitations: string[];
+  followUpResolution: FollowUpResolution;
+  canonicalContextId: string;
   visualInputs: Array<{ type: "input_image"; image_url?: string; file_id?: string; detail?: string }>;
 }) {
   const preservedRecentMessages = params.recentMessages.slice(-20).map((message) => ({
@@ -1337,28 +1393,26 @@ function buildRoleBasedOpenAIInput(params: {
     content: message.text,
   }));
   const olderMessages = params.recentMessages.slice(0, -20);
+  const olderMemory = buildOlderConversationMemory(olderMessages);
   const olderSummary = olderMessages.length
     ? [
         {
           role: "user" as const,
-          content: [
-            "OLDER CONVERSATION SUMMARY",
-            `There are ${olderMessages.length} older prior messages.`,
-            "Use only for broad continuity. Recent raw role-based messages below have priority.",
-          ].join("\n"),
+          content: olderMemory,
         },
       ]
     : [];
-  const sourceContextMessage =
+  const sourceReferenceMessages =
     params.sourceContextStrategy === "none"
       ? []
       : [
           {
             role: "user" as const,
             content: [
-              "OPTIONAL SOURCE CONTEXT FOR THIS TURN",
+              "SUPPLEMENTARY SOURCE EVIDENCE FOR THIS TURN",
               `Source strategy: ${params.sourceContextStrategy}`,
-              "Use this only as evidence for story/source facts. Do not let it override the final user message or recent role-based conversation.",
+              "This is supplemental evidence placed before the conversation. Use canonical task context in instructions as primary story memory.",
+              "Do not let this override the final user message or recent role-based conversation.",
               "",
               formatRetrievedSourceContext(params.taskPackage, params.retrievedChunks),
             ].join("\n"),
@@ -1378,15 +1432,17 @@ function buildRoleBasedOpenAIInput(params: {
         sourceContextStrategy: params.sourceContextStrategy,
         learnerDraft: params.learnerDraft,
         scopeLimitations: params.scopeLimitations,
+        followUpResolution: params.followUpResolution,
+        canonicalContextId: params.canonicalContextId,
       }),
     },
     ...params.visualInputs,
   ];
 
   return [
+    ...sourceReferenceMessages,
     ...olderSummary,
     ...preservedRecentMessages,
-    ...sourceContextMessage,
     {
       role: "user" as const,
       content: finalUserContent,
@@ -2088,8 +2144,17 @@ export async function POST(request: NextRequest) {
 
   const taskPackage = loadTaskPackage(taskId, condition);
   const epId = toEpId(taskId);
+  const historyWithFallback = await buildHistoryWithFallback({
+    recentMessages,
+    sessionId,
+    epId,
+    limit: 8,
+  });
+  recentMessages = historyWithFallback.messages;
+  const canonicalContext = buildCanonicalTaskContext(taskPackage);
   const timestamp = new Date().toISOString();
   const sessionDurationMs = Math.max(0, Date.now() - sessionStartedAt);
+  const followUpResolution = resolveFollowUp(taskId, query, recentMessages);
   const policyAnalysis = analyzeQueryScope(query);
   const policyDecision = policyAnalysis.queryType;
   const restrictionReason = policyAnalysis.reason;
@@ -2120,10 +2185,17 @@ export async function POST(request: NextRequest) {
     requestClassification,
     separatedTurn.currentRequest || query
   );
-  const sourceContextStrategy =
+  let sourceContextStrategy =
     conversationPlan.confidence >= 0.7
       ? conversationPlan.source_strategy
       : classifierSourceContextStrategy;
+  if (
+    followUpResolution.isFollowUp &&
+    followUpResolution.confidence >= 0.82 &&
+    !["refer_to_previous_entity"].includes(followUpResolution.type)
+  ) {
+    sourceContextStrategy = "none";
+  }
   const functionLogFields = detectedFunctionsForLog(requestClassification, supportMode);
   const commonLog = {
     ...buildCommonLogFields({
@@ -2152,10 +2224,42 @@ export async function POST(request: NextRequest) {
     ...plannerLogFields(conversationPlan),
     scope_limitations: scopeLimitations,
     source_context_strategy: sourceContextStrategy,
+    detected_functions: [
+      ...functionLogFields.detected_functions,
+      `follow_up:${followUpResolution.type}`,
+      `previous_assistant_act:${followUpResolution.previousAssistantAct}`,
+      `history_source:${historyWithFallback.historySource}`,
+      `canonical_context:${canonicalContext.included ? "included" : "missing"}`,
+    ],
     ghostwriting_boundary_triggered:
       policyDecision === "restricted" &&
       (restrictionReason === "sentence_generation" || restrictionReason === "draft_rewrite"),
   };
+
+  if (process.env.NODE_ENV !== "production") {
+    const lastAssistantIncluded = recentMessages.some((message) => message.role === "assistant");
+    console.debug("chat_request_debug", {
+      taskId,
+      condition,
+      sessionSuffix: sessionId.slice(-8),
+      detectedLanguage: followUpResolution.detectedLanguage,
+      normalizedAnalysisText: followUpResolution.normalizedAnalysisText.slice(0, 120),
+      followUpType: followUpResolution.type,
+      followUpConfidence: followUpResolution.confidence,
+      previousAssistantAct: followUpResolution.previousAssistantAct,
+      referencedEntity: followUpResolution.referencedEntity || null,
+      detectedIntent: requestClassification.intent,
+      policyDecision,
+      canonicalContextIncluded: canonicalContext.included,
+      ragUsed: sourceContextStrategy === "targeted_rag" || sourceContextStrategy === "canonical_plus_rag",
+      sourceContextStrategy,
+      recentRoleOrder: recentMessages.slice(-8).map((message) => message.role),
+      lastAssistantIncluded,
+      conversationTurnsSent: Math.min(recentMessages.length, 20),
+      approximateInputChars: canonicalContext.approxChars + recentMessages.slice(-20).reduce((sum, message) => sum + message.text.length, 0),
+      historySource: historyWithFallback.historySource,
+    });
+  }
 
   if (
     conversationPlan.conversation_operation === "continue_previous" &&
@@ -2769,10 +2873,14 @@ export async function POST(request: NextRequest) {
 
     try {
       const response = await client.responses.create(
-        {
-          model,
-          instructions: buildLanguageChangeInstructions(responseLanguage),
-          max_output_tokens: Number(process.env.OPENAI_MAX_OUTPUT_TOKENS || 1200),
+          {
+            model,
+            instructions: [
+              buildLanguageChangeInstructions(responseLanguage),
+              "",
+              canonicalContext.text,
+            ].join("\n"),
+            max_output_tokens: Number(process.env.OPENAI_MAX_OUTPUT_TOKENS || 1200),
           input: [
             {
               role: "user" as const,
@@ -3329,10 +3437,14 @@ export async function POST(request: NextRequest) {
 
   const openAIRequest: OpenAI.Responses.ResponseCreateParamsNonStreaming & { stream?: boolean } = {
     model,
-    instructions: buildCompactSystemInstruction(
-      responseLanguage,
-      conversationMemory.workingContext === "user_continuation"
-    ),
+    instructions: [
+      buildCompactSystemInstruction(
+        responseLanguage,
+        conversationMemory.workingContext === "user_continuation"
+      ),
+      "",
+      canonicalContext.text,
+    ].join("\n"),
     max_output_tokens: Number(process.env.OPENAI_MAX_OUTPUT_TOKENS || 1200),
     input: buildRoleBasedOpenAIInput({
       query: separatedTurn.currentRequest || query,
@@ -3345,6 +3457,8 @@ export async function POST(request: NextRequest) {
       conversationPlan,
       requestClassification,
       sourceContextStrategy,
+      followUpResolution,
+      canonicalContextId: canonicalContext.id,
       learnerDraft: separatedTurn.learnerDraft ||
         (conversationMemory.workingContext === "user_continuation"
           ? conversationMemory.continuationFocus || query

@@ -452,11 +452,13 @@ assert.ok(buildSystemInstruction("english", "comprehension", false).includes("ex
 assert.ok(buildSystemInstruction("english", "comprehension", false).includes("woman's identity and intention are unknown"));
 assert.ok(buildSystemInstruction("english", "comprehension", false).includes("object taped under table 7 is unknown"));
 
-// AF. Production request assembly is role-based: recent messages, optional source, final current user.
+// AF. Production request assembly is role-based: stable source evidence, recent messages, final current user.
 const routeSource = fs.readFileSync("app/api/chat/route.ts", "utf8");
 assert.ok(routeSource.includes("buildRoleBasedOpenAIInput"));
 assert.ok(routeSource.includes("preservedRecentMessages"));
-assert.ok(routeSource.includes("OPTIONAL SOURCE CONTEXT FOR THIS TURN"));
+assert.ok(routeSource.includes("SUPPLEMENTARY SOURCE EVIDENCE FOR THIS TURN"));
+assert.ok(routeSource.includes("canonicalContext.text"));
+assert.ok(!routeSource.includes("OPTIONAL SOURCE CONTEXT FOR THIS TURN"));
 assert.ok(routeSource.includes("CURRENT USER MESSAGE"));
 assert.ok(routeSource.includes("content: finalUserContent"));
 assert.ok(!routeSource.includes("text: buildUserInput("));
