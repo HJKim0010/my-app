@@ -46,7 +46,7 @@ import {
 import { loadTaskPackage, type TaskCondition, type TaskId } from "@/backend/rag/loader";
 import {
   buildCompactSystemInstruction,
-  detectResponseLanguage,
+  detectResponseLanguageFromConversation,
   detectSupportMode,
   type ResponseLanguage,
   type SupportMode,
@@ -2149,7 +2149,7 @@ export async function POST(request: NextRequest) {
   const restrictionReason = policyAnalysis.reason;
   const conversationMemory = buildConversationMemory(taskId, query, recentMessages);
   const supportMode = detectSupportMode(query, category, conversationMemory);
-  const responseLanguage = detectResponseLanguage(query);
+  const responseLanguage = detectResponseLanguageFromConversation(query, recentMessages);
   const hasConversationContext = recentMessages.length > 0;
   const separatedTurn = splitLearnerDraftAndRequest(query);
   const scopeLimitations = extractScopeLimitations(query);

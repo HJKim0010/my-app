@@ -6,6 +6,7 @@ import {
   buildCompactSystemInstruction,
   buildSystemInstruction,
   buildUserInput,
+  detectResponseLanguageFromConversation,
   detectSupportMode,
 } from "../backend/rag/promptBuilder.ts";
 import {
@@ -117,6 +118,51 @@ assert.ok(
     "implicit request for proofreading"
   )
 );
+assert.ok(
+  buildSystemInstruction("korean", "feedback", false).includes(
+    "begin with one concise overall evaluation"
+  )
+);
+
+// J3. Feedback language follows the learner's current request language naturally.
+const koreanFeedbackHistory = [
+  { role: "user", text: "이 문장 흐름 좀 봐줘." },
+  { role: "assistant", text: "네, 전체 흐름과 문법을 함께 봐줄게요." },
+  { role: "user", text: "Jack의 불안감이 잘 드러나는지도 확인해줘." },
+];
+assert.equal(
+  detectResponseLanguageFromConversation(
+    "이 문장 왜 어색해? Jack now realized his final team project is already messed up.",
+    koreanFeedbackHistory
+  ),
+  "korean"
+);
+assert.equal(
+  detectResponseLanguageFromConversation(
+    "Why is this sentence awkward? Jack now realized his final team project is already messed up.",
+    koreanFeedbackHistory
+  ),
+  "english"
+);
+assert.equal(
+  detectResponseLanguageFromConversation(
+    "Jack now realized his final team project is already messed up. He arrived the classroom late. Please answer in English.",
+    koreanFeedbackHistory
+  ),
+  "english"
+);
+const englishFeedbackHistory = [
+  { role: "user", text: "Can you check the logic of my paragraph?" },
+  { role: "assistant", text: "Yes, I can focus on clarity and source connection." },
+];
+assert.equal(
+  detectResponseLanguageFromConversation("Anna가 너무 무서워하는 설정 어때?", englishFeedbackHistory),
+  "korean"
+);
+assert.equal(
+  detectResponseLanguageFromConversation("Anna가 너무 무서워하는 설정 어때?", englishFeedbackHistory),
+  "korean"
+);
 
 // K. Short contextual follow-up may use recent sentence options.
 const optionHistory = [
@@ -172,6 +218,11 @@ assert.equal(analyzeQueryScope("Summarize the whole original story briefly.").qu
 assert.equal(analyzeQueryScope("Give me a source recap and explain the order of events.").detectedSupportMode, "comprehension");
 assert.ok(buildCompactSystemInstruction("korean").includes("complete task materials attached"));
 assert.ok(buildCompactSystemInstruction("korean").includes("Source comprehension and source summarization are allowed"));
+assert.ok(buildCompactSystemInstruction("korean").includes("NATURAL LANGUAGE MATCHING"));
+assert.ok(buildCompactSystemInstruction("korean").includes("Respond naturally in the language used by the learner in the current request"));
+assert.ok(buildCompactSystemInstruction("korean").includes("Korean glosses or explanations may be added"));
+assert.ok(buildCompactSystemInstruction("korean").includes("begin with one concise overall evaluation"));
+assert.ok(buildCompactSystemInstruction("korean").includes("Do not begin immediately with a rewritten version"));
 assert.ok(fs.readFileSync("backend/rag/retriever.ts", "utf8").includes("limit = Number.POSITIVE_INFINITY"));
 const sourceSummaryPlan = planConversationTurn({
   query: "Summarize the whole original story briefly.",
