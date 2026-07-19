@@ -2155,8 +2155,8 @@ export async function POST(request: NextRequest) {
   const scopeLimitations = extractScopeLimitations(query);
   const apiKey = process.env.OPENAI_API_KEY;
   const plannerClient = apiKey ? new OpenAI({ apiKey }) : null;
-  const plannerModel = process.env.OPENAI_PLANNER_MODEL || process.env.OPENAI_MODEL || "gpt-5.4-mini";
-  const plannerTimeoutMs = Number(process.env.OPENAI_PLANNER_TIMEOUT_MS || 8000);
+  const plannerModel = process.env.OPENAI_PLANNER_MODEL || "gpt-5-nano";
+  const plannerTimeoutMs = Number(process.env.OPENAI_PLANNER_TIMEOUT_MS || 4000);
   const conversationPlan = await planConversationTurnWithFallback({
     client: plannerClient,
     model: plannerModel,
@@ -2786,7 +2786,7 @@ export async function POST(request: NextRequest) {
               "",
               canonicalContext.text,
             ].join("\n"),
-            max_output_tokens: Number(process.env.OPENAI_MAX_OUTPUT_TOKENS || 1200),
+            max_output_tokens: Number(process.env.OPENAI_MAX_OUTPUT_TOKENS || 800),
           input: [
             {
               role: "user" as const,
@@ -3377,7 +3377,7 @@ export async function POST(request: NextRequest) {
       "",
       canonicalContext.text,
     ].join("\n"),
-    max_output_tokens: Number(process.env.OPENAI_MAX_OUTPUT_TOKENS || 1200),
+    max_output_tokens: Number(process.env.OPENAI_MAX_OUTPUT_TOKENS || 800),
     input: buildRoleBasedOpenAIInput({
       query: separatedTurn.currentRequest || query,
       category,
