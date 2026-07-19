@@ -2167,7 +2167,7 @@ export async function POST(request: NextRequest) {
     conversationMemory,
     responseStylePreferences: [],
     timeoutMs: plannerTimeoutMs,
-    enabled: process.env.DISABLE_LLM_PLANNER !== "true",
+    enabled: process.env.ENABLE_LLM_PLANNER === "true" && process.env.DISABLE_LLM_PLANNER !== "true",
   });
   const requestClassification = classifyCurrentRequest(query, taskId, recentMessages, supportMode);
   const turnPlan = buildTurnPlan({
@@ -2786,7 +2786,7 @@ export async function POST(request: NextRequest) {
               "",
               canonicalContext.text,
             ].join("\n"),
-            max_output_tokens: Number(process.env.OPENAI_MAX_OUTPUT_TOKENS || 800),
+            max_output_tokens: Number(process.env.OPENAI_MAX_OUTPUT_TOKENS || 700),
           input: [
             {
               role: "user" as const,
@@ -3377,7 +3377,7 @@ export async function POST(request: NextRequest) {
       "",
       canonicalContext.text,
     ].join("\n"),
-    max_output_tokens: Number(process.env.OPENAI_MAX_OUTPUT_TOKENS || 800),
+    max_output_tokens: Number(process.env.OPENAI_MAX_OUTPUT_TOKENS || 700),
     input: buildRoleBasedOpenAIInput({
       query: separatedTurn.currentRequest || query,
       category,
