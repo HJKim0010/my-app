@@ -218,8 +218,9 @@ assert.equal(analyzeQueryScope("Summarize the whole original story briefly.").qu
 assert.equal(analyzeQueryScope("Give me a source recap and explain the order of events.").detectedSupportMode, "comprehension");
 assert.ok(buildCompactSystemInstruction("korean").includes("complete task materials attached"));
 assert.ok(buildCompactSystemInstruction("korean").includes("Source comprehension and source summarization are allowed"));
-assert.ok(buildCompactSystemInstruction("korean").includes("NATURAL LANGUAGE MATCHING"));
-assert.ok(buildCompactSystemInstruction("korean").includes("Respond naturally in the language used by the learner in the current request"));
+assert.ok(buildCompactSystemInstruction("korean").includes("LANGUAGE CHOICE"));
+assert.ok(buildCompactSystemInstruction("korean").includes("Do not automatically mirror the language used by the learner"));
+assert.ok(buildCompactSystemInstruction("korean").includes("Follow explicit language requests"));
 assert.ok(buildCompactSystemInstruction("korean").includes("Korean glosses or explanations may be added"));
 assert.ok(buildCompactSystemInstruction("korean").includes("begin with one concise overall evaluation"));
 assert.ok(buildCompactSystemInstruction("korean").includes("Do not begin immediately with a rewritten version"));

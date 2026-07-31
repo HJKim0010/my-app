@@ -589,7 +589,7 @@ const GUIDE_GATE_CARDS = [
   },
   {
     eyebrow: "4",
-    title: "Important Rules",
+    title: "Important Rules ‼️",
     titleKo: "중요한 규칙",
     items: [
       {
@@ -610,6 +610,15 @@ const GUIDE_GATE_CARDS = [
     ],
   },
 ] as const;
+
+function splitGuideLabel(label: string): { ko: string; en: string } {
+  const [en, ko] = label.split(" / ").map((part) => part.trim());
+
+  return {
+    ko: ko || label,
+    en: ko ? en : "",
+  };
+}
 
 function GuideGateCards({
   activeIndex,
@@ -731,28 +740,32 @@ function GuideGateCards({
             <span>#{activeCard.eyebrow}.</span>
             {activeCard.title}
           </h2>
-          <p className="guide-card-title-ko">{activeCard.titleKo}</p>
           <div className="guide-card-items">
-            {activeCard.items.map((item) => (
-              <div key={`${item.text}-${item.textKo}`} className="guide-card-item">
-                {"label" in item ? (
-                  <span
-                    className={
-                      "tone" in item
-                        ? `guide-card-label guide-card-label-${item.tone}`
-                        : "guide-card-label"
-                    }
-                  >
-                    {item.label}
-                  </span>
-                ) : null}
-                <p className={"tone" in item && item.tone === "emphasis" ? "guide-card-emphasis" : undefined}>
-                  {item.text}
-                  <br />
-                  {item.textKo}
-                </p>
-              </div>
-            ))}
+            {activeCard.items.map((item) => {
+              const label = "label" in item ? splitGuideLabel(item.label) : null;
+              const isEmphasis = "tone" in item && item.tone === "emphasis";
+
+              return (
+                <div key={`${item.text}-${item.textKo}`} className="guide-card-item">
+                  {label ? (
+                    <span
+                      className={
+                        "tone" in item
+                          ? `guide-card-label guide-card-label-${item.tone}`
+                          : "guide-card-label"
+                      }
+                    >
+                      <span>{label.ko}</span>
+                      {label.en ? <span className="guide-card-label-en">{label.en}</span> : null}
+                    </span>
+                  ) : null}
+                  <p className={isEmphasis ? "guide-card-emphasis" : undefined}>
+                    <span>{item.textKo}</span>
+                    <span className="guide-card-item-en">{item.text}</span>
+                  </p>
+                </div>
+              );
+            })}
           </div>
         </article>
 
@@ -1279,6 +1292,7 @@ export default function Home() {
   const taskStatesRef = useRef(taskStates);
   const revealedAssistantIdsRef = useRef<Set<string>>(collectAssistantIds(taskStates));
   const inFlightRequestRef = useRef<AbortController | null>(null);
+  const activeRequestTokenRef = useRef<string | null>(null);
   const loadingTimeoutRef = useRef<number | null>(null);
   const inputUndoStackRef = useRef<string[]>([]);
   const shouldAutoScrollRef = useRef(true);
@@ -1511,6 +1525,7 @@ export default function Home() {
       text: userText,
     };
     const assistantMessageId = `${Date.now()}-assistant`;
+    const requestToken = `${requestTask}:${assistantMessageId}`;
     const pendingAssistantMessage: ChatMessage = {
       id: assistantMessageId,
       role: "assistant",
@@ -1536,6 +1551,7 @@ export default function Home() {
 
     const controller = new AbortController();
     inFlightRequestRef.current = controller;
+    activeRequestTokenRef.current = requestToken;
     loadingTimeoutRef.current = window.setTimeout(() => {
       controller.abort();
     }, 60000);
@@ -1543,6 +1559,10 @@ export default function Home() {
     let streamedAssistantText = "";
 
     const updateAssistantMessage = (partial: Partial<ChatMessage>) => {
+      if (activeRequestTokenRef.current !== requestToken) {
+        return;
+      }
+
       setTaskStates((current) => ({
         ...current,
         [requestTask]: {
@@ -1610,6 +1630,10 @@ export default function Home() {
           for (const parsed of parsedChunk.events) {
             clientReceivedEventCount += 1;
 
+            if (activeRequestTokenRef.current !== requestToken) {
+              continue;
+            }
+
             if (parsed.type === "delta") {
               streamedAssistantText += parsed.delta;
               uiUpdateCount += 1;
@@ -1635,6 +1659,10 @@ export default function Home() {
 
         for (const parsed of flushed.events) {
           clientReceivedEventCount += 1;
+
+          if (activeRequestTokenRef.current !== requestToken) {
+            continue;
+          }
 
           if (parsed.type === "delta") {
             streamedAssistantText += parsed.delta;
@@ -1683,6 +1711,10 @@ export default function Home() {
         }
       }
 
+      if (activeRequestTokenRef.current !== requestToken) {
+        return;
+      }
+
       const assistantMessage: ChatMessage = {
         id: assistantMessageId,
         role: "assistant",
@@ -1723,7 +1755,10 @@ export default function Home() {
         loadingTimeoutRef.current = null;
       }
       inFlightRequestRef.current = null;
-      setIsLoading(false);
+      if (activeRequestTokenRef.current === requestToken) {
+        activeRequestTokenRef.current = null;
+        setIsLoading(false);
+      }
     }
   };
 
@@ -1835,8 +1870,8 @@ export default function Home() {
           </div>
 
           <div className="guide-task-panel">
-            <p className="section-label">Choose your task</p>
-            <div className="guide-task-switcher" role="tablist" aria-label="Task selection">
+            <p className="section-label">Choose your episode</p>
+            <div className="guide-task-switcher" role="tablist" aria-label="Episode selection">
               {TASK_IDS.map((taskId) => (
                 <button
                   key={taskId}
@@ -1854,7 +1889,7 @@ export default function Home() {
 
           <div className="participant-panel">
             <label className="section-label" htmlFor="participant-id">
-              Participant ID / {KO.participant}
+              Participant ID
             </label>
             <input
               id="participant-id"
@@ -1862,12 +1897,10 @@ export default function Home() {
               value={participantInput}
               onChange={(event) => setParticipantInput(normalizeParticipantId(event.target.value))}
               className="participant-input"
-              placeholder={`e.g., P01, P02, P03 / ${KO.participantHint}`}
+              placeholder="e.g., P01, P02, P03"
             />
             <p className="participant-help">
               Please enter the participant ID given by the researcher.
-              <br />
-              {KO.participantNeed}
             </p>
           </div>
 
@@ -1882,7 +1915,7 @@ export default function Home() {
               checked={guideChecked}
               onChange={(event) => setGuideChecked(event.target.checked)}
             />
-            <span>I have read this guide. / {KO.read}</span>
+            <span>I have read this guide.</span>
           </label>
 
           <div className="guide-actions">
@@ -1892,7 +1925,7 @@ export default function Home() {
               disabled={!guideChecked || !isParticipantReady}
               onClick={handleGuideConfirm}
             >
-              Start / {KO.start}
+              Start
             </button>
           </div>
 

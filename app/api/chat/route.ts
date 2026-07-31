@@ -693,10 +693,24 @@ function extractScopeLimitations(query: string): string[] {
 
 function splitSubRequests(query: string): string[] {
   const compact = query.trim();
+  const connectorPattern = /\n+|(?:\s+(?:and also|also|plus)\s+)|(?:그리고|또|추가로)/i;
   const parts = compact
-    .split(/\n+|(?:\s+(?:and also|also|plus)\s+)|(?:그리고|또|추가로)/i)
+    .split(connectorPattern)
     .map((part) => part.trim())
     .filter(Boolean);
+
+  if (parts.length > 1) {
+    const explicitParts = parts.filter(
+      (part) => hasExplicitAssistanceRequest(part) || looksLikeSourceContextRequest(part)
+    );
+    const laterExplicitRequest = parts
+      .slice(1)
+      .some((part) => hasExplicitAssistanceRequest(part) || looksLikeSourceContextRequest(part));
+
+    if (!laterExplicitRequest || explicitParts.length <= 1) {
+      return [compact];
+    }
+  }
 
   return parts.length > 1 ? parts : [compact];
 }
@@ -1271,7 +1285,7 @@ function buildRoleBasedCurrentUserText(params: {
     `- Episode: ${params.taskPackage.taskId === "task1" ? "EP1 / Jack's story" : "EP2 / Anna's story"}`,
     `- Selected UI category for logging only: ${params.category}`,
     `- Soft support label for logging only: ${params.supportMode}`,
-    `- Response language: ${params.responseLanguage}`,
+    `- Detected language for logs only: ${params.responseLanguage}`,
     `- Dialogue act: ${params.conversationPlan.dialogue_act}`,
     `- Conversation operation: ${params.conversationPlan.conversation_operation}`,
     `- Requested outputs: ${params.conversationPlan.requested_outputs.join(", ") || "(none)"}`,
@@ -1293,6 +1307,16 @@ function buildRoleBasedCurrentUserText(params: {
     `- Story request mode: ${params.requestClassification.story_request_mode || "(none)"}`,
     `- Response scope: ${params.conversationPlan.response_scope}`,
     `- Progress push allowed: ${params.conversationPlan.progress_push_allowed ? "yes" : "no"}`,
+    params.requestClassification.sub_requests?.length
+      ? [
+          "- Parsed sub-requests:",
+          ...params.requestClassification.sub_requests.map(
+            (request, index) =>
+              `  ${index + 1}. ${request.intent}; source=${request.requires_source_context ? "yes" : "no"}; text=${request.text}`
+          ),
+          "Answer every true sub-request, but treat learner narrative events connected by words like and/then/그리고 as one draft unless they are explicit assistance requests.",
+        ].join("\n")
+      : "",
     params.conversationPlan.selected_option_index
       ? `- Selected previous option: ${params.conversationPlan.selected_option_index}. ${params.conversationPlan.selected_option_meaning}`
       : "",
@@ -1350,6 +1374,9 @@ function buildRoleBasedCurrentUserText(params: {
     "Response style:",
     "- Answer the actual request first.",
     "- Keep the response concise and conversational.",
+    "- Choose Korean, English, or a natural mix yourself based on what will be clearest for this learner and this request. Do not automatically mirror the user's input language unless that seems best.",
+    "- Follow explicit language requests such as 'answer in Korean', 'in English', or '한국어로 설명해줘'.",
+    "- If the learner asks for development, flow, logic, organization, or source connection feedback, focus on that requested dimension and do not volunteer grammar correction unless it blocks understanding.",
     "- Avoid unnecessary headings, menus, worksheet-like templates, and repeated story summaries.",
     "- Use short paragraphs or a small list only when it improves readability.",
     "",
