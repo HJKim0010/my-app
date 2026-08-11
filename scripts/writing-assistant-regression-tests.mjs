@@ -36,6 +36,7 @@ import {
   planConversationTurn,
   resolvePreviousOptionSelection,
 } from "../backend/rag/conversationPlanner.ts";
+import { buildTurnPlan } from "../backend/rag/conversationOrchestrator.ts";
 
 const previousCafeTurn = [
   { role: "user", text: "카페를 떠나는 표현은?" },
@@ -55,6 +56,52 @@ assert.equal(detectSupportMode(latestExpression), "language");
 const sentenceRequest = "그는 급하게 일자리를 구하고 있었다고 영어로 어떻게 말해?";
 assert.equal(analyzeQueryScope(sentenceRequest).queryType, "allowed");
 assert.equal(analyzeQueryScope(sentenceRequest).outputForm, "complete_sentence");
+
+const timePressureExpression = "\"시간에 쫓겨 급하게 쓰인\"을 영어로 어떻게 표현할거같음?";
+assert.equal(analyzeQueryScope(timePressureExpression).queryType, "allowed");
+assert.equal(detectSupportMode(timePressureExpression), "language");
+const timePressureTurn = buildTurnPlan({
+  rawUserMessage: timePressureExpression,
+  taskId: "task1",
+  recentMessages: [],
+  policyAnalysis: analyzeQueryScope(timePressureExpression),
+  requestClassification: {
+    intent: "vocabulary_expression",
+    requires_source_context: false,
+    requires_task_context: false,
+    request_is_explicit: true,
+    confidence: 0.9,
+  },
+  conversationPlan: planConversationTurn({
+    query: timePressureExpression,
+    taskId: "task1",
+    recentMessages: [],
+  }),
+});
+assert.equal(timePressureTurn.explicitIntent, "translate");
+assert.equal(timePressureTurn.responseMode, "translation");
+
+const realTimeLimitQuestion = "이 과제 제한 시간은 몇 분이야?";
+const realTimeLimitTurn = buildTurnPlan({
+  rawUserMessage: realTimeLimitQuestion,
+  taskId: "task1",
+  recentMessages: [],
+  policyAnalysis: analyzeQueryScope(realTimeLimitQuestion),
+  requestClassification: {
+    intent: "task_requirement",
+    requires_source_context: false,
+    requires_task_context: true,
+    request_is_explicit: true,
+    confidence: 0.9,
+  },
+  conversationPlan: planConversationTurn({
+    query: realTimeLimitQuestion,
+    taskId: "task1",
+    recentMessages: [],
+  }),
+});
+assert.equal(realTimeLimitTurn.explicitIntent, "procedural_question");
+assert.equal(realTimeLimitTurn.responseMode, "procedure");
 
 // C. Learner-authored sentence correction.
 const correctionRequest = "He was urgently need a job. 자연스럽게 고쳐줘.";
@@ -507,6 +554,10 @@ assert.ok(buildSystemInstruction("english", "comprehension", false).includes("ob
 // AF. Production request assembly is role-based: stable source evidence, recent messages, final current user.
 const routeSource = fs.readFileSync("app/api/chat/route.ts", "utf8");
 assert.ok(routeSource.includes("buildRoleBasedOpenAIInput"));
+assert.ok(routeSource.includes("looksLikeLanguageExpressionRequest"));
+assert.ok(routeSource.includes("if (looksLikeLanguageExpressionRequest(query))"));
+assert.ok(!routeSource.includes("/(시간|몇\\s*분|제한\\s*시간|time limit|writing time|how long)/i"));
+assert.ok(routeSource.includes("제한\\s*시간"));
 assert.ok(routeSource.includes("preservedRecentMessages"));
 assert.ok(routeSource.includes("SUPPLEMENTARY SOURCE EVIDENCE FOR THIS TURN"));
 assert.ok(routeSource.includes("canonicalContext.text"));

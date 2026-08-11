@@ -130,10 +130,40 @@ function stripExplicitTranslationCommand(text: string): string {
   );
 }
 
+function extractIntentCueText(text: string): string {
+  const withoutQuotedTargets = text.replace(/["'“”‘’`]([^"'“”‘’`]+)["'“”‘’`]/g, " ");
+  const arrowRequest = withoutQuotedTargets.match(/(?:->|=>)\s*(.+)$/)?.[1];
+
+  return compactText(arrowRequest || withoutQuotedTargets);
+}
+
+function looksLikeDirectTranslationRequest(text: string): boolean {
+  return /(?:영어로|한국어로).*(?:어떻게\s*)?(?:말해|표현|번역|바꿔|해줘|할까|되나|돼|알려|고쳐)|(?:어떻게\s*)?(?:말해|표현|번역|바꿔|해줘|할까|되나|돼|알려).*(?:영어로|한국어로)|how\s+(?:do|can|should|would)\s+i\s+say|how\s+to\s+say|translate|translation|in english|into english|in korean|into korean|\-\>\s*(?:english|영어로|korean|한국어로)/i.test(
+    text
+  );
+}
+
+function looksLikeExpressionHelpRequest(text: string): boolean {
+  return /표현|단어|동사|다른 표현|영어 표현|expression|phrase|word|verb|more natural|other expression/i.test(
+    text
+  );
+}
+
+function looksLikeProceduralRequirementQuestion(text: string): boolean {
+  return /(?:몇\s*단어|몇단어|몇\s*자|단어\s*수|글자\s*수|분량|제한\s*시간|시간\s*제한|몇\s*분|몇\s*시간|끝까지|결말|제출|사전|사용해도|과제|word count|how many words|ending|submit|dictionary|time limit|writing time|permitted tools|allowed tools|how long\s+(?:do|should|can|are we|am i).*(?:write|writing|have|allowed))/i.test(
+    text
+  );
+}
+
 function detectExplicitIntent(normalized: string, policyAnalysis: ScopeDecision): ExplicitIntent {
   const lowered = normalized.toLowerCase();
+  const intentCueText = extractIntentCueText(normalized);
+  const loweredIntentCue = intentCueText.toLowerCase();
 
-  if (/(영어로|번역해줘|translate|in english|into english)\s*[.!?。！？]*$/i.test(normalized)) {
+  if (
+    /(?:영어로|번역해줘|translate|in english|into english)\s*[.!?。！？]*$/i.test(normalized) ||
+    looksLikeDirectTranslationRequest(intentCueText)
+  ) {
     return "translate";
   }
 
@@ -153,11 +183,11 @@ function detectExplicitIntent(normalized: string, policyAnalysis: ScopeDecision)
     return "grammar_check";
   }
 
-  if (/(몇\s*단어|몇단어|몇\s*자|시간|끝까지|결말|제출|사전|사용해도|과제|word count|how many words|ending|submit|dictionary|time limit)/i.test(lowered)) {
+  if (looksLikeProceduralRequirementQuestion(loweredIntentCue)) {
     return "procedural_question";
   }
 
-  if (/(표현|단어|동사|다른 표현|영어 표현|expression|phrase|word|verb|more natural|other expression)/i.test(lowered)) {
+  if (looksLikeExpressionHelpRequest(intentCueText)) {
     return "expression_help";
   }
 

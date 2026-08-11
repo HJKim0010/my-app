@@ -356,6 +356,54 @@ function normalizeRoutingText(text: string): string {
     .replace(/뭘\s*하느라/g, "뭘하느라");
 }
 
+function looksLikeLanguageExpressionRequest(query: string): boolean {
+  const normalized = compactText(query).toLowerCase();
+
+  if (!normalized || normalized.length > 220) {
+    return false;
+  }
+
+  return (
+    /(?:영어로|한국어로).*(?:어떻게\s*)?(?:말해|표현|번역|바꿔|해줘|할까|되나|돼|알려|고쳐)/i.test(
+      normalized
+    ) ||
+    /(?:어떻게\s*)?(?:말해|표현|번역|바꿔|해줘|할까|되나|돼|알려).*(?:영어로|한국어로)/i.test(
+      normalized
+    ) ||
+    /(?:how\s+(?:do|can|should|would)\s+i\s+say|how\s+to\s+say|translate|translation|in english|into english|in korean|into korean|\-\>\s*(?:english|영어로|korean|한국어로))/i.test(
+      normalized
+    )
+  );
+}
+
+function extractIntentCueText(query: string): string {
+  const withoutQuotedTargets = query.replace(/["'“”‘’`]([^"'“”‘’`]+)["'“”‘’`]/g, " ");
+  const arrowRequest = withoutQuotedTargets.match(/(?:->|=>)\s*(.+)$/)?.[1];
+
+  return compactText(arrowRequest || withoutQuotedTargets);
+}
+
+function looksLikeTaskRequirementQuestion(query: string): boolean {
+  const cueText = extractIntentCueText(query);
+  const normalized = normalizeKoreanSpacing(cueText).toLowerCase();
+
+  return (
+    /(?:몇자|몇단어|단어수|글자수|최소몇|최대몇|얼마나\s*(?:써야|길게)|분량|몇개이상|word count|minimum length|maximum length)/i.test(
+      normalized
+    ) ||
+    /(?:제한\s*시간|시간\s*제한|몇\s*분|몇\s*시간|시간이\s*얼마|시간은\s*얼마|얼마나\s*시간|writing time|time limit|how long\s+(?:do|should|can|are we|am i).*(?:write|writing|have|allowed))/i.test(
+      normalized
+    ) ||
+    /(?:사전|번역기|도구|사용해도|써도|dictionary|tool|permitted tools|allowed tools)/i.test(
+      normalized
+    ) ||
+    /(?:원문\s*다시\s*봐도\s*돼|원문\s*볼\s*수\s*있|source\s*again\s*(?:allowed|permitted)|may\s*i\s*(?:see|reread)|can\s*i\s*(?:see|reread))/i.test(
+      normalized
+    ) ||
+    /(?:제출|저장|submit|submission|rule|rules|규칙|안내)/i.test(normalized)
+  );
+}
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -565,13 +613,22 @@ function requiresStoryKnowledgeForRouting(
 }
 
 function detectTaskRequirementRule(query: string): TaskRequirementRuleId | null {
-  const normalized = normalizeKoreanSpacing(query).toLowerCase();
+  const cueText = extractIntentCueText(query);
+  const normalized = normalizeKoreanSpacing(cueText).toLowerCase();
+
+  if (looksLikeLanguageExpressionRequest(query)) {
+    return null;
+  }
 
   if (/(몇자|몇단어|단어수|글자수|최소몇|최대몇|얼마나\s*(?:써야|길게)|분량|몇개이상|word count|minimum length|maximum length)/i.test(normalized)) {
     return "word_count";
   }
 
-  if (/(시간|몇\s*분|제한\s*시간|time limit|writing time|how long)/i.test(normalized)) {
+  if (
+    /(?:제한\s*시간|시간\s*제한|몇\s*분|몇\s*시간|시간이\s*얼마|시간은\s*얼마|얼마나\s*시간|writing time|time limit|how long\s+(?:do|should|can|are we|am i).*(?:write|writing|have|allowed))/i.test(
+      normalized
+    )
+  ) {
     return "time_limit";
   }
 
@@ -842,7 +899,7 @@ function classifyCurrentRequest(
   const { currentRequest } = splitLearnerDraftAndRequest(query);
   const classificationTarget = currentRequest || query;
   const incompleteAnswerRepair = detectIncompleteAnswerRepair(classificationTarget, recentMessages);
-  const taskRequirementRule = detectTaskRequirementRule(classificationTarget);
+  const intentCueText = extractIntentCueText(classificationTarget);
 
   if (incompleteAnswerRepair) {
     const storyRequestMode =
@@ -877,18 +934,6 @@ function classifyCurrentRequest(
     };
   }
 
-  if (taskRequirementRule) {
-    return {
-      intent: "task_requirement",
-      request_is_explicit: true,
-      requires_source_context: false,
-      requires_task_context: true,
-      conversation_operation: "new_request",
-      confidence: 0.94,
-      selected_task_rule_id: taskRequirementRule,
-    };
-  }
-
   if (looksLikeEnglishLearnerDraft(query)) {
     return {
       intent: "language_feedback",
@@ -898,6 +943,37 @@ function classifyCurrentRequest(
       response_mode: "standard",
       conversation_operation: "new_request",
       confidence: 0.9,
+    };
+  }
+
+  if (
+    looksLikeLanguageExpressionRequest(classificationTarget) ||
+    looksLikeNewCurrentLanguageIntent(intentCueText) ||
+    (looksLikeGeneralLanguageQuestion(intentCueText) && !looksLikeSourceContextRequest(classificationTarget))
+  ) {
+    return {
+      intent: supportMode === "feedback" ? "language_feedback" : "vocabulary_expression",
+      request_is_explicit: true,
+      requires_source_context: false,
+      requires_task_context: false,
+      conversation_operation: "new_request",
+      confidence: 0.9,
+    };
+  }
+
+  const taskRequirementRule = looksLikeTaskRequirementQuestion(classificationTarget)
+    ? detectTaskRequirementRule(classificationTarget)
+    : null;
+
+  if (taskRequirementRule) {
+    return {
+      intent: "task_requirement",
+      request_is_explicit: true,
+      requires_source_context: false,
+      requires_task_context: true,
+      conversation_operation: "new_request",
+      confidence: 0.9,
+      selected_task_rule_id: taskRequirementRule,
     };
   }
 
