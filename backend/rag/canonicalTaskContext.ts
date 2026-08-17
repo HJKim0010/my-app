@@ -9,7 +9,7 @@ export type CanonicalTaskContext = {
 
 const TASK_FACTS = {
   task1: [
-    "Episode: EP1 / Jack's story.",
+    "Story: Story A / Jack's story.",
     "Protagonist: Jack.",
     "Jack is a student. The story context suggests a university student.",
     "Jack is in a hurry because an important presentation affects his final grade and possibly graduation.",
@@ -20,7 +20,7 @@ const TASK_FACTS = {
     "No cafe role is stated for Jack. If asked whether Jack worked at a cafe, correct that as unsupported by the source.",
   ],
   task2: [
-    "Episode: EP2 / Anna's story.",
+    "Story: Story B / Anna's story.",
     "Protagonist: Anna.",
     "Anna went to a cafe after a long study session.",
     "The package/box contained a thin black book and a folded note.",
@@ -75,7 +75,7 @@ export function buildCanonicalTaskContext(taskPackage: TaskPackage): CanonicalTa
     `condition: ${taskPackage.condition}`,
     `condition_label: ${taskPackage.conditionLabel}`,
     "",
-    "Use this as stable reference context for the active episode only. Do not import facts from the other episode or another condition.",
+    "Use this as stable reference context for the active story only. Do not import facts from the other story or another condition.",
     "Keep source facts, plausible interpretations, and learner-generated continuation ideas separate.",
     "If a fact is not in this context, say the source does not state it before offering a possible continuation interpretation.",
     "",
@@ -88,7 +88,7 @@ export function buildCanonicalTaskContext(taskPackage: TaskPackage): CanonicalTa
     "## Task Instructions",
     taskPackage.instruction.trim() || "(No task instruction loaded.)",
     "",
-    "## Active Episode Materials",
+    "## Active Story Materials",
     ...orderedDocuments
       .filter((document) => document.sourceType !== "prompt" && document.sourceType !== "instruction")
       .map(formatDocument),

@@ -1795,7 +1795,7 @@ export default function Home() {
     inFlightRequestRef.current?.abort();
   };
 
-  const displayTaskLabel = selectedTask === "task2" ? "EP2" : "EP1";
+  const displayTaskLabel = selectedTask === "task2" ? "Story B" : "Story A";
   const hasStartedChat = activeTaskState.messages.some((message) => message.role === "user");
 
   const clearSavedLocalLogs = () => {
@@ -1870,8 +1870,8 @@ export default function Home() {
           </div>
 
           <div className="guide-task-panel">
-            <p className="section-label">Choose your episode</p>
-            <div className="guide-task-switcher" role="tablist" aria-label="Episode selection">
+            <p className="section-label">Choose your story</p>
+            <div className="guide-task-switcher" role="tablist" aria-label="Story selection">
               {TASK_IDS.map((taskId) => (
                 <button
                   key={taskId}
@@ -1881,7 +1881,7 @@ export default function Home() {
                   }
                   onClick={() => setSelectedTask(taskId)}
                 >
-                  {taskId === "task2" ? "EP2" : "EP1"}
+                  {taskId === "task2" ? "Story B" : "Story A"}
                 </button>
               ))}
             </div>

@@ -11,7 +11,7 @@ export type SupportMode =
 export type ResponseLanguage = "korean" | "english";
 
 function episodeLabel(taskId: TaskPackage["taskId"]): string {
-  return taskId === "task2" ? "EP2 / Anna's story" : "EP1 / Jack's story";
+  return taskId === "task2" ? "Story B / Anna's story" : "Story A / Jack's story";
 }
 
 function materialLabel(taskPackage: TaskPackage): string {
@@ -471,9 +471,9 @@ export function buildSystemInstruction(
     "Source grounding supports composition; it does not replace writing support.",
     "When story knowledge is needed, answer only from RETRIEVED_SOURCE_CONTEXT. Do not use general memory or outside knowledge as story evidence.",
     "Source comprehension, source recap, whole-source summarization, and questions that reconstruct the sequence of source events are allowed. They are not ghostwriting.",
-    "The complete active-episode materials may be attached as source context. Use the whole provided episode context when facts are distributed across the story; do not rely on one retrieved chunk when complete context is available.",
-    "For EP1, protagonist: Jack. Jack is a student; context suggests a university student. Jack's exact age is not given. Jack's team depends on him. His final grade and graduation may depend on the presentation. No teaching assistant is mentioned. Jack already has his bag and laptop; the source also mentions clothes. Jack forgot or left behind his wallet and student ID; do not say he lost them unless the learner explicitly writes that as their own continuation idea. The woman's identity and intention are unknown.",
-    "For EP2, protagonist: Anna. She went to the cafe after a long study session. The box contained a thin black book and folded note. The note said to look under table 7. The identity of the object taped under table 7 is unknown. The man's identity and connection to the package are unknown.",
+    "The complete active-story materials may be attached as source context. Use the whole provided story context when facts are distributed across the story; do not rely on one retrieved chunk when complete context is available.",
+    "For Story A, protagonist: Jack. Jack is a student; context suggests a university student. Jack's exact age is not given. Jack's team depends on him. His final grade and graduation may depend on the presentation. No teaching assistant is mentioned. Jack already has his bag and laptop; the source also mentions clothes. Jack forgot or left behind his wallet and student ID; do not say he lost them unless the learner explicitly writes that as their own continuation idea. The woman's identity and intention are unknown.",
+    "For Story B, protagonist: Anna. She went to the cafe after a long study session. The box contained a thin black book and folded note. The note said to look under table 7. The identity of the object taped under table 7 is unknown. The man's identity and connection to the package are unknown.",
     "For source or story questions, actively use the retrieved canonical source context before saying the answer is unavailable.",
     "If RETRIEVED_SOURCE_CONTEXT contains the answer or a clear equivalent clue, answer directly and briefly.",
     "Say that the story does not clearly say it only when the retrieved source context genuinely lacks the fact. You may add a reasonable interpretation only if you label it as an interpretation, for example '이야기에 명시되지는 않았지만... 해석할 수 있어요.'",
@@ -573,10 +573,10 @@ export function buildCompactSystemInstruction(
     "The learner's task is to continue the story after the source or video ends, add new events, develop the middle-to-later part, and complete the ending in their own English.",
     "",
     "ACTIVE EPISODE AND SOURCE",
-    "The application has selected and locked the active episode for this session.",
+    "The application has selected and locked the active story for this session.",
     "Behave as a normal helpful conversation with the complete task materials attached.",
     "Use only the canonical active source provided in the CANONICAL_TASK_CONTEXT section appended to these instructions.",
-    "Never use, mention, compare, summarize, reveal, or infer information from the inactive episode.",
+    "Never use, mention, compare, summarize, reveal, or infer information from the inactive story.",
     "Treat the full active source as the sole authority for source facts.",
     "If information is not stated or reasonably implied in the active source, say so. Never invent source facts.",
     "Clearly distinguish facts stated in the active source, reasonable interpretations of the active source, and learner-proposed continuation ideas.",
@@ -920,7 +920,7 @@ export function buildUserInput(
     .filter(Boolean)
     .join("\n");
   const sections = [
-    `Episode: ${episodeLabel(taskPackage.taskId)}`,
+    `Story: ${episodeLabel(taskPackage.taskId)}`,
     `Category: ${category}`,
     `Support mode: ${mode}`,
     `Detected language for logs only: ${language}`,

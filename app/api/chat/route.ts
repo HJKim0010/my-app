@@ -1358,7 +1358,7 @@ function buildRoleBasedCurrentUserText(params: {
     params.query,
     "",
     "Turn metadata for the assistant:",
-    `- Episode: ${params.taskPackage.taskId === "task1" ? "EP1 / Jack's story" : "EP2 / Anna's story"}`,
+    `- Story: ${params.taskPackage.taskId === "task1" ? "Story A / Jack's story" : "Story B / Anna's story"}`,
     `- Selected UI category for logging only: ${params.category}`,
     `- Soft support label for logging only: ${params.supportMode}`,
     `- Detected language for logs only: ${params.responseLanguage}`,
