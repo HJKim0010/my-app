@@ -5,7 +5,7 @@ Allowed:
 - Concise alternative sentence options.
 - Local Korean-to-English expression help.
 - Grammar correction and proofreading of learner-authored text.
-- Feedback on clarity, coherence, source alignment, event order, and causal logic.
+- Feedback on clarity, coherence, story connection, event order, and causal logic.
 - Idea options, event outlines, and causal bridges.
 
 Restricted:
@@ -14,11 +14,13 @@ Restricted:
 - Polished full-draft rewrites.
 - Adding substantial new plot content beyond the learner's idea.
 - Numerical scores, rubric bands, final evaluative judgments, or predicted research scores.
-- Reconstructing or displaying the whole source.
+- Reconstructing or displaying the whole story.
 
 Policy principles:
 - A one-sentence expression request is not ghostwriting.
 - Whole-paragraph or full-continuation generation is ghostwriting.
-- Source absence is not an error; direct contradiction is the relevant boundary.
-- RAG/source context supports grounding and should not override the current user request.
+- Story absence is not an error; direct contradiction is the relevant boundary.
+- RAG/story context supports grounding and should not override the current user request.
+- In user-facing answers, prefer "story" instead of "source" unless the learner used that word.
+- Do not add multiple next-step suggestions unless the learner asks for options.
 - Redirect restricted requests briefly and offer a useful allowed alternative immediately.
