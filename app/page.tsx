@@ -1,6 +1,8 @@
 ﻿"use client";
 
-import type { ReactNode, TouchEvent } from "react";
+import Link from "next/link";
+import type { TouchEvent } from "react";
+import { renderAssistantText } from "./ChatMessageContent";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   flushChatStreamBuffer,
@@ -10,6 +12,26 @@ import {
   type ChatApiResponse,
   type QuickReply,
 } from "./chatStreamEvents";
+
+function TeacherHistoryLink() {
+  return (
+    <Link
+      href="/history"
+      target="_blank"
+      rel="noopener noreferrer"
+      prefetch={false}
+      className="teacher-history-link"
+      aria-label="Settings (opens in a new tab)"
+      title="Settings (opens in a new tab)"
+    >
+      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+      </svg>
+      <span>Settings</span>
+    </Link>
+  );
+}
 
 type TaskId = "task1" | "task2";
 type TaskCondition = "static" | "dynamic";
@@ -103,214 +125,6 @@ function isExamplePromptText(value: string): boolean {
 
 const CHAT_INPUT_PLACEHOLDER =
   "Example: Which clue should I use to continue the next part logically? / \uC608: \uB2E4\uC74C \uC804\uAC1C\uB97C \uB17C\uB9AC\uC801\uC73C\uB85C \uC774\uC5B4\uAC00\uB824\uBA74 \uC5B4\uB5A4 \uB2E8\uC11C\uB97C \uC774\uC6A9\uD558\uB294 \uAC8C \uC88B\uC744\uAE4C?";
-
-function renderInlineText(text: string, keyPrefix: string): ReactNode {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
-
-  return parts.map((part, index) => {
-    if (part.startsWith("**") && part.endsWith("**")) {
-      return <strong key={`${keyPrefix}-strong-${index}`}>{part.slice(2, -2)}</strong>;
-    }
-
-    return <span key={`${keyPrefix}-text-${index}`}>{part.replace(/\*\*/g, "")}</span>;
-  });
-}
-
-type MarkdownListItem = {
-  text: string;
-  children: MarkdownListItem[];
-};
-
-function parseListItems(lines: string[]): MarkdownListItem[] {
-  const items: MarkdownListItem[] = [];
-  let currentItem: MarkdownListItem | null = null;
-
-  for (const line of lines) {
-    const match = line.match(/^(\s*)(?:[-*]|\d+\.)\s+(.+)$/);
-
-    if (!match) {
-      continue;
-    }
-
-    const indent = match[1].length;
-    const item: MarkdownListItem = {
-      text: match[2].trim(),
-      children: [],
-    };
-
-    if (indent > 0 && currentItem) {
-      currentItem.children.push(item);
-      continue;
-    }
-
-    items.push(item);
-    currentItem = item;
-  }
-
-  return items;
-}
-
-function renderListItems(items: MarkdownListItem[], keyPrefix: string): ReactNode {
-  return items.map((item, index) => (
-    <li key={`${keyPrefix}-item-${index}`}>
-      {renderInlineText(item.text, `${keyPrefix}-item-${index}`)}
-      {item.children.length > 0 ? (
-        <ul>{renderListItems(item.children, `${keyPrefix}-child-${index}`)}</ul>
-      ) : null}
-    </li>
-  ));
-}
-
-function renderAssistantText(text: string, isStreaming = false, isError = false): ReactNode {
-  const hasText = text.trim().length > 0;
-
-  if (!hasText && isStreaming) {
-    return (
-      <div className="assistant-markdown assistant-response-streaming">
-        <span className="stream-loading" aria-label="Assistant is writing">
-          <span />
-          <span />
-          <span />
-        </span>
-      </div>
-    );
-  }
-
-  if (!hasText) {
-    return null;
-  }
-
-  const lines = text.split("\n");
-  const nodes: ReactNode[] = [];
-  let index = 0;
-
-  const isListLine = (line: string) => /^\s*(?:[-*]|\d+\.)\s+/.test(line);
-  const isOrderedListLine = (line: string) => /^\s*\d+\.\s+/.test(line);
-  const isHeadingLine = (line: string) => /^#{1,6}\s*/.test(line.trim());
-  const isQuoteLine = (line: string) => line.trim().startsWith(">");
-  const nextNonEmptyLine = (startIndex: number) => {
-    for (let lineIndex = startIndex; lineIndex < lines.length; lineIndex += 1) {
-      if (lines[lineIndex].trim()) {
-        return lines[lineIndex];
-      }
-    }
-
-    return "";
-  };
-
-  while (index < lines.length) {
-    const line = lines[index];
-    const trimmed = line.trim();
-
-    if (!trimmed) {
-      index += 1;
-      continue;
-    }
-
-    if (isHeadingLine(line)) {
-      nodes.push(
-        <h3 key={`assistant-heading-${index}`}>
-          {renderInlineText(trimmed.replace(/^#{1,6}\s*/, ""), `heading-${index}`)}
-        </h3>
-      );
-      index += 1;
-      continue;
-    }
-
-    if (isQuoteLine(line)) {
-      const quoteLines: string[] = [];
-
-      while (index < lines.length && isQuoteLine(lines[index])) {
-        quoteLines.push(lines[index].trim().replace(/^>\s?/, ""));
-        index += 1;
-      }
-
-      nodes.push(
-        <blockquote key={`assistant-quote-${index}`}>
-          <p>{renderInlineText(quoteLines.join(" "), `quote-${index}`)}</p>
-        </blockquote>
-      );
-      continue;
-    }
-
-    if (isListLine(line)) {
-      const listLines: string[] = [];
-      const ordered = isOrderedListLine(line);
-
-      while (index < lines.length) {
-        const currentLine = lines[index];
-
-        if (!currentLine.trim()) {
-          const nextLine = nextNonEmptyLine(index + 1);
-
-          if (nextLine && isListLine(nextLine) && isOrderedListLine(nextLine) === ordered) {
-            index += 1;
-            continue;
-          }
-
-          break;
-        }
-
-        if (!isListLine(currentLine)) {
-          break;
-        }
-
-        listLines.push(currentLine);
-        index += 1;
-      }
-
-      nodes.push(
-        ordered ? (
-          <ol key={`assistant-ordered-list-${index}`}>
-            {renderListItems(parseListItems(listLines), `ol-${index}`)}
-          </ol>
-        ) : (
-          <ul key={`assistant-list-${index}`}>
-            {renderListItems(parseListItems(listLines), `ul-${index}`)}
-          </ul>
-        )
-      );
-      continue;
-    }
-
-    const paragraphLines: string[] = [];
-
-    while (index < lines.length) {
-      const currentLine = lines[index];
-
-      if (
-        !currentLine.trim() ||
-        isHeadingLine(currentLine) ||
-        isQuoteLine(currentLine) ||
-        isListLine(currentLine)
-      ) {
-        break;
-      }
-
-      paragraphLines.push(currentLine.trim());
-      index += 1;
-    }
-
-    nodes.push(
-      <p key={`assistant-paragraph-${index}`}>
-        {renderInlineText(paragraphLines.join(" "), `paragraph-${index}`)}
-      </p>
-    );
-  }
-
-  return (
-    <div
-      className={
-        isError
-          ? "assistant-markdown assistant-response-error"
-          : "assistant-markdown"
-      }
-    >
-      {nodes}
-      {isStreaming ? <span className="stream-cursor" aria-hidden="true" /> : null}
-    </div>
-  );
-}
 
 const KO = {
   intro:
@@ -521,71 +335,67 @@ const GUIDE_GATE_CARDS = [
     ],
   },
   {
-    eyebrow: "2",
-    title: "✅ Ask Like This",
-    titleKo: "이렇게 물어보세요",
-    items: [
+    "eyebrow": "2",
+    "title": "You may ask…",
+    "titleKo": "이런 도움을 요청할 수 있어요.",
+    "examplesTitle": "예시 / Examples",
+    "noteKo": "위 문장들은 예시예요. 필요한 도움을 자신의 말로 질문해 보세요.",
+    "note": "These are examples. Ask for the help you need in your own words.",
+    "items": [
       {
-        tone: "comprehension",
-        label: "COMPREHENSION / 이야기 이해",
-        text: '"What does this part mean?"',
-        textKo: '"이 부분은 무슨 뜻인가요?"',
+        "label": "스토리에 대해",
+        "textKo": "이야기에서 이 부분은 무슨 뜻인가요?",
+        "text": "What does this part mean in the story?"
       },
       {
-        tone: "ideation",
-        label: "IDEATION / 아이디어 얻기",
-        text: '"What are 2 next events that use the clue?"',
-        textKo: '"그 단서를 사용한 다음 사건 2가지를 생각해 볼 수 있나요?"',
+        "label": "아이디어에 대해",
+        "textKo": "이 단서를 활용한 다음 사건 두 가지를 제안해 줄래요?",
+        "text": "Can you suggest two possible next events based on this clue?"
       },
       {
-        tone: "organization",
-        label: "ORGANIZATION / 구성 도움",
-        text: '"How can I organize clue, thought, action, and result?"',
-        textKo: '"단서, 생각, 행동, 결과를 어떤 순서로 정리하면 좋을까요?"',
+        "label": "글의 흐름에 대해",
+        "textKo": "단서, 생각, 행동, 결과를 어떤 순서로 정리하면 좋을까요?",
+        "text": "How can I organize the clue, thought, action, and result?"
       },
       {
-        tone: "language",
-        label: "LANGUAGE / 표현 도움",
-        text: '"How can I say this idea in English?"',
-        textKo: '"이 생각을 영어로 어떻게 말하면 좋을까요?"',
+        "label": "영어 표현에 대해",
+        "textKo": "이 생각을 영어로 어떻게 표현하면 좋을까요?",
+        "text": "How can I express this idea in English?"
       },
       {
-        tone: "feedback",
-        label: "FEEDBACK / 확인과 피드백",
-        text: '"Can you proofread my paragraph?"',
-        textKo: '"내 문단을 피드백하고 고칠 부분을 알려줄래?"',
+        "label": "내 글에 대해",
+        "textKo": "내 문단에서 고칠 부분과 이유를 알려줄래요?",
+        "text": "Can you point out what I should fix in my paragraph and explain why?"
       },
       {
-        tone: "procedural",
-        label: "PROCEDURAL / 사용 방법과 절차",
-        text: '"Can I ask in Korean?"',
-        textKo: '"한국어로 질문해도 되나요?"',
-      },
-      {
-        tone: "emphasis",
-        text: "Try many other requests you want.",
-        textKo: "그밖에 원하는 요청을 다양하게 넣어보세요.",
-      },
-    ],
+        "label": "사용 방법에 대해",
+        "textKo": "한국어로 질문해도 되나요?",
+        "text": "Can I ask in Korean?"
+      }
+    ]
   },
   {
-    eyebrow: "3",
-    title: "❌ Do Not Ask Like This",
-    titleKo: "이렇게 묻지 마세요",
-    items: [
+    "eyebrow": "3",
+    "title": "You may not ask…",
+    "titleKo": "글을 대신 써 달라고 요청할 수는 없어요.",
+    "examplesTitle": "제한되는 요청 예시 / Requests not allowed",
+    "items": [
       {
-        text: '"Write the next paragraph."',
-        textKo: '"다음 문단을 써줘."',
+        "label": "다음 문단 대신 쓰기",
+        "textKo": "다음 문단을 써줘.",
+        "text": "Write the next paragraph for me."
       },
       {
-        text: '"Write the ending for me."',
-        textKo: '"결말을 대신 써줘."',
+        "label": "결말 대신 쓰기",
+        "textKo": "결말을 대신 써줘.",
+        "text": "Write the ending for me."
       },
       {
-        text: '"Rewrite my paragraph."',
-        textKo: '"내 문단을 다시 써줘."',
-      },
-    ],
+        "label": "문단 전체 다시 쓰기",
+        "textKo": "내 문단 전체를 다시 써줘.",
+        "text": "Rewrite my entire paragraph for me."
+      }
+    ]
   },
   {
     eyebrow: "4",
@@ -610,15 +420,6 @@ const GUIDE_GATE_CARDS = [
     ],
   },
 ] as const;
-
-function splitGuideLabel(label: string): { ko: string; en: string } {
-  const [en, ko] = label.split(" / ").map((part) => part.trim());
-
-  return {
-    ko: ko || label,
-    en: ko ? en : "",
-  };
-}
 
 function GuideGateCards({
   activeIndex,
@@ -740,33 +541,32 @@ function GuideGateCards({
             <span>#{activeCard.eyebrow}.</span>
             {activeCard.title}
           </h2>
+          {"examplesTitle" in activeCard ? (
+            <>
+              <p className="guide-card-description">{activeCard.titleKo}</p>
+              <p className="guide-examples-heading">{activeCard.examplesTitle}</p>
+            </>
+          ) : null}
           <div className="guide-card-items">
-            {activeCard.items.map((item) => {
-              const label = "label" in item ? splitGuideLabel(item.label) : null;
-              const isEmphasis = "tone" in item && item.tone === "emphasis";
-
-              return (
-                <div key={`${item.text}-${item.textKo}`} className="guide-card-item">
-                  {label ? (
-                    <span
-                      className={
-                        "tone" in item
-                          ? `guide-card-label guide-card-label-${item.tone}`
-                          : "guide-card-label"
-                      }
-                    >
-                      <span>{label.ko}</span>
-                      {label.en ? <span className="guide-card-label-en">{label.en}</span> : null}
-                    </span>
-                  ) : null}
-                  <p className={isEmphasis ? "guide-card-emphasis" : undefined}>
-                    <span>{item.textKo}</span>
-                    <span className="guide-card-item-en">{item.text}</span>
-                  </p>
-                </div>
-              );
-            })}
+            {activeCard.items.map((item) => (
+              <div
+                key={item.text}
+                className={"label" in item ? "guide-card-item guide-example-row" : "guide-card-item"}
+              >
+                {"label" in item ? <span className="guide-example-topic">{item.label}</span> : null}
+                <p>
+                  <span>{item.textKo}</span>
+                  <span className="guide-card-item-en">{item.text}</span>
+                </p>
+              </div>
+            ))}
           </div>
+          {"note" in activeCard ? (
+            <p className="guide-examples-note">
+              <span>{activeCard.noteKo}</span>
+              <span className="guide-card-item-en">{activeCard.note}</span>
+            </p>
+          ) : null}
         </article>
 
         <button
@@ -1867,10 +1667,11 @@ export default function Home() {
         <section className="guide-gate-card">
           <div className="guide-gate-header">
             <h1>My Writing Assistant</h1>
+            <TeacherHistoryLink />
           </div>
 
           <div className="guide-task-panel">
-            <p className="section-label">Choose your story</p>
+            <p className="section-label guide-step-label">Step 1. Choose your story</p>
             <div className="guide-task-switcher" role="tablist" aria-label="Story selection">
               {TASK_IDS.map((taskId) => (
                 <button
@@ -1888,8 +1689,8 @@ export default function Home() {
           </div>
 
           <div className="participant-panel">
-            <label className="section-label" htmlFor="participant-id">
-              Participant ID
+            <label className="section-label guide-step-label" htmlFor="participant-id">
+              Step 2. Please enter the participant ID given by the researcher.
             </label>
             <input
               id="participant-id"
@@ -1899,9 +1700,6 @@ export default function Home() {
               className="participant-input"
               placeholder="e.g., P01, P02, P03"
             />
-            <p className="participant-help">
-              Please enter the participant ID given by the researcher.
-            </p>
           </div>
 
           <GuideGateCards
@@ -1909,13 +1707,13 @@ export default function Home() {
             onChange={setGuideGateCardIndex}
           />
 
-          <label className="guide-check">
+          <label className="guide-check section-label guide-step-label">
+            <span>Step 3. Check the box after reading the manual.</span>
             <input
               type="checkbox"
               checked={guideChecked}
               onChange={(event) => setGuideChecked(event.target.checked)}
             />
-            <span>I have read this guide.</span>
           </label>
 
           <div className="guide-actions">
@@ -1944,6 +1742,7 @@ export default function Home() {
             </div>
 
             <div className="chat-header-actions">
+              <TeacherHistoryLink />
               <button
                 type="button"
                 className="icon-button"
