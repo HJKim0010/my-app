@@ -1595,7 +1595,7 @@ export default function Home() {
     inFlightRequestRef.current?.abort();
   };
 
-  const displayTaskLabel = selectedTask === "task2" ? "Story B" : "Story A";
+  const displayTaskLabel = selectedTask === "task2" ? "Story 2" : "Story 1";
   const hasStartedChat = activeTaskState.messages.some((message) => message.role === "user");
 
   const clearSavedLocalLogs = () => {
@@ -1682,7 +1682,7 @@ export default function Home() {
                   }
                   onClick={() => setSelectedTask(taskId)}
                 >
-                  {taskId === "task2" ? "Story B" : "Story A"}
+                  {taskId === "task2" ? "Story 2" : "Story 1"}
                 </button>
               ))}
             </div>
