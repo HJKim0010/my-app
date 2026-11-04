@@ -13,20 +13,20 @@ import {
   type QuickReply,
 } from "./chatStreamEvents";
 
-function TeacherHistoryLink() {
+function TeacherHistoryLink({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <Link
       href="/history"
       prefetch={false}
-      className="teacher-history-link"
-      aria-label="Settings"
-      title="Settings"
+      className="icon-button"
+      onClick={onNavigate}
+      aria-label="Conversation history"
+      title="Conversation history"
     >
-      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="3" />
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
       </svg>
-      <span>Settings</span>
     </Link>
   );
 }
@@ -57,6 +57,7 @@ const TASK_IDS: TaskId[] = ["task1", "task2"];
 const STORAGE_KEY_PREFIX = "writing-assistant-task-state-v6";
 const GUIDE_KEY_PREFIX = "writing-assistant-guide-accepted-v6";
 const CURRENT_PARTICIPANT_KEY = "writing-assistant-current-participant-v4";
+const ACTIVE_CHAT_SESSION_KEY = "writing-assistant-active-participant-session-v1";
 const CHAT_INPUT_BASE_HEIGHT = 55;
 const CHAT_INPUT_MAX_HEIGHT = 190;
 const CHAT_EXAMPLE_PROMPTS = [
@@ -1154,15 +1155,36 @@ export default function Home() {
     const taskParam = params.get("task");
     const conditionParam = params.get("condition");
 
-    const initialStates = createInitialTaskStates();
+    const currentParticipantId = normalizeParticipantId(
+      window.sessionStorage.getItem(ACTIVE_CHAT_SESSION_KEY) || ""
+    );
+    const canRestoreChat =
+      isValidParticipantId(currentParticipantId) &&
+      window.localStorage.getItem(getGuideKey(currentParticipantId)) === "true";
 
-    setParticipantId("");
-    setParticipantInput("");
-    setTaskStates(initialStates);
-    revealedAssistantIdsRef.current = collectAssistantIds(initialStates);
-    setGuideAccepted(false);
+    if (canRestoreChat) {
+      const restoredStates = hydrateTaskStates(
+        window.localStorage.getItem(getStorageKey(currentParticipantId))
+      );
+      setParticipantId(currentParticipantId);
+      setParticipantInput(currentParticipantId);
+      setTaskStates(restoredStates);
+      taskStatesRef.current = restoredStates;
+      revealedAssistantIdsRef.current = collectAssistantIds(restoredStates);
+      setGuideAccepted(true);
+      setShowGuide(false);
+    } else {
+      const initialStates = createInitialTaskStates();
+      setParticipantId("");
+      setParticipantInput("");
+      setTaskStates(initialStates);
+      taskStatesRef.current = initialStates;
+      revealedAssistantIdsRef.current = collectAssistantIds(initialStates);
+      setGuideAccepted(false);
+      setShowGuide(true);
+    }
+
     setGuideChecked(false);
-    setShowGuide(true);
 
     if (isTaskId(taskParam)) {
       setSelectedTask(taskParam);
@@ -1186,7 +1208,7 @@ export default function Home() {
     const params = new URLSearchParams(window.location.search);
     params.set("task", selectedTask);
     params.set("condition", selectedCondition);
-    window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
+    window.history.replaceState(null, "", `${window.location.pathname}?${params.toString()}`);
   }, [selectedTask, selectedCondition]);
 
   const updateAutoScrollPreference = useCallback(() => {
@@ -1570,6 +1592,7 @@ export default function Home() {
 
     window.localStorage.setItem(CURRENT_PARTICIPANT_KEY, trimmedParticipantId);
     window.localStorage.setItem(getGuideKey(trimmedParticipantId), "true");
+    window.sessionStorage.setItem(ACTIVE_CHAT_SESSION_KEY, trimmedParticipantId);
     setParticipantId(trimmedParticipantId);
     setParticipantInput(trimmedParticipantId);
     setTaskStates(nextTaskStates);
@@ -1580,6 +1603,10 @@ export default function Home() {
   };
 
   const returnToHomeScreen = () => {
+    window.sessionStorage.removeItem(ACTIVE_CHAT_SESSION_KEY);
+    if (participantId) {
+      window.localStorage.removeItem(getGuideKey(participantId));
+    }
     setGuideAccepted(false);
     setGuideChecked(false);
     setShowGuide(true);
@@ -1639,6 +1666,7 @@ export default function Home() {
     for (const key of keysToRemove) {
       window.localStorage.removeItem(key);
     }
+    window.sessionStorage.removeItem(ACTIVE_CHAT_SESSION_KEY);
     const initialStates = createInitialTaskStates();
     setTaskStates(initialStates);
     taskStatesRef.current = initialStates;
@@ -1737,7 +1765,13 @@ export default function Home() {
             </div>
 
             <div className="chat-header-actions">
-              <TeacherHistoryLink />
+              <TeacherHistoryLink
+                onNavigate={() => {
+                  if (participantId) {
+                    window.sessionStorage.setItem(ACTIVE_CHAT_SESSION_KEY, participantId);
+                  }
+                }}
+              />
               <button
                 type="button"
                 className="icon-button"
@@ -1769,13 +1803,14 @@ export default function Home() {
                   setShowAdminPanel((current) => !current);
                   setAdminResetMessage("");
                 }}
-                aria-label="Administrator"
-                title="Administrator"
+                aria-label="Administrator password"
+                title="Administrator password"
               >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="3"/>
-                      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                  </svg>
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="7.5" cy="15.5" r="5.5" />
+                  <path d="m21 2-9.6 9.6" />
+                  <path d="m15.5 7.5 3 3L22 7l-3-3" />
+                </svg>
               </button>
             </div>
           </div>
