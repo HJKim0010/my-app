@@ -121,9 +121,6 @@ function isExamplePromptText(value: string): boolean {
   return CHAT_EXAMPLE_PROMPTS.some((example) => example.promptKo === value);
 }
 
-const CHAT_INPUT_PLACEHOLDER =
-  "Example: Which clue should I use to continue the next part logically? / \uC608: \uB2E4\uC74C \uC804\uAC1C\uB97C \uB17C\uB9AC\uC801\uC73C\uB85C \uC774\uC5B4\uAC00\uB824\uBA74 \uC5B4\uB5A4 \uB2E8\uC11C\uB97C \uC774\uC6A9\uD558\uB294 \uAC8C \uC88B\uC744\uAE4C?";
-
 const KO = {
   intro:
     "\uC774 \uCC57\uBD07\uC740 \uAE00\uC744 \uB300\uC2E0 \uC368\uC8FC\uB294 \uB3C4\uAD6C\uAC00 \uC544\uB2D9\uB2C8\uB2E4. \uC601\uC0C1\uC774\uB098 \uC790\uB8CC \uC774\uD6C4\uC758 \uC774\uC57C\uAE30 \uC911\uAC04-\uD6C4\uBC18\uBD80\uB97C \uC5EC\uB7EC\uBD84\uC774 \uC9C1\uC811 \uC774\uC5B4 \uC4F8 \uC218 \uC788\uB3C4\uB85D, \uC774\uD574, \uC544\uC774\uB514\uC5B4, \uAD6C\uC131, \uC5B8\uC5B4 \uD45C\uD604\uC744 \uB3D5\uB294 \uB3C4\uAD6C\uC785\uB2C8\uB2E4.",
@@ -1891,7 +1888,6 @@ export default function Home() {
                 rows={4}
                 className="chat-input"
                 style={{ height: CHAT_INPUT_BASE_HEIGHT }}
-                placeholder={CHAT_INPUT_PLACEHOLDER}
               />
 
               <div className="composer-footer">
