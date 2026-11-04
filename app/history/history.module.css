@@ -1,4 +1,7 @@
 .card { gap: 12px; }
+.tools { flex-shrink: 0; border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+.tools summary { cursor: pointer; font-weight: 600; }
+.tools[open] > summary { margin-bottom: 12px; }
 .controls { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; flex-shrink: 0; }
 .controls label { display: grid; gap: 5px; font-size: 13px; color: var(--muted); min-width: 0; }
 .controls input, .controls select, .controls button {

@@ -6,5 +6,5 @@ import HistoryViewer from "./HistoryViewer";
 export default async function HistoryPage() {
   const user = await verifiedAdmin((await cookies()).get(sessionCookieName())?.value || "");
   if (!user) redirect("/history/login");
-  return <HistoryViewer adminEmail={user.email} />;
+  return <HistoryViewer />;
 }
