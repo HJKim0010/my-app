@@ -17,12 +17,10 @@ function TeacherHistoryLink() {
   return (
     <Link
       href="/history"
-      target="_blank"
-      rel="noopener noreferrer"
       prefetch={false}
       className="teacher-history-link"
-      aria-label="Settings (opens in a new tab)"
-      title="Settings (opens in a new tab)"
+      aria-label="Settings"
+      title="Settings"
     >
       <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="3" />

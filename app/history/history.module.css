@@ -10,7 +10,6 @@
 .controls button { background: var(--accent); color: white; cursor: pointer; }
 .controls button:disabled { opacity: .6; cursor: wait; }
 .session { flex: 1 1 260px; }
-.home { color: var(--muted); white-space: nowrap; font-size: 14px; }
 .caption { margin: 0; font-size: 13px; color: var(--muted); }
 .error { margin: 0; padding: 12px; border: 1px solid #e5bcbc; border-radius: 10px; background: #fff3f3; color: #8b2424; overflow-wrap: anywhere; }
 .empty { margin: auto; text-align: center; padding: 32px 12px; color: var(--muted); }
