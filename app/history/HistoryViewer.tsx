@@ -89,7 +89,7 @@ export default function HistoryViewer({ adminEmail }: { adminEmail: string }) {
           <button type="submit" disabled={loading}>{loading ? "불러오는 중…" : "기록 불러오기"}</button>
           <label>Story
             <select value={task} onChange={(event) => { setTask(event.target.value); setSelected(""); }}>
-              <option value="task1">Story A</option><option value="task2">Story B</option>
+              <option value="task1">Story 1</option><option value="task2">Story 2</option>
             </select>
           </label>
           {filtered.length > 0 && <label className={styles.session}>Session
@@ -103,7 +103,7 @@ export default function HistoryViewer({ adminEmail }: { adminEmail: string }) {
         {error && <p className={styles.error} role="alert">{error}</p>}
         {warnings.map((warning, index) => <p className={styles.error} role="alert" key={index}>{warning}</p>)}
         {active && <p className={styles.caption}>
-          {task === "task1" ? "Story A" : "Story B"} / Participant no.: {loadedParticipant}
+          {task === "task1" ? "Story 1" : "Story 2"} / Participant no.: {loadedParticipant}
           {` · ${active.messages.length}개 메시지`}
         </p>}
         {active && <ShareControls key={`${loadedParticipant}:${task}:${active.sessionId}`}
@@ -113,7 +113,7 @@ export default function HistoryViewer({ adminEmail }: { adminEmail: string }) {
             {!active && !error && <p role="status" className={styles.empty}>
               {loading ? "Supabase에서 대화 기록을 불러오고 있습니다."
                 : loadedParticipant
-                  ? `${loadedParticipant}의 ${task === "task1" ? "Story A" : "Story B"} 기록이 없습니다. 다른 Story도 확인해 주세요.`
+                  ? `${loadedParticipant}의 ${task === "task1" ? "Story 1" : "Story 2"} 기록이 없습니다. 다른 Story도 확인해 주세요.`
                   : "참가자 ID를 입력하고 ‘기록 불러오기’를 눌러 주세요."}
             </p>}
             {active?.messages.map((message, index) => (

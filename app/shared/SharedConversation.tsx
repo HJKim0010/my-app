@@ -63,7 +63,7 @@ export default function SharedConversation() {
         <h1>My Writing Assistant</h1><p className="chat-session-caption">공유된 대화 · 읽기 전용</p>
       </div></div>
       {conversation && <p className={styles.caption}>
-        {conversation.participantId} · {conversation.taskId === "task1" ? "Story A" : "Story B"} · {conversation.messages.length}개 메시지
+        {conversation.participantId} · {conversation.taskId === "task1" ? "Story 1" : "Story 2"} · {conversation.messages.length}개 메시지
         {expiresAt && ` · ${formatShareDate(expiresAt)}까지 열람 가능 (한국 시간)`}
       </p>}
       {error && <p className={styles.error} role="alert">{error}</p>}

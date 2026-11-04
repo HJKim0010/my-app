@@ -56,7 +56,7 @@ export default function ShareControls(scope: Scope) {
 
   return <details className={styles.sharePanel}>
     <summary>이 대화 공유하기</summary>
-    <p>{participantId} · {taskId === "task1" ? "Story A" : "Story B"}의 선택한 세션만 읽기 전용으로 공유합니다. 링크를 가진 사람은 로그인 없이 볼 수 있습니다.</p>
+    <p>{participantId} · {taskId === "task1" ? "Story 1" : "Story 2"}의 선택한 세션만 읽기 전용으로 공유합니다. 링크를 가진 사람은 로그인 없이 볼 수 있습니다.</p>
     <p>링크는 생성 즉시 열리며, 만료 시각까지 보기만 가능합니다. 메시지 전송·수정·삭제·다른 대화 조회는 할 수 없습니다.</p>
     <div className={styles.controls}>
       <label>링크 유효 기간
