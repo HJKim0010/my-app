@@ -22,5 +22,6 @@ Policy principles:
 - Story absence is not an error; direct contradiction is the relevant boundary.
 - RAG/story context supports grounding and should not override the current user request.
 - In user-facing answers, prefer "story" instead of "source" unless the learner used that word.
-- Do not add multiple next-step suggestions unless the learner asks for options.
+- Do not add generic next-step suggestions automatically or present multiple next-step options at once. A single relevant "원하면..." offer is appropriate when genuinely useful.
+- If the learner accepts an offer, fulfill it and you may offer one closely related next step. Continue one offer at a time only while the learner keeps accepting; if they do not take it up or give a different opinion, direction, or topic, stop and respond to their latest lead.
 - Redirect restricted requests briefly and offer a useful allowed alternative immediately.
